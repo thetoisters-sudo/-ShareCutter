@@ -10,12 +10,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,26 +28,34 @@ class UserServiceTests {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository);
+        userService = new UserService(
+                userRepository,
+                passwordEncoder
+        );
     }
 
     @Test
     void shouldCreateUserWithNormalizedEmail() {
+        when(passwordEncoder.encode("plain-password"))
+                .thenReturn("hashed-password");
+
         when(userRepository.existsByEmailIgnoreCase(
                 "test.user@example.com"
         )).thenReturn(false);
 
-        when(userRepository.save(
-                org.mockito.ArgumentMatchers.any(UserEntity.class)
-        )).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.save(any(UserEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         UserEntity result = userService.createUser(
                 "  Test.User@Example.com  ",
-                "hashed-password",
+                "plain-password",
                 "Test",
                 "User"
         );
@@ -62,8 +72,12 @@ class UserServiceTests {
                 .isEqualTo("test.user@example.com");
         assertThat(savedUser.getPasswordHash())
                 .isEqualTo("hashed-password");
-        assertThat(savedUser.getFirstName()).isEqualTo("Test");
-        assertThat(savedUser.getLastName()).isEqualTo("User");
+        assertThat(savedUser.getFirstName())
+                .isEqualTo("Test");
+        assertThat(savedUser.getLastName())
+                .isEqualTo("User");
+
+        verify(passwordEncoder).encode("plain-password");
     }
 
     @Test
@@ -74,16 +88,18 @@ class UserServiceTests {
 
         assertThatThrownBy(() -> userService.createUser(
                 "Existing@Example.com",
-                "hashed-password",
+                "plain-password",
                 "Existing",
                 "User"
         ))
                 .isInstanceOf(UserAlreadyExistsException.class)
                 .hasMessageContaining("existing@example.com");
 
-        verify(userRepository, never()).save(
-                org.mockito.ArgumentMatchers.any(UserEntity.class)
-        );
+        verify(passwordEncoder, never())
+                .encode(any(CharSequence.class));
+
+        verify(userRepository, never())
+                .save(any(UserEntity.class));
     }
 
     @Test
