@@ -1,15 +1,16 @@
 package com.sharecutter.backend.controller;
 
-import com.sharecutter.backend.config.SecurityConfig;
 import com.sharecutter.backend.domain.enums.UserStatus;
 import com.sharecutter.backend.dto.auth.LoginRequest;
 import com.sharecutter.backend.dto.auth.TokenResponse;
 import com.sharecutter.backend.exception.GlobalExceptionHandler;
 import com.sharecutter.backend.exception.InactiveUserException;
 import com.sharecutter.backend.exception.InvalidCredentialsException;
+import com.sharecutter.backend.security.JwtAuthenticationFilter;
 import com.sharecutter.backend.service.AuthenticationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -26,10 +27,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AuthenticationController.class)
-@Import({
-        SecurityConfig.class,
-        GlobalExceptionHandler.class
-})
+@AutoConfigureMockMvc(addFilters = false)
+@Import(GlobalExceptionHandler.class)
 class AuthenticationControllerTests {
 
     private static final String LOGIN_PATH =
@@ -46,6 +45,9 @@ class AuthenticationControllerTests {
 
     @MockitoBean
     private AuthenticationService authenticationService;
+
+    @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
     void loginReturnsTokenResponseWhenCredentialsAreValid()

@@ -1,6 +1,5 @@
 package com.sharecutter.backend.controller;
 
-import com.sharecutter.backend.config.SecurityConfig;
 import com.sharecutter.backend.domain.entity.UserEntity;
 import com.sharecutter.backend.domain.enums.UserRole;
 import com.sharecutter.backend.domain.enums.UserStatus;
@@ -12,11 +11,13 @@ import com.sharecutter.backend.mapper.UserMapper;
 import com.sharecutter.backend.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import com.sharecutter.backend.security.JwtAuthenticationFilter;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -32,10 +33,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
-@Import({
-        SecurityConfig.class,
-        GlobalExceptionHandler.class
-})
+@AutoConfigureMockMvc(addFilters = false)
+@Import(GlobalExceptionHandler.class)
 class UserControllerTests {
 
     @Autowired
@@ -46,6 +45,9 @@ class UserControllerTests {
 
     @MockitoBean
     private UserMapper userMapper;
+
+    @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
     void createUserReturnsCreatedResponse() throws Exception {
