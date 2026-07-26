@@ -2,6 +2,7 @@ package com.sharecutter.backend.controller;
 
 import com.sharecutter.backend.domain.entity.UserEntity;
 import com.sharecutter.backend.dto.user.CreateUserRequest;
+import com.sharecutter.backend.dto.user.UpdateCurrentUserRequest;
 import com.sharecutter.backend.dto.user.UserResponse;
 import com.sharecutter.backend.mapper.UserMapper;
 import com.sharecutter.backend.service.UserService;
@@ -9,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -62,6 +64,24 @@ public class UserController {
     ) {
         UserResponse response =
                 userMapper.toResponse(authenticatedUser);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<UserResponse> updateCurrentUser(
+            @AuthenticationPrincipal UserEntity authenticatedUser,
+            @Valid @RequestBody UpdateCurrentUserRequest request
+    ) {
+        UserEntity updatedUser =
+                userService.updateCurrentUser(
+                        authenticatedUser,
+                        request.firstName(),
+                        request.lastName()
+                );
+
+        UserResponse response =
+                userMapper.toResponse(updatedUser);
 
         return ResponseEntity.ok(response);
     }

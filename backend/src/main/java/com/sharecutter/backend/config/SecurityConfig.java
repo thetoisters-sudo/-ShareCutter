@@ -60,6 +60,11 @@ public class SecurityConfig {
                                 )
                                 .authenticated()
                                 .requestMatchers(
+                                        HttpMethod.PATCH,
+                                        "/api/v1/users/me"
+                                )
+                                .authenticated()
+                                .requestMatchers(
                                         HttpMethod.GET,
                                         "/api/v1/users/**"
                                 )

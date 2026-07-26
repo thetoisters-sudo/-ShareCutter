@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -234,6 +235,75 @@ class SecurityIntegrationTests {
                         jsonPath("$.status")
                                 .value("ACTIVE")
                 );
+    }
+
+    @Test
+    void regularUserCanUpdateOwnProfile()
+            throws Exception {
+
+        String accessToken =
+                jwtService.generateAccessToken(activeUser);
+
+        mockMvc.perform(
+                        patch("/api/v1/users/me")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
+                                .contentType(
+                                        MediaType.APPLICATION_JSON
+                                )
+                                .content(
+                                        """
+                                        {
+                                          "firstName": "Updated",
+                                          "lastName": "User"
+                                        }
+                                        """
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.email")
+                                .value(USER_EMAIL)
+                )
+                .andExpect(
+                        jsonPath("$.firstName")
+                                .value("Updated")
+                )
+                .andExpect(
+                        jsonPath("$.lastName")
+                                .value("User")
+                )
+                .andExpect(
+                        jsonPath("$.role")
+                                .value("USER")
+                )
+                .andExpect(
+                        jsonPath("$.status")
+                                .value("ACTIVE")
+                );
+    }
+
+    @Test
+    void updateCurrentUserRejectsMissingToken()
+            throws Exception {
+
+        mockMvc.perform(
+                        patch("/api/v1/users/me")
+                                .contentType(
+                                        MediaType.APPLICATION_JSON
+                                )
+                                .content(
+                                        """
+                                        {
+                                          "firstName": "Updated",
+                                          "lastName": "User"
+                                        }
+                                        """
+                                )
+                )
+                .andExpect(status().isForbidden());
     }
 
     @Test

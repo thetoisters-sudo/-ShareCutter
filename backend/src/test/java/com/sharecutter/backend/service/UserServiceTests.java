@@ -134,6 +134,33 @@ class UserServiceTests {
     }
 
     @Test
+    void shouldUpdateCurrentUserNames() {
+        UserEntity user = new UserEntity(
+                "user@example.com",
+                "hashed-password",
+                "Old",
+                "Name"
+        );
+
+        when(userRepository.save(user))
+                .thenReturn(user);
+
+        UserEntity result = userService.updateCurrentUser(
+                user,
+                "  New  ",
+                "  Name  "
+        );
+
+        assertThat(result).isSameAs(user);
+        assertThat(user.getFirstName()).isEqualTo("New");
+        assertThat(user.getLastName()).isEqualTo("Name");
+
+        verify(userRepository).save(user);
+        verify(passwordEncoder, never())
+                .encode(any(CharSequence.class));
+    }
+
+    @Test
     void shouldDeleteExistingUser() {
         UUID userId = UUID.randomUUID();
 

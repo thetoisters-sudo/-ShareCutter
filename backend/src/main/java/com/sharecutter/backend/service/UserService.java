@@ -70,6 +70,18 @@ public class UserService {
     }
 
     @Transactional
+    public UserEntity updateCurrentUser(
+            UserEntity user,
+            String firstName,
+            String lastName
+    ) {
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+
+        return userRepository.save(user);
+    }
+
+    @Transactional
     public void deleteUser(UUID userId) {
         UserEntity user = getUserById(userId);
         userRepository.delete(user);

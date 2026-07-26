@@ -8,6 +8,7 @@ import com.sharecutter.backend.exception.GlobalExceptionHandler;
 import com.sharecutter.backend.exception.UserAlreadyExistsException;
 import com.sharecutter.backend.exception.UserNotFoundException;
 import com.sharecutter.backend.mapper.UserMapper;
+import com.sharecutter.backend.security.JwtAuthenticationFilter;
 import com.sharecutter.backend.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,18 +16,21 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import com.sharecutter.backend.security.JwtAuthenticationFilter;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -86,9 +90,8 @@ class UserControllerTests {
                 )
         ).thenReturn(userEntity);
 
-        when(
-                userMapper.toResponse(userEntity)
-        ).thenReturn(response);
+        when(userMapper.toResponse(userEntity))
+                .thenReturn(response);
 
         mockMvc.perform(
                         post("/api/v1/users")
@@ -215,6 +218,242 @@ class UserControllerTests {
     }
 
     @Test
+    void getCurrentUserReturnsAuthenticatedUser() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        OffsetDateTime createdAt = OffsetDateTime.of(
+                2026,
+                7,
+                25,
+                19,
+                0,
+                0,
+                0,
+                ZoneOffset.UTC
+        );
+
+        UserEntity authenticatedUser = mock(UserEntity.class);
+
+        UserResponse response = new UserResponse(
+                userId,
+                "user@example.com",
+                "Omri",
+                "Cohen",
+                UserRole.USER,
+                UserStatus.ACTIVE,
+                createdAt,
+                createdAt
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        authenticatedUser,
+                        null
+                )
+        );
+
+        when(userMapper.toResponse(authenticatedUser))
+                .thenReturn(response);
+
+        mockMvc.perform(
+                        get("/api/v1/users/me")
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.id").value(userId.toString())
+                )
+                .andExpect(
+                        jsonPath("$.email").value(
+                                "user@example.com"
+                        )
+                )
+                .andExpect(
+                        jsonPath("$.firstName").value("Omri")
+                )
+                .andExpect(
+                        jsonPath("$.lastName").value("Cohen")
+                );
+
+        verify(userMapper).toResponse(authenticatedUser);
+        verifyNoInteractions(userService);
+
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void updateCurrentUserReturnsUpdatedResponse() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        OffsetDateTime createdAt = OffsetDateTime.of(
+                2026,
+                7,
+                25,
+                19,
+                0,
+                0,
+                0,
+                ZoneOffset.UTC
+        );
+
+        UserEntity authenticatedUser = mock(UserEntity.class);
+        UserEntity updatedUser = mock(UserEntity.class);
+
+        UserResponse response = new UserResponse(
+                userId,
+                "user@example.com",
+                "New",
+                "Name",
+                UserRole.USER,
+                UserStatus.ACTIVE,
+                createdAt,
+                createdAt
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        authenticatedUser,
+                        null
+                )
+        );
+
+        when(
+                userService.updateCurrentUser(
+                        authenticatedUser,
+                        "New",
+                        "Name"
+                )
+        ).thenReturn(updatedUser);
+
+        when(userMapper.toResponse(updatedUser))
+                .thenReturn(response);
+
+        mockMvc.perform(
+                        patch("/api/v1/users/me")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "firstName": "New",
+                                          "lastName": "Name"
+                                        }
+                                        """
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.id").value(userId.toString())
+                )
+                .andExpect(
+                        jsonPath("$.email").value(
+                                "user@example.com"
+                        )
+                )
+                .andExpect(
+                        jsonPath("$.firstName").value("New")
+                )
+                .andExpect(
+                        jsonPath("$.lastName").value("Name")
+                )
+                .andExpect(
+                        jsonPath("$.role").value("USER")
+                )
+                .andExpect(
+                        jsonPath("$.status").value("ACTIVE")
+                )
+                .andExpect(
+                        jsonPath("$.passwordHash").doesNotExist()
+                );
+
+        verify(userService).updateCurrentUser(
+                authenticatedUser,
+                "New",
+                "Name"
+        );
+
+        verify(userMapper).toResponse(updatedUser);
+
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void updateCurrentUserRejectsBlankFirstName() throws Exception {
+        mockMvc.perform(
+                        patch("/api/v1/users/me")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "firstName": " ",
+                                          "lastName": "Name"
+                                        }
+                                        """
+                                )
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(
+                        jsonPath("$.timestamp").exists()
+                )
+                .andExpect(
+                        jsonPath("$.status").value(400)
+                )
+                .andExpect(
+                        jsonPath("$.error").value("Bad Request")
+                )
+                .andExpect(
+                        jsonPath("$.message").isNotEmpty()
+                )
+                .andExpect(
+                        jsonPath("$.path").value(
+                                "/api/v1/users/me"
+                        )
+                );
+
+        verifyNoInteractions(
+                userService,
+                userMapper
+        );
+    }
+
+    @Test
+    void updateCurrentUserRejectsBlankLastName() throws Exception {
+        mockMvc.perform(
+                        patch("/api/v1/users/me")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "firstName": "New",
+                                          "lastName": " "
+                                        }
+                                        """
+                                )
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(
+                        jsonPath("$.timestamp").exists()
+                )
+                .andExpect(
+                        jsonPath("$.status").value(400)
+                )
+                .andExpect(
+                        jsonPath("$.error").value("Bad Request")
+                )
+                .andExpect(
+                        jsonPath("$.message").isNotEmpty()
+                )
+                .andExpect(
+                        jsonPath("$.path").value(
+                                "/api/v1/users/me"
+                        )
+                );
+
+        verifyNoInteractions(
+                userService,
+                userMapper
+        );
+    }
+
+    @Test
     void getUserByIdReturnsUserResponse() throws Exception {
         UUID userId = UUID.randomUUID();
 
@@ -242,13 +481,11 @@ class UserControllerTests {
                 createdAt
         );
 
-        when(
-                userService.getUserById(userId)
-        ).thenReturn(userEntity);
+        when(userService.getUserById(userId))
+                .thenReturn(userEntity);
 
-        when(
-                userMapper.toResponse(userEntity)
-        ).thenReturn(response);
+        when(userMapper.toResponse(userEntity))
+                .thenReturn(response);
 
         mockMvc.perform(
                         get("/api/v1/users/{userId}", userId)
