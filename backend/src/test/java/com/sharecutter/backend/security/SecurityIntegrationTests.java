@@ -145,6 +145,98 @@ class SecurityIntegrationTests {
     }
 
     @Test
+    void currentUserEndpointRejectsMissingToken()
+            throws Exception {
+
+        mockMvc.perform(
+                        get("/api/v1/users/me")
+                )
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void regularUserCanAccessCurrentUserEndpoint()
+            throws Exception {
+
+        String accessToken =
+                jwtService.generateAccessToken(activeUser);
+
+        mockMvc.perform(
+                        get("/api/v1/users/me")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.id")
+                                .value(
+                                        activeUser
+                                                .getId()
+                                                .toString()
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.email")
+                                .value(USER_EMAIL)
+                )
+                .andExpect(
+                        jsonPath("$.firstName")
+                                .value("Security")
+                )
+                .andExpect(
+                        jsonPath("$.lastName")
+                                .value("User")
+                )
+                .andExpect(
+                        jsonPath("$.role")
+                                .value("USER")
+                )
+                .andExpect(
+                        jsonPath("$.status")
+                                .value("ACTIVE")
+                );
+    }
+
+    @Test
+    void adminCanAccessCurrentUserEndpoint()
+            throws Exception {
+
+        String accessToken =
+                jwtService.generateAccessToken(activeAdmin);
+
+        mockMvc.perform(
+                        get("/api/v1/users/me")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.id")
+                                .value(
+                                        activeAdmin
+                                                .getId()
+                                                .toString()
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.email")
+                                .value(ADMIN_EMAIL)
+                )
+                .andExpect(
+                        jsonPath("$.role")
+                                .value("ADMIN")
+                )
+                .andExpect(
+                        jsonPath("$.status")
+                                .value("ACTIVE")
+                );
+    }
+
+    @Test
     void protectedUserEndpointRejectsMissingToken()
             throws Exception {
 
