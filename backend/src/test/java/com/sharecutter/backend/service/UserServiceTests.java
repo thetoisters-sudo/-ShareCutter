@@ -43,12 +43,14 @@ class UserServiceTests {
 
     @Test
     void shouldCreateUserWithNormalizedEmail() {
+        when(userRepository
+                .existsByEmailIgnoreCaseAndDeletedAtIsNull(
+                        "test.user@example.com"
+                ))
+                .thenReturn(false);
+
         when(passwordEncoder.encode("plain-password"))
                 .thenReturn("hashed-password");
-
-        when(userRepository.existsByEmailIgnoreCase(
-                "test.user@example.com"
-        )).thenReturn(false);
 
         when(userRepository.save(any(UserEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -76,15 +78,24 @@ class UserServiceTests {
                 .isEqualTo("Test");
         assertThat(savedUser.getLastName())
                 .isEqualTo("User");
+        assertThat(savedUser.getDeletedAt()).isNull();
+        assertThat(savedUser.isDeleted()).isFalse();
+
+        verify(userRepository)
+                .existsByEmailIgnoreCaseAndDeletedAtIsNull(
+                        "test.user@example.com"
+                );
 
         verify(passwordEncoder).encode("plain-password");
     }
 
     @Test
-    void shouldRejectDuplicateEmail() {
-        when(userRepository.existsByEmailIgnoreCase(
-                "existing@example.com"
-        )).thenReturn(true);
+    void shouldRejectDuplicateActiveEmail() {
+        when(userRepository
+                .existsByEmailIgnoreCaseAndDeletedAtIsNull(
+                        "existing@example.com"
+                ))
+                .thenReturn(true);
 
         assertThatThrownBy(() -> userService.createUser(
                 "Existing@Example.com",
@@ -95,6 +106,11 @@ class UserServiceTests {
                 .isInstanceOf(UserAlreadyExistsException.class)
                 .hasMessageContaining("existing@example.com");
 
+        verify(userRepository)
+                .existsByEmailIgnoreCaseAndDeletedAtIsNull(
+                        "existing@example.com"
+                );
+
         verify(passwordEncoder, never())
                 .encode(any(CharSequence.class));
 
@@ -103,7 +119,7 @@ class UserServiceTests {
     }
 
     @Test
-    void shouldReturnUserById() {
+    void shouldReturnActiveUserById() {
         UUID userId = UUID.randomUUID();
 
         UserEntity user = new UserEntity(
@@ -113,24 +129,30 @@ class UserServiceTests {
                 "User"
         );
 
-        when(userRepository.findById(userId))
+        when(userRepository.findByIdAndDeletedAtIsNull(userId))
                 .thenReturn(Optional.of(user));
 
         UserEntity result = userService.getUserById(userId);
 
         assertThat(result).isSameAs(user);
+
+        verify(userRepository)
+                .findByIdAndDeletedAtIsNull(userId);
     }
 
     @Test
-    void shouldThrowWhenUserIdDoesNotExist() {
+    void shouldThrowWhenActiveUserIdDoesNotExist() {
         UUID userId = UUID.randomUUID();
 
-        when(userRepository.findById(userId))
+        when(userRepository.findByIdAndDeletedAtIsNull(userId))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.getUserById(userId))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining(userId.toString());
+
+        verify(userRepository)
+                .findByIdAndDeletedAtIsNull(userId);
     }
 
     @Test
@@ -156,12 +178,13 @@ class UserServiceTests {
         assertThat(user.getLastName()).isEqualTo("Name");
 
         verify(userRepository).save(user);
+
         verify(passwordEncoder, never())
                 .encode(any(CharSequence.class));
     }
 
     @Test
-    void shouldDeleteExistingUser() {
+    void shouldSoftDeleteExistingActiveUser() {
         UUID userId = UUID.randomUUID();
 
         UserEntity user = new UserEntity(
@@ -171,11 +194,47 @@ class UserServiceTests {
                 "User"
         );
 
-        when(userRepository.findById(userId))
+        when(userRepository.findByIdAndDeletedAtIsNull(userId))
                 .thenReturn(Optional.of(user));
+
+        when(userRepository.save(user))
+                .thenReturn(user);
+
+        assertThat(user.getDeletedAt()).isNull();
+        assertThat(user.isDeleted()).isFalse();
 
         userService.deleteUser(userId);
 
-        verify(userRepository).delete(user);
+        assertThat(user.getDeletedAt()).isNotNull();
+        assertThat(user.isDeleted()).isTrue();
+
+        verify(userRepository)
+                .findByIdAndDeletedAtIsNull(userId);
+
+        verify(userRepository).save(user);
+
+        verify(userRepository, never())
+                .delete(user);
+    }
+
+    @Test
+    void shouldThrowWhenDeletingActiveUserThatDoesNotExist() {
+        UUID userId = UUID.randomUUID();
+
+        when(userRepository.findByIdAndDeletedAtIsNull(userId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.deleteUser(userId))
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessageContaining(userId.toString());
+
+        verify(userRepository)
+                .findByIdAndDeletedAtIsNull(userId);
+
+        verify(userRepository, never())
+                .save(any(UserEntity.class));
+
+        verify(userRepository, never())
+                .delete(any(UserEntity.class));
     }
 }

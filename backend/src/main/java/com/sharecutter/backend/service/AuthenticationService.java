@@ -38,19 +38,27 @@ public class AuthenticationService {
         String normalizedEmail = normalizeEmail(request.email());
 
         UserEntity user = userRepository
-                .findByEmailIgnoreCase(normalizedEmail)
+                .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                        normalizedEmail
+                )
                 .orElseThrow(InvalidCredentialsException::new);
 
-        validatePassword(request.password(), user.getPasswordHash());
+        validatePassword(
+                request.password(),
+                user.getPasswordHash()
+        );
+
         validateUserStatus(user.getStatus());
 
-        String accessToken = jwtService.generateAccessToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user);
+        String accessToken =
+                jwtService.generateAccessToken(user);
 
-        long expiresIn =
-                jwtProperties
-                        .getAccessTokenExpiration()
-                        .toSeconds();
+        String refreshToken =
+                jwtService.generateRefreshToken(user);
+
+        long expiresIn = jwtProperties
+                .getAccessTokenExpiration()
+                .toSeconds();
 
         return new TokenResponse(
                 accessToken,
@@ -63,7 +71,10 @@ public class AuthenticationService {
             String rawPassword,
             String passwordHash
     ) {
-        if (!passwordEncoder.matches(rawPassword, passwordHash)) {
+        if (!passwordEncoder.matches(
+                rawPassword,
+                passwordHash
+        )) {
             throw new InvalidCredentialsException();
         }
     }
@@ -75,6 +86,8 @@ public class AuthenticationService {
     }
 
     private String normalizeEmail(String email) {
-        return email.trim().toLowerCase();
+        return email
+                .trim()
+                .toLowerCase();
     }
 }

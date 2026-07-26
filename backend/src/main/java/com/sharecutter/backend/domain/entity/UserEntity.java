@@ -8,6 +8,9 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+
 @Entity
 @Table(name = "users")
 public class UserEntity extends BaseEntity {
@@ -31,6 +34,9 @@ public class UserEntity extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private UserStatus status = UserStatus.ACTIVE;
+
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
 
     protected UserEntity() {
     }
@@ -101,6 +107,24 @@ public class UserEntity extends BaseEntity {
         }
 
         this.status = status;
+    }
+
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    public void softDelete() {
+        if (deletedAt == null) {
+            deletedAt = OffsetDateTime.now(ZoneOffset.UTC);
+        }
+    }
+
+    public void restore() {
+        deletedAt = null;
     }
 
     private static String normalizeEmail(String email) {

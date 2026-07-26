@@ -186,7 +186,10 @@ class JwtAuthenticationFilterTests {
         ).thenReturn(EMAIL);
 
         when(
-                userRepository.findByEmailIgnoreCase(EMAIL)
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
+                        )
         ).thenReturn(Optional.of(user));
 
         when(user.getStatus())
@@ -346,7 +349,10 @@ class JwtAuthenticationFilterTests {
         ).thenReturn(EMAIL);
 
         when(
-                userRepository.findByEmailIgnoreCase(EMAIL)
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
+                        )
         ).thenReturn(Optional.empty());
 
         jwtAuthenticationFilter.doFilter(
@@ -387,7 +393,10 @@ class JwtAuthenticationFilterTests {
         ).thenReturn(EMAIL);
 
         when(
-                userRepository.findByEmailIgnoreCase(EMAIL)
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
+                        )
         ).thenReturn(Optional.of(user));
 
         when(user.getStatus())
@@ -439,7 +448,10 @@ class JwtAuthenticationFilterTests {
         ).thenReturn(EMAIL);
 
         when(
-                userRepository.findByEmailIgnoreCase(EMAIL)
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
+                        )
         ).thenReturn(Optional.of(user));
 
         when(user.getStatus())
@@ -491,7 +503,10 @@ class JwtAuthenticationFilterTests {
         ).thenReturn(EMAIL);
 
         when(
-                userRepository.findByEmailIgnoreCase(EMAIL)
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
+                        )
         ).thenReturn(Optional.of(user));
 
         when(user.getStatus())
@@ -619,7 +634,10 @@ class JwtAuthenticationFilterTests {
         ).thenReturn(EMAIL);
 
         when(
-                userRepository.findByEmailIgnoreCase(EMAIL)
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
+                        )
         ).thenReturn(Optional.of(user));
 
         when(user.getStatus())

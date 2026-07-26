@@ -44,7 +44,9 @@ public class JwtAuthenticationFilter
     ) throws ServletException, IOException {
 
         String authorizationHeader =
-                request.getHeader(HttpHeaders.AUTHORIZATION);
+                request.getHeader(
+                        HttpHeaders.AUTHORIZATION
+                );
 
         if (!hasBearerToken(authorizationHeader)) {
             filterChain.doFilter(request, response);
@@ -76,10 +78,14 @@ public class JwtAuthenticationFilter
                 return;
             }
 
-            String email = jwtService.extractEmail(token);
+            String email =
+                    jwtService.extractEmail(token);
 
             Optional<UserEntity> optionalUser =
-                    userRepository.findByEmailIgnoreCase(email);
+                    userRepository
+                            .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                    email
+                            );
 
             if (optionalUser.isEmpty()) {
                 return;
@@ -97,7 +103,8 @@ public class JwtAuthenticationFilter
 
             SimpleGrantedAuthority authority =
                     new SimpleGrantedAuthority(
-                            ROLE_PREFIX + user.getRole().name()
+                            ROLE_PREFIX
+                                    + user.getRole().name()
                     );
 
             UsernamePasswordAuthenticationToken authentication =
@@ -120,7 +127,9 @@ public class JwtAuthenticationFilter
             String authorizationHeader
     ) {
         return authorizationHeader != null
-                && authorizationHeader.startsWith(BEARER_PREFIX)
+                && authorizationHeader.startsWith(
+                        BEARER_PREFIX
+                )
                 && authorizationHeader.length()
                 > BEARER_PREFIX.length();
     }

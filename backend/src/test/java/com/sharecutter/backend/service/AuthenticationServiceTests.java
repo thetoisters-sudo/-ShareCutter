@@ -63,31 +63,41 @@ class AuthenticationServiceTests {
     @Test
     void loginShouldReturnTokensWhenCredentialsAreValid() {
         UserEntity user = createActiveUser();
+
         LoginRequest request = new LoginRequest(
                 EMAIL,
                 RAW_PASSWORD
         );
 
-        when(userRepository.findByEmailIgnoreCase(EMAIL))
-                .thenReturn(Optional.of(user));
-
-        when(passwordEncoder.matches(
-                RAW_PASSWORD,
-                PASSWORD_HASH
-        )).thenReturn(true);
-
-        when(jwtService.generateAccessToken(user))
-                .thenReturn(ACCESS_TOKEN);
-
-        when(jwtService.generateRefreshToken(user))
-                .thenReturn(REFRESH_TOKEN);
-
-        when(jwtProperties.getAccessTokenExpiration())
-                .thenReturn(
-                        Duration.ofSeconds(
-                                ACCESS_TOKEN_EXPIRATION_SECONDS
+        when(
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
                         )
-                );
+        ).thenReturn(Optional.of(user));
+
+        when(
+                passwordEncoder.matches(
+                        RAW_PASSWORD,
+                        PASSWORD_HASH
+                )
+        ).thenReturn(true);
+
+        when(
+                jwtService.generateAccessToken(user)
+        ).thenReturn(ACCESS_TOKEN);
+
+        when(
+                jwtService.generateRefreshToken(user)
+        ).thenReturn(REFRESH_TOKEN);
+
+        when(
+                jwtProperties.getAccessTokenExpiration()
+        ).thenReturn(
+                Duration.ofSeconds(
+                        ACCESS_TOKEN_EXPIRATION_SECONDS
+                )
+        );
 
         TokenResponse response =
                 authenticationService.login(request);
@@ -113,7 +123,9 @@ class AuthenticationServiceTests {
         );
 
         verify(userRepository)
-                .findByEmailIgnoreCase(EMAIL);
+                .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                        EMAIL
+                );
 
         verify(passwordEncoder)
                 .matches(
@@ -131,36 +143,48 @@ class AuthenticationServiceTests {
     @Test
     void loginShouldNormalizeEmailBeforeSearching() {
         UserEntity user = createActiveUser();
+
         LoginRequest request = new LoginRequest(
                 "  USER@EXAMPLE.COM  ",
                 RAW_PASSWORD
         );
 
-        when(userRepository.findByEmailIgnoreCase(EMAIL))
-                .thenReturn(Optional.of(user));
-
-        when(passwordEncoder.matches(
-                RAW_PASSWORD,
-                PASSWORD_HASH
-        )).thenReturn(true);
-
-        when(jwtService.generateAccessToken(user))
-                .thenReturn(ACCESS_TOKEN);
-
-        when(jwtService.generateRefreshToken(user))
-                .thenReturn(REFRESH_TOKEN);
-
-        when(jwtProperties.getAccessTokenExpiration())
-                .thenReturn(
-                        Duration.ofSeconds(
-                                ACCESS_TOKEN_EXPIRATION_SECONDS
+        when(
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
                         )
-                );
+        ).thenReturn(Optional.of(user));
+
+        when(
+                passwordEncoder.matches(
+                        RAW_PASSWORD,
+                        PASSWORD_HASH
+                )
+        ).thenReturn(true);
+
+        when(
+                jwtService.generateAccessToken(user)
+        ).thenReturn(ACCESS_TOKEN);
+
+        when(
+                jwtService.generateRefreshToken(user)
+        ).thenReturn(REFRESH_TOKEN);
+
+        when(
+                jwtProperties.getAccessTokenExpiration()
+        ).thenReturn(
+                Duration.ofSeconds(
+                        ACCESS_TOKEN_EXPIRATION_SECONDS
+                )
+        );
 
         authenticationService.login(request);
 
         verify(userRepository)
-                .findByEmailIgnoreCase(EMAIL);
+                .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                        EMAIL
+                );
     }
 
     @Test
@@ -170,8 +194,12 @@ class AuthenticationServiceTests {
                 RAW_PASSWORD
         );
 
-        when(userRepository.findByEmailIgnoreCase(EMAIL))
-                .thenReturn(Optional.empty());
+        when(
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
+                        )
+        ).thenReturn(Optional.empty());
 
         assertThrows(
                 InvalidCredentialsException.class,
@@ -198,18 +226,25 @@ class AuthenticationServiceTests {
     @Test
     void loginShouldThrowWhenPasswordIsInvalid() {
         UserEntity user = createActiveUser();
+
         LoginRequest request = new LoginRequest(
                 EMAIL,
                 RAW_PASSWORD
         );
 
-        when(userRepository.findByEmailIgnoreCase(EMAIL))
-                .thenReturn(Optional.of(user));
+        when(
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
+                        )
+        ).thenReturn(Optional.of(user));
 
-        when(passwordEncoder.matches(
-                RAW_PASSWORD,
-                PASSWORD_HASH
-        )).thenReturn(false);
+        when(
+                passwordEncoder.matches(
+                        RAW_PASSWORD,
+                        PASSWORD_HASH
+                )
+        ).thenReturn(false);
 
         assertThrows(
                 InvalidCredentialsException.class,
@@ -233,13 +268,19 @@ class AuthenticationServiceTests {
                 RAW_PASSWORD
         );
 
-        when(userRepository.findByEmailIgnoreCase(EMAIL))
-                .thenReturn(Optional.of(user));
+        when(
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
+                        )
+        ).thenReturn(Optional.of(user));
 
-        when(passwordEncoder.matches(
-                RAW_PASSWORD,
-                PASSWORD_HASH
-        )).thenReturn(true);
+        when(
+                passwordEncoder.matches(
+                        RAW_PASSWORD,
+                        PASSWORD_HASH
+                )
+        ).thenReturn(true);
 
         InactiveUserException exception =
                 assertThrows(
@@ -269,13 +310,19 @@ class AuthenticationServiceTests {
                 RAW_PASSWORD
         );
 
-        when(userRepository.findByEmailIgnoreCase(EMAIL))
-                .thenReturn(Optional.of(user));
+        when(
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                EMAIL
+                        )
+        ).thenReturn(Optional.of(user));
 
-        when(passwordEncoder.matches(
-                RAW_PASSWORD,
-                PASSWORD_HASH
-        )).thenReturn(true);
+        when(
+                passwordEncoder.matches(
+                        RAW_PASSWORD,
+                        PASSWORD_HASH
+                )
+        ).thenReturn(true);
 
         InactiveUserException exception =
                 assertThrows(
