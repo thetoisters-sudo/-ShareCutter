@@ -58,7 +58,7 @@ public class SecurityConfig {
                                         HttpMethod.GET,
                                         "/api/v1/users/**"
                                 )
-                                .authenticated()
+                                .hasRole("ADMIN")
                                 .anyRequest()
                                 .denyAll()
                 )

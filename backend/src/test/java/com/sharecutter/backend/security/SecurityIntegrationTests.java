@@ -25,8 +25,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class SecurityIntegrationTests {
 
-    private static final String EMAIL =
+    private static final String USER_EMAIL =
             "security.integration@example.com";
+
+    private static final String ADMIN_EMAIL =
+            "security.admin@example.com";
 
     private static final String PASSWORD =
             "StrongPassword123";
@@ -44,14 +47,15 @@ class SecurityIntegrationTests {
     private JwtService jwtService;
 
     private UserEntity activeUser;
+    private UserEntity activeAdmin;
 
     @BeforeEach
     void setUp() {
         activeUser = new UserEntity(
-                EMAIL,
+                USER_EMAIL,
                 passwordEncoder.encode(PASSWORD),
                 "Security",
-                "Integration"
+                "User"
         );
 
         activeUser.setRole(UserRole.USER);
@@ -59,6 +63,19 @@ class SecurityIntegrationTests {
 
         activeUser =
                 userRepository.saveAndFlush(activeUser);
+
+        activeAdmin = new UserEntity(
+                ADMIN_EMAIL,
+                passwordEncoder.encode(PASSWORD),
+                "Security",
+                "Admin"
+        );
+
+        activeAdmin.setRole(UserRole.ADMIN);
+        activeAdmin.setStatus(UserStatus.ACTIVE);
+
+        activeAdmin =
+                userRepository.saveAndFlush(activeAdmin);
     }
 
     @Test
@@ -158,11 +175,31 @@ class SecurityIntegrationTests {
     }
 
     @Test
-    void protectedUserEndpointAcceptsValidAccessToken()
+    void regularUserCannotAccessAdminUserEndpoint()
             throws Exception {
 
         String accessToken =
                 jwtService.generateAccessToken(activeUser);
+
+        mockMvc.perform(
+                        get(
+                                "/api/v1/users/{userId}",
+                                activeUser.getId()
+                        )
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
+                )
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCanAccessUserEndpoint()
+            throws Exception {
+
+        String accessToken =
+                jwtService.generateAccessToken(activeAdmin);
 
         mockMvc.perform(
                         get(
@@ -185,7 +222,7 @@ class SecurityIntegrationTests {
                 )
                 .andExpect(
                         jsonPath("$.email")
-                                .value(EMAIL)
+                                .value(USER_EMAIL)
                 )
                 .andExpect(
                         jsonPath("$.role")
@@ -202,7 +239,7 @@ class SecurityIntegrationTests {
             throws Exception {
 
         String refreshToken =
-                jwtService.generateRefreshToken(activeUser);
+                jwtService.generateRefreshToken(activeAdmin);
 
         mockMvc.perform(
                         get(
@@ -218,16 +255,16 @@ class SecurityIntegrationTests {
     }
 
     @Test
-    void disabledUserCannotAccessProtectedEndpoint()
+    void disabledAdminCannotAccessProtectedEndpoint()
             throws Exception {
 
-        activeUser.setStatus(UserStatus.DISABLED);
+        activeAdmin.setStatus(UserStatus.DISABLED);
 
-        activeUser =
-                userRepository.saveAndFlush(activeUser);
+        activeAdmin =
+                userRepository.saveAndFlush(activeAdmin);
 
         String accessToken =
-                jwtService.generateAccessToken(activeUser);
+                jwtService.generateAccessToken(activeAdmin);
 
         mockMvc.perform(
                         get(
@@ -243,16 +280,16 @@ class SecurityIntegrationTests {
     }
 
     @Test
-    void lockedUserCannotAccessProtectedEndpoint()
+    void lockedAdminCannotAccessProtectedEndpoint()
             throws Exception {
 
-        activeUser.setStatus(UserStatus.LOCKED);
+        activeAdmin.setStatus(UserStatus.LOCKED);
 
-        activeUser =
-                userRepository.saveAndFlush(activeUser);
+        activeAdmin =
+                userRepository.saveAndFlush(activeAdmin);
 
         String accessToken =
-                jwtService.generateAccessToken(activeUser);
+                jwtService.generateAccessToken(activeAdmin);
 
         mockMvc.perform(
                         get(
@@ -265,5 +302,5 @@ class SecurityIntegrationTests {
                                 )
                 )
                 .andExpect(status().isForbidden());
-        }
+    }
 }
