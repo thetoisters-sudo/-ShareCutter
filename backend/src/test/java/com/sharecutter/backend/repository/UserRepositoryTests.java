@@ -7,22 +7,21 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
-
 @AutoConfigureTestDatabase(
         replace = AutoConfigureTestDatabase.Replace.NONE
 )
-
 class UserRepositoryTests {
 
     @Autowired
     private UserRepository userRepository;
 
     @Test
-    void shouldSaveAndFindUserByEmailIgnoringCase() {
+    void shouldSaveAndFindActiveUserByEmailIgnoringCase() {
         UserEntity user = new UserEntity(
                 "Test.User@Example.com",
                 "hashed-password",
@@ -33,11 +32,15 @@ class UserRepositoryTests {
         UserEntity savedUser = userRepository.saveAndFlush(user);
 
         Optional<UserEntity> foundUser =
-                userRepository.findByEmailIgnoreCase("TEST.USER@EXAMPLE.COM");
+                userRepository
+                        .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                                "TEST.USER@EXAMPLE.COM"
+                        );
 
         assertThat(savedUser.getId()).isNotNull();
         assertThat(savedUser.getCreatedAt()).isNotNull();
         assertThat(savedUser.getUpdatedAt()).isNotNull();
+        assertThat(savedUser.getDeletedAt()).isNull();
 
         assertThat(foundUser).isPresent();
         assertThat(foundUser.get().getEmail())
@@ -45,7 +48,7 @@ class UserRepositoryTests {
     }
 
     @Test
-    void shouldDetectExistingEmailIgnoringCase() {
+    void shouldDetectExistingActiveEmailIgnoringCase() {
         UserEntity user = new UserEntity(
                 "existing@example.com",
                 "hashed-password",
@@ -55,9 +58,79 @@ class UserRepositoryTests {
 
         userRepository.saveAndFlush(user);
 
-        boolean exists =
-                userRepository.existsByEmailIgnoreCase("EXISTING@EXAMPLE.COM");
+        boolean exists = userRepository
+                .existsByEmailIgnoreCaseAndDeletedAtIsNull(
+                        "EXISTING@EXAMPLE.COM"
+                );
 
         assertThat(exists).isTrue();
+    }
+
+    @Test
+    void shouldNotFindSoftDeletedUserByEmail() {
+        UserEntity user = new UserEntity(
+                "deleted.email@example.com",
+                "hashed-password",
+                "Deleted",
+                "User"
+        );
+
+        UserEntity savedUser = userRepository.saveAndFlush(user);
+
+        savedUser.softDelete();
+        userRepository.saveAndFlush(savedUser);
+
+        Optional<UserEntity> foundUser = userRepository
+                .findByEmailIgnoreCaseAndDeletedAtIsNull(
+                        "DELETED.EMAIL@EXAMPLE.COM"
+                );
+
+        assertThat(savedUser.getDeletedAt()).isNotNull();
+        assertThat(savedUser.isDeleted()).isTrue();
+        assertThat(foundUser).isEmpty();
+    }
+
+    @Test
+    void shouldNotFindSoftDeletedUserById() {
+        UserEntity user = new UserEntity(
+                "deleted.id@example.com",
+                "hashed-password",
+                "Deleted",
+                "User"
+        );
+
+        UserEntity savedUser = userRepository.saveAndFlush(user);
+        UUID userId = savedUser.getId();
+
+        savedUser.softDelete();
+        userRepository.saveAndFlush(savedUser);
+
+        Optional<UserEntity> foundUser =
+                userRepository.findByIdAndDeletedAtIsNull(userId);
+
+        assertThat(savedUser.getDeletedAt()).isNotNull();
+        assertThat(foundUser).isEmpty();
+    }
+
+    @Test
+    void shouldTreatSoftDeletedEmailAsAvailable() {
+        UserEntity user = new UserEntity(
+                "available@example.com",
+                "hashed-password",
+                "Available",
+                "User"
+        );
+
+        UserEntity savedUser = userRepository.saveAndFlush(user);
+
+        savedUser.softDelete();
+        userRepository.saveAndFlush(savedUser);
+
+        boolean exists = userRepository
+                .existsByEmailIgnoreCaseAndDeletedAtIsNull(
+                        "AVAILABLE@EXAMPLE.COM"
+                );
+
+        assertThat(exists).isFalse();
     }
 }

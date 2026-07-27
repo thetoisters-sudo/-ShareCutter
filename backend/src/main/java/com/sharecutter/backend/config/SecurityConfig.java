@@ -1,15 +1,27 @@
 package com.sharecutter.backend.config;
 
+import com.sharecutter.backend.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter
+    ) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -34,8 +46,8 @@ public class SecurityConfig {
                                 )
                                 .permitAll()
                                 .requestMatchers(
-                                        HttpMethod.GET,
-                                        "/api/v1/users/**"
+                                        HttpMethod.POST,
+                                        "/api/v1/auth/login"
                                 )
                                 .permitAll()
                                 .requestMatchers(
@@ -44,8 +56,37 @@ public class SecurityConfig {
                                         "/actuator/health/**"
                                 )
                                 .permitAll()
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/v1/users/me"
+                                )
+                                .authenticated()
+                                .requestMatchers(
+                                        HttpMethod.PATCH,
+                                        "/api/v1/users/me"
+                                )
+                                .authenticated()
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/v1/users/**"
+                                )
+                                .hasRole("ADMIN")
+                                .requestMatchers(
+                                        HttpMethod.PATCH,
+                                        "/api/v1/users/*"
+                                )
+                                .hasRole("ADMIN")
+                                .requestMatchers(
+                                        HttpMethod.DELETE,
+                                        "/api/v1/users/*"
+                                )
+                                .hasRole("ADMIN")
                                 .anyRequest()
                                 .denyAll()
+                )
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
                 );
 
         return http.build();

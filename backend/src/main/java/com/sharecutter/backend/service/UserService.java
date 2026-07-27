@@ -1,6 +1,8 @@
 package com.sharecutter.backend.service;
 
 import com.sharecutter.backend.domain.entity.UserEntity;
+import com.sharecutter.backend.domain.enums.UserRole;
+import com.sharecutter.backend.domain.enums.UserStatus;
 import com.sharecutter.backend.exception.UserAlreadyExistsException;
 import com.sharecutter.backend.exception.UserNotFoundException;
 import com.sharecutter.backend.repository.UserRepository;
@@ -35,7 +37,7 @@ public class UserService {
     ) {
         String normalizedEmail = normalizeEmail(email);
 
-        if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
+        if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(normalizedEmail)) {
             throw new UserAlreadyExistsException(normalizedEmail);
         }
 
@@ -52,27 +54,60 @@ public class UserService {
     }
 
     public UserEntity getUserById(UUID userId) {
-        return userRepository.findById(userId)
+        return userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
     }
 
     public UserEntity getUserByEmail(String email) {
         String normalizedEmail = normalizeEmail(email);
 
-        return userRepository.findByEmailIgnoreCase(normalizedEmail)
+        return userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(normalizedEmail)
                 .orElseThrow(() -> new UserNotFoundException(normalizedEmail));
     }
 
     public boolean emailExists(String email) {
-        return userRepository.existsByEmailIgnoreCase(
+        return userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(
                 normalizeEmail(email)
         );
     }
 
     @Transactional
+    public UserEntity updateCurrentUser(
+            UserEntity user,
+            String firstName,
+            String lastName
+    ) {
+        user.setFirstName(firstName.trim());
+        user.setLastName(lastName.trim());
+
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public UserEntity updateUserByAdmin(
+            UUID userId,
+            String firstName,
+            String lastName,
+            UserRole role,
+            UserStatus status
+    ) {
+        UserEntity user = getUserById(userId);
+
+        user.setFirstName(firstName.trim());
+        user.setLastName(lastName.trim());
+        user.setRole(role);
+        user.setStatus(status);
+
+        return userRepository.save(user);
+    }
+
+    @Transactional
     public void deleteUser(UUID userId) {
         UserEntity user = getUserById(userId);
-        userRepository.delete(user);
+
+        user.softDelete();
+
+        userRepository.save(user);
     }
 
     private String normalizeEmail(String email) {
