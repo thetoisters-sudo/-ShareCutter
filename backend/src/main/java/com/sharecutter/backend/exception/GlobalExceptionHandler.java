@@ -87,6 +87,30 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(TransactionNotFoundException.class)
+    public ResponseEntity<ApiError> handleTransactionNotFound(
+            TransactionNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                request
+        );
+    }
+
+    @ExceptionHandler(InvalidTransactionException.class)
+    public ResponseEntity<ApiError> handleInvalidTransaction(
+            InvalidTransactionException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                request
+        );
+    }
+
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ApiError> handleInvalidCredentials(
             InvalidCredentialsException exception,
@@ -177,13 +201,21 @@ public class GlobalExceptionHandler {
         );
     }
 
-    private String formatFieldError(FieldError fieldError) {
-        String defaultMessage = fieldError.getDefaultMessage();
+    private String formatFieldError(
+            FieldError fieldError
+    ) {
+        String defaultMessage =
+                fieldError.getDefaultMessage();
 
-        if (defaultMessage == null || defaultMessage.isBlank()) {
+        if (
+                defaultMessage == null
+                        || defaultMessage.isBlank()
+        ) {
             defaultMessage = "is invalid";
         }
 
-        return fieldError.getField() + ": " + defaultMessage;
+        return fieldError.getField()
+                + ": "
+                + defaultMessage;
     }
 }
