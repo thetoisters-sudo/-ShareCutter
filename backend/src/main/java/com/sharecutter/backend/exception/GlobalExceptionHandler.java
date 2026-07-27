@@ -20,15 +20,11 @@ public class GlobalExceptionHandler {
             UserNotFoundException exception,
             HttpServletRequest request
     ) {
-        ApiError apiError = createApiError(
+        return buildResponse(
                 HttpStatus.NOT_FOUND,
                 exception.getMessage(),
-                request.getRequestURI()
+                request
         );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
     }
 
     @ExceptionHandler(UserAlreadyExistsException.class)
@@ -36,15 +32,59 @@ public class GlobalExceptionHandler {
             UserAlreadyExistsException exception,
             HttpServletRequest request
     ) {
-        ApiError apiError = createApiError(
+        return buildResponse(
                 HttpStatus.CONFLICT,
                 exception.getMessage(),
-                request.getRequestURI()
+                request
         );
+    }
 
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
+    @ExceptionHandler(PortfolioNotFoundException.class)
+    public ResponseEntity<ApiError> handlePortfolioNotFound(
+            PortfolioNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                request
+        );
+    }
+
+    @ExceptionHandler(PortfolioAlreadyExistsException.class)
+    public ResponseEntity<ApiError> handlePortfolioAlreadyExists(
+            PortfolioAlreadyExistsException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                exception.getMessage(),
+                request
+        );
+    }
+
+    @ExceptionHandler(AssetNotFoundException.class)
+    public ResponseEntity<ApiError> handleAssetNotFound(
+            AssetNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                request
+        );
+    }
+
+    @ExceptionHandler(AssetAlreadyExistsException.class)
+    public ResponseEntity<ApiError> handleAssetAlreadyExists(
+            AssetAlreadyExistsException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                exception.getMessage(),
+                request
+        );
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
@@ -52,15 +92,11 @@ public class GlobalExceptionHandler {
             InvalidCredentialsException exception,
             HttpServletRequest request
     ) {
-        ApiError apiError = createApiError(
+        return buildResponse(
                 HttpStatus.UNAUTHORIZED,
                 exception.getMessage(),
-                request.getRequestURI()
+                request
         );
-
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(apiError);
     }
 
     @ExceptionHandler(InactiveUserException.class)
@@ -68,15 +104,11 @@ public class GlobalExceptionHandler {
             InactiveUserException exception,
             HttpServletRequest request
     ) {
-        ApiError apiError = createApiError(
+        return buildResponse(
                 HttpStatus.FORBIDDEN,
                 exception.getMessage(),
-                request.getRequestURI()
+                request
         );
-
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(apiError);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -96,15 +128,11 @@ public class GlobalExceptionHandler {
             message = "Request validation failed";
         }
 
-        ApiError apiError = createApiError(
+        return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 message,
-                request.getRequestURI()
+                request
         );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
     }
 
     @ExceptionHandler(Exception.class)
@@ -112,14 +140,26 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
-        ApiError apiError = createApiError(
+        return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred",
+                request
+        );
+    }
+
+    private ResponseEntity<ApiError> buildResponse(
+            HttpStatus status,
+            String message,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = createApiError(
+                status,
+                message,
                 request.getRequestURI()
         );
 
         return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .status(status)
                 .body(apiError);
     }
 

@@ -1,0 +1,202 @@
+package com.sharecutter.backend.service;
+
+import com.sharecutter.backend.domain.entity.AssetEntity;
+import com.sharecutter.backend.domain.entity.PortfolioEntity;
+import com.sharecutter.backend.domain.enums.AssetType;
+import com.sharecutter.backend.exception.AssetAlreadyExistsException;
+import com.sharecutter.backend.exception.AssetNotFoundException;
+import com.sharecutter.backend.repository.AssetRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
+
+@Service
+@Transactional(readOnly = true)
+public class AssetService {
+
+    private final AssetRepository assetRepository;
+    private final PortfolioService portfolioService;
+
+    public AssetService(
+            AssetRepository assetRepository,
+            PortfolioService portfolioService
+    ) {
+        this.assetRepository = assetRepository;
+        this.portfolioService = portfolioService;
+    }
+
+    @Transactional
+    public AssetEntity createAsset(
+            UUID userId,
+            UUID portfolioId,
+            String symbol,
+            String displayName,
+            AssetType assetType,
+            String currency,
+            String isin,
+            String exchange,
+            String notes
+    ) {
+        PortfolioEntity portfolio = portfolioService.getPortfolio(
+                userId,
+                portfolioId
+        );
+
+        String normalizedSymbol = normalizeSymbol(symbol);
+
+        validateUniqueSymbol(
+                portfolioId,
+                normalizedSymbol,
+                null
+        );
+
+        AssetEntity asset = new AssetEntity(
+                portfolio,
+                normalizedSymbol,
+                displayName,
+                assetType,
+                currency,
+                isin,
+                exchange,
+                notes
+        );
+
+        return assetRepository.save(asset);
+    }
+
+    public AssetEntity getAsset(
+            UUID userId,
+            UUID portfolioId,
+            UUID assetId
+    ) {
+        portfolioService.getPortfolio(
+                userId,
+                portfolioId
+        );
+
+        return assetRepository
+                .findByIdAndPortfolioIdAndDeletedAtIsNull(
+                        assetId,
+                        portfolioId
+                )
+                .orElseThrow(
+                        () -> new AssetNotFoundException(
+                                assetId
+                        )
+                );
+    }
+
+    public List<AssetEntity> getPortfolioAssets(
+            UUID userId,
+            UUID portfolioId
+    ) {
+        portfolioService.getPortfolio(
+                userId,
+                portfolioId
+        );
+
+        return assetRepository
+                .findAllByPortfolioIdAndDeletedAtIsNullOrderByCreatedAtAsc(
+                        portfolioId
+                );
+    }
+
+    @Transactional
+    public AssetEntity updateAsset(
+            UUID userId,
+            UUID portfolioId,
+            UUID assetId,
+            String symbol,
+            String displayName,
+            AssetType assetType,
+            String currency,
+            String isin,
+            String exchange,
+            String notes
+    ) {
+        AssetEntity asset = getAsset(
+                userId,
+                portfolioId,
+                assetId
+        );
+
+        String normalizedSymbol = normalizeSymbol(symbol);
+
+        if (!asset.getSymbol().equalsIgnoreCase(normalizedSymbol)) {
+            validateUniqueSymbol(
+                    portfolioId,
+                    normalizedSymbol,
+                    assetId
+            );
+        }
+
+        asset.setSymbol(normalizedSymbol);
+        asset.setDisplayName(displayName);
+        asset.setAssetType(assetType);
+        asset.setCurrency(currency);
+        asset.setIsin(isin);
+        asset.setExchange(exchange);
+        asset.setNotes(notes);
+
+        return assetRepository.save(asset);
+    }
+
+    @Transactional
+    public void deleteAsset(
+            UUID userId,
+            UUID portfolioId,
+            UUID assetId
+    ) {
+        AssetEntity asset = getAsset(
+                userId,
+                portfolioId,
+                assetId
+        );
+
+        asset.softDelete();
+
+        assetRepository.save(asset);
+    }
+
+    private void validateUniqueSymbol(
+            UUID portfolioId,
+            String symbol,
+            UUID excludedAssetId
+    ) {
+        assetRepository
+                .findByPortfolioIdAndSymbolIgnoreCaseAndDeletedAtIsNull(
+                        portfolioId,
+                        symbol
+                )
+                .filter(
+                        existingAsset ->
+                                excludedAssetId == null
+                                        || !existingAsset
+                                        .getId()
+                                        .equals(excludedAssetId)
+                )
+                .ifPresent(
+                        existingAsset -> {
+                            throw new AssetAlreadyExistsException(
+                                    portfolioId,
+                                    symbol
+                            );
+                        }
+                );
+    }
+
+    private String normalizeSymbol(String symbol) {
+        if (symbol == null || symbol.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Asset symbol must not be blank"
+            );
+        }
+
+        return symbol
+                .trim()
+                .toUpperCase(Locale.ROOT);
+    }
+}
