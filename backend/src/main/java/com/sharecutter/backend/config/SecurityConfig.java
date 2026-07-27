@@ -67,6 +67,28 @@ public class SecurityConfig {
                                 )
                                 .authenticated()
                                 .requestMatchers(
+                                       HttpMethod.POST,
+                                       "/api/v1/portfolios"
+                                )
+                                .authenticated()
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/v1/portfolios",
+                                        "/api/v1/portfolios/*"
+                                )
+                                .authenticated()
+                                .requestMatchers(
+                                         HttpMethod.PATCH,
+                                         "/api/v1/portfolios/*/name",
+                                         "/api/v1/portfolios/*/value"
+                                )
+                                .authenticated()
+                                .requestMatchers(
+                                        HttpMethod.DELETE,
+                                        "/api/v1/portfolios/*"
+                                )
+                                .authenticated()
+                                .requestMatchers(
                                         HttpMethod.GET,
                                         "/api/v1/users/**"
                                 )
