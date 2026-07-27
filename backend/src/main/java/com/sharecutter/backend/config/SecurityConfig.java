@@ -41,6 +41,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize ->
                         authorize
                                 .requestMatchers(
+                                        "/swagger-ui.html",
+                                        "/swagger-ui/**",
+                                        "/v3/api-docs/**"
+                                )
+                                .permitAll()
+                                .requestMatchers(
                                         HttpMethod.POST,
                                         "/api/v1/users"
                                 )
@@ -67,8 +73,8 @@ public class SecurityConfig {
                                 )
                                 .authenticated()
                                 .requestMatchers(
-                                       HttpMethod.POST,
-                                       "/api/v1/portfolios"
+                                        HttpMethod.POST,
+                                        "/api/v1/portfolios"
                                 )
                                 .authenticated()
                                 .requestMatchers(
@@ -78,14 +84,35 @@ public class SecurityConfig {
                                 )
                                 .authenticated()
                                 .requestMatchers(
-                                         HttpMethod.PATCH,
-                                         "/api/v1/portfolios/*/name",
-                                         "/api/v1/portfolios/*/value"
+                                        HttpMethod.PATCH,
+                                        "/api/v1/portfolios/*/name",
+                                        "/api/v1/portfolios/*/value"
                                 )
                                 .authenticated()
                                 .requestMatchers(
                                         HttpMethod.DELETE,
                                         "/api/v1/portfolios/*"
+                                )
+                                .authenticated()
+                                .requestMatchers(
+                                        HttpMethod.POST,
+                                        "/api/v1/portfolios/*/transactions"
+                                )
+                                .authenticated()
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/v1/portfolios/*/transactions",
+                                        "/api/v1/portfolios/*/transactions/*"
+                                )
+                                .authenticated()
+                                .requestMatchers(
+                                        HttpMethod.PUT,
+                                        "/api/v1/portfolios/*/transactions/*"
+                                )
+                                .authenticated()
+                                .requestMatchers(
+                                        HttpMethod.DELETE,
+                                        "/api/v1/portfolios/*/transactions/*"
                                 )
                                 .authenticated()
                                 .requestMatchers(
