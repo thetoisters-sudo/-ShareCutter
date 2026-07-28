@@ -1,0 +1,19 @@
+.auth-page {
+    min-height: 34rem;
+}
+
+.auth-page__layout {
+    grid-template-columns:
+        minmax(0, 1fr) minmax(20rem, 27rem);
+}
+
+@media (max-width: 48rem) {
+    .auth-page__layout {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-card {
+        width: min(100%, 28rem);
+        margin-inline: auto;
+    }
+}
