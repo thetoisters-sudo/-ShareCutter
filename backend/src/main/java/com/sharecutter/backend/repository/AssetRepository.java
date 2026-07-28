@@ -10,7 +10,8 @@ import java.util.UUID;
 public interface AssetRepository
         extends JpaRepository<AssetEntity, UUID> {
 
-    Optional<AssetEntity> findByIdAndDeletedAtIsNull(
+    Optional<AssetEntity>
+    findByIdAndDeletedAtIsNull(
             UUID id
     );
 
@@ -35,5 +36,9 @@ public interface AssetRepository
     existsByPortfolioIdAndSymbolIgnoreCaseAndDeletedAtIsNull(
             UUID portfolioId,
             String symbol
+    );
+
+    long countByPortfolioIdAndDeletedAtIsNull(
+            UUID portfolioId
     );
 }

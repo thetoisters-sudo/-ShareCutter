@@ -4,7 +4,10 @@ import com.sharecutter.backend.domain.entity.TransactionEntity;
 import com.sharecutter.backend.domain.enums.TransactionType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -52,5 +55,24 @@ public interface TransactionRepository
     existsByIdAndPortfolioIdAndDeletedAtIsNull(
             UUID id,
             UUID portfolioId
+    );
+
+    long countByPortfolioIdAndDeletedAtIsNull(
+            UUID portfolioId
+    );
+
+    @Query("""
+            select coalesce(sum(transaction.totalAmount), 0)
+            from TransactionEntity transaction
+            where transaction.portfolio.id = :portfolioId
+              and transaction.transactionType = :transactionType
+              and transaction.deletedAt is null
+            """)
+    BigDecimal sumTotalAmountByPortfolioIdAndTransactionType(
+            @Param("portfolioId")
+            UUID portfolioId,
+
+            @Param("transactionType")
+            TransactionType transactionType
     );
 }
