@@ -52,7 +52,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(PortfolioAlreadyExistsException.class)
-    public ResponseEntity<ApiError> handlePortfolioAlreadyExists(
+    public ResponseEntity<ApiError>
+    handlePortfolioAlreadyExists(
             PortfolioAlreadyExistsException exception,
             HttpServletRequest request
     ) {
@@ -76,7 +77,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AssetAlreadyExistsException.class)
-    public ResponseEntity<ApiError> handleAssetAlreadyExists(
+    public ResponseEntity<ApiError>
+    handleAssetAlreadyExists(
             AssetAlreadyExistsException exception,
             HttpServletRequest request
     ) {
@@ -88,7 +90,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(TransactionNotFoundException.class)
-    public ResponseEntity<ApiError> handleTransactionNotFound(
+    public ResponseEntity<ApiError>
+    handleTransactionNotFound(
             TransactionNotFoundException exception,
             HttpServletRequest request
     ) {
@@ -100,7 +103,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InvalidTransactionException.class)
-    public ResponseEntity<ApiError> handleInvalidTransaction(
+    public ResponseEntity<ApiError>
+    handleInvalidTransaction(
             InvalidTransactionException exception,
             HttpServletRequest request
     ) {
@@ -111,8 +115,39 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(
+            WeeklyPortfolioTargetNotFoundException.class
+    )
+    public ResponseEntity<ApiError>
+    handleWeeklyPortfolioTargetNotFound(
+            WeeklyPortfolioTargetNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                request
+        );
+    }
+
+    @ExceptionHandler(
+            InvalidWeeklyPortfolioTargetException.class
+    )
+    public ResponseEntity<ApiError>
+    handleInvalidWeeklyPortfolioTarget(
+            InvalidWeeklyPortfolioTargetException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                request
+        );
+    }
+
     @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ApiError> handleInvalidCredentials(
+    public ResponseEntity<ApiError>
+    handleInvalidCredentials(
             InvalidCredentialsException exception,
             HttpServletRequest request
     ) {
@@ -136,7 +171,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> handleValidationException(
+    public ResponseEntity<ApiError>
+    handleValidationException(
             MethodArgumentNotValidException exception,
             HttpServletRequest request
     ) {
@@ -160,7 +196,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiError> handleIllegalArgumentException(
+    public ResponseEntity<ApiError>
+    handleIllegalArgumentException(
             IllegalArgumentException exception,
             HttpServletRequest request
     ) {
@@ -181,7 +218,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpectedException(
+    public ResponseEntity<ApiError>
+    handleUnexpectedException(
             Exception exception,
             HttpServletRequest request
     ) {
