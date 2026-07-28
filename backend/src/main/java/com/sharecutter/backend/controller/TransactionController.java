@@ -3,15 +3,16 @@ package com.sharecutter.backend.controller;
 import com.sharecutter.backend.domain.entity.TransactionEntity;
 import com.sharecutter.backend.domain.entity.UserEntity;
 import com.sharecutter.backend.domain.enums.TransactionType;
+import com.sharecutter.backend.dto.common.PagedResponse;
 import com.sharecutter.backend.dto.transaction.TransactionCreateRequest;
 import com.sharecutter.backend.dto.transaction.TransactionResponse;
+import com.sharecutter.backend.dto.transaction.TransactionSearchCriteria;
 import com.sharecutter.backend.dto.transaction.TransactionUpdateRequest;
 import com.sharecutter.backend.mapper.TransactionMapper;
 import com.sharecutter.backend.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,14 +20,17 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -39,14 +43,19 @@ import java.util.UUID;
                 Manage investment transactions inside a portfolio.
 
                 Transactions may represent purchases, sales, dividends,
-                deposits, withdrawals, fees, interest, taxes and other
-                supported transaction types.
+                deposits, withdrawals, fees and other supported
+                transaction types.
                 """
 )
 @SecurityRequirement(
         name = "bearerAuth"
 )
+@Validated
 public class TransactionController {
+
+    private static final int DEFAULT_PAGE = 0;
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAXIMUM_PAGE_SIZE = 200;
 
     private final TransactionService transactionService;
     private final TransactionMapper transactionMapper;
@@ -55,8 +64,11 @@ public class TransactionController {
             TransactionService transactionService,
             TransactionMapper transactionMapper
     ) {
-        this.transactionService = transactionService;
-        this.transactionMapper = transactionMapper;
+        this.transactionService =
+                transactionService;
+
+        this.transactionMapper =
+                transactionMapper;
     }
 
     @PostMapping
@@ -76,13 +88,17 @@ public class TransactionController {
                     description = "Transaction created successfully",
                     content = @Content(
                             schema = @Schema(
-                                    implementation = TransactionResponse.class
+                                    implementation =
+                                            TransactionResponse.class
                             )
                     )
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Invalid request data or transaction validation failure"
+                    description = """
+                            Invalid request data or transaction
+                            validation failure
+                            """
             ),
             @ApiResponse(
                     responseCode = "401",
@@ -94,7 +110,10 @@ public class TransactionController {
             ),
             @ApiResponse(
                     responseCode = "409",
-                    description = "Transaction conflicts with the current resource state"
+                    description = """
+                            Transaction conflicts with the current
+                            resource state
+                            """
             )
     })
     public ResponseEntity<TransactionResponse> createTransaction(
@@ -109,7 +128,8 @@ public class TransactionController {
                     description = "Unique identifier of the portfolio",
                     required = true,
                     in = ParameterIn.PATH,
-                    example = "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
+                    example =
+                            "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
             )
             @PathVariable
             UUID portfolioId,
@@ -158,12 +178,18 @@ public class TransactionController {
     @Operation(
             summary = "Search portfolio transactions",
             description = """
-                    Returns all transactions belonging to the specified portfolio.
+                    Returns a paginated list of transactions belonging
+                    to the specified portfolio.
 
                     Optional filters may be combined:
-                    asset identifier, transaction type, start date and end date.
+                    asset identifier, transaction type, start date
+                    and end date.
 
-                    When no filters are supplied, all portfolio transactions are returned.
+                    Results are ordered by execution date in descending
+                    order, so the newest transactions appear first.
+
+                    When no filters are supplied, all active portfolio
+                    transactions are returned.
                     """
     )
     @ApiResponses({
@@ -171,16 +197,18 @@ public class TransactionController {
                     responseCode = "200",
                     description = "Transactions retrieved successfully",
                     content = @Content(
-                            array = @ArraySchema(
-                                    schema = @Schema(
-                                            implementation = TransactionResponse.class
-                                    )
+                            schema = @Schema(
+                                    implementation =
+                                            PagedResponse.class
                             )
                     )
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Invalid search parameters or date range"
+                    description = """
+                            Invalid search parameters, pagination values
+                            or date range
+                            """
             ),
             @ApiResponse(
                     responseCode = "401",
@@ -188,10 +216,12 @@ public class TransactionController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Portfolio was not found"
+                    description = "Portfolio or asset was not found"
             )
     })
-    public ResponseEntity<List<TransactionResponse>> getTransactions(
+    public ResponseEntity<
+            PagedResponse<TransactionResponse>
+            > getTransactions(
             @Parameter(
                     hidden = true
             )
@@ -203,16 +233,21 @@ public class TransactionController {
                     description = "Unique identifier of the portfolio",
                     required = true,
                     in = ParameterIn.PATH,
-                    example = "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
+                    example =
+                            "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
             )
             @PathVariable
             UUID portfolioId,
 
             @Parameter(
                     name = "assetId",
-                    description = "Filter transactions by asset identifier",
+                    description = """
+                            Filter transactions by asset identifier.
+                            The asset must belong to the portfolio.
+                            """,
                     in = ParameterIn.QUERY,
-                    example = "2b3c4d5e-6f70-489a-bcde-1234567890ab"
+                    example =
+                            "2b3c4d5e-6f70-489a-bcde-1234567890ab"
             )
             @RequestParam(
                     required = false
@@ -221,7 +256,9 @@ public class TransactionController {
 
             @Parameter(
                     name = "type",
-                    description = "Filter transactions by transaction type",
+                    description = """
+                            Filter transactions by transaction type
+                            """,
                     in = ParameterIn.QUERY,
                     example = "BUY"
             )
@@ -234,7 +271,9 @@ public class TransactionController {
             @Parameter(
                     name = "startDate",
                     description = """
-                            Include transactions executed on or after this date and time.
+                            Include transactions executed on or after
+                            this date and time.
+
                             The value must use ISO-8601 date-time format.
                             """,
                     in = ParameterIn.QUERY,
@@ -251,7 +290,9 @@ public class TransactionController {
             @Parameter(
                     name = "endDate",
                     description = """
-                            Include transactions executed on or before this date and time.
+                            Include transactions executed on or before
+                            this date and time.
+
                             The value must use ISO-8601 date-time format.
                             """,
                     in = ParameterIn.QUERY,
@@ -263,22 +304,75 @@ public class TransactionController {
             @DateTimeFormat(
                     iso = DateTimeFormat.ISO.DATE_TIME
             )
-            OffsetDateTime endDate
+            OffsetDateTime endDate,
+
+            @Parameter(
+                    name = "page",
+                    description = """
+                            Zero-based page index
+                            """,
+                    in = ParameterIn.QUERY,
+                    example = "0"
+            )
+            @RequestParam(
+                    defaultValue = "0"
+            )
+            @Min(
+                    value = DEFAULT_PAGE,
+                    message =
+                            "Page index must be zero or greater"
+            )
+            Integer page,
+
+            @Parameter(
+                    name = "size",
+                    description = """
+                            Number of transactions returned per page
+                            """,
+                    in = ParameterIn.QUERY,
+                    example = "20"
+            )
+            @RequestParam(
+                    defaultValue = "20"
+            )
+            @Min(
+                    value = 1,
+                    message =
+                            "Page size must be at least 1"
+            )
+            @Max(
+                    value = MAXIMUM_PAGE_SIZE,
+                    message =
+                            "Page size must not exceed 200"
+            )
+            Integer size
     ) {
-        List<TransactionEntity> transactions =
-                transactionService.searchTransactions(
-                        authenticatedUser.getId(),
-                        portfolioId,
+        TransactionSearchCriteria criteria =
+                new TransactionSearchCriteria(
                         assetId,
                         transactionType,
                         startDate,
-                        endDate
+                        endDate,
+                        page,
+                        size
+                );
+
+        Page<TransactionEntity> transactions =
+                transactionService
+                        .searchTransactionsPage(
+                                authenticatedUser.getId(),
+                                portfolioId,
+                                criteria
+                        );
+
+        PagedResponse<TransactionResponse> response =
+                PagedResponse.from(
+                        transactions,
+                        transactionMapper::toResponse
                 );
 
         return ResponseEntity.ok(
-                transactionMapper.toResponseList(
-                        transactions
-                )
+                response
         );
     }
 
@@ -298,7 +392,8 @@ public class TransactionController {
                     description = "Transaction retrieved successfully",
                     content = @Content(
                             schema = @Schema(
-                                    implementation = TransactionResponse.class
+                                    implementation =
+                                            TransactionResponse.class
                             )
                     )
             ),
@@ -308,7 +403,9 @@ public class TransactionController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Portfolio or transaction was not found"
+                    description = """
+                            Portfolio or transaction was not found
+                            """
             )
     })
     public ResponseEntity<TransactionResponse> getTransaction(
@@ -323,7 +420,8 @@ public class TransactionController {
                     description = "Unique identifier of the portfolio",
                     required = true,
                     in = ParameterIn.PATH,
-                    example = "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
+                    example =
+                            "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
             )
             @PathVariable
             UUID portfolioId,
@@ -333,7 +431,8 @@ public class TransactionController {
                     description = "Unique identifier of the transaction",
                     required = true,
                     in = ParameterIn.PATH,
-                    example = "3c4d5e6f-7081-49ab-cdef-2345678901ab"
+                    example =
+                            "3c4d5e6f-7081-49ab-cdef-2345678901ab"
             )
             @PathVariable
             UUID transactionId
@@ -370,13 +469,17 @@ public class TransactionController {
                     description = "Transaction updated successfully",
                     content = @Content(
                             schema = @Schema(
-                                    implementation = TransactionResponse.class
+                                    implementation =
+                                            TransactionResponse.class
                             )
                     )
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Invalid request data or transaction validation failure"
+                    description = """
+                            Invalid request data or transaction
+                            validation failure
+                            """
             ),
             @ApiResponse(
                     responseCode = "401",
@@ -384,11 +487,16 @@ public class TransactionController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Portfolio, transaction or asset was not found"
+                    description = """
+                            Portfolio, transaction or asset was not found
+                            """
             ),
             @ApiResponse(
                     responseCode = "409",
-                    description = "Transaction conflicts with the current resource state"
+                    description = """
+                            Transaction conflicts with the current
+                            resource state
+                            """
             )
     })
     public ResponseEntity<TransactionResponse> updateTransaction(
@@ -403,7 +511,8 @@ public class TransactionController {
                     description = "Unique identifier of the portfolio",
                     required = true,
                     in = ParameterIn.PATH,
-                    example = "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
+                    example =
+                            "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
             )
             @PathVariable
             UUID portfolioId,
@@ -413,7 +522,8 @@ public class TransactionController {
                     description = "Unique identifier of the transaction",
                     required = true,
                     in = ParameterIn.PATH,
-                    example = "3c4d5e6f-7081-49ab-cdef-2345678901ab"
+                    example =
+                            "3c4d5e6f-7081-49ab-cdef-2345678901ab"
             )
             @PathVariable
             UUID transactionId,
@@ -453,7 +563,7 @@ public class TransactionController {
     @Operation(
             summary = "Delete a transaction",
             description = """
-                    Permanently deletes a transaction from the specified portfolio.
+                    Soft deletes a transaction from the specified portfolio.
 
                     The authenticated user must own the portfolio,
                     and the transaction must belong to that portfolio.
@@ -470,7 +580,9 @@ public class TransactionController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Portfolio or transaction was not found"
+                    description = """
+                            Portfolio or transaction was not found
+                            """
             )
     })
     public ResponseEntity<Void> deleteTransaction(
@@ -485,7 +597,8 @@ public class TransactionController {
                     description = "Unique identifier of the portfolio",
                     required = true,
                     in = ParameterIn.PATH,
-                    example = "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
+                    example =
+                            "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
             )
             @PathVariable
             UUID portfolioId,
@@ -495,7 +608,8 @@ public class TransactionController {
                     description = "Unique identifier of the transaction",
                     required = true,
                     in = ParameterIn.PATH,
-                    example = "3c4d5e6f-7081-49ab-cdef-2345678901ab"
+                    example =
+                            "3c4d5e6f-7081-49ab-cdef-2345678901ab"
             )
             @PathVariable
             UUID transactionId

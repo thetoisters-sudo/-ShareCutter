@@ -15,12 +15,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationFilter
+            jwtAuthenticationFilter;
 
     public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter
+            JwtAuthenticationFilter
+                    jwtAuthenticationFilter
     ) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.jwtAuthenticationFilter =
+                jwtAuthenticationFilter;
     }
 
     @Bean
@@ -46,90 +49,113 @@ public class SecurityConfig {
                                         "/v3/api-docs/**"
                                 )
                                 .permitAll()
+
                                 .requestMatchers(
                                         HttpMethod.POST,
                                         "/api/v1/users"
                                 )
                                 .permitAll()
+
                                 .requestMatchers(
                                         HttpMethod.POST,
                                         "/api/v1/auth/login"
                                 )
                                 .permitAll()
+
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         "/actuator/health",
                                         "/actuator/health/**"
                                 )
                                 .permitAll()
+
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         "/api/v1/users/me"
                                 )
                                 .authenticated()
+
                                 .requestMatchers(
                                         HttpMethod.PATCH,
                                         "/api/v1/users/me"
                                 )
                                 .authenticated()
+
                                 .requestMatchers(
                                         HttpMethod.POST,
                                         "/api/v1/portfolios"
                                 )
                                 .authenticated()
+
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         "/api/v1/portfolios",
                                         "/api/v1/portfolios/*"
                                 )
                                 .authenticated()
+
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/v1/portfolios/*/analytics/summary"
+                                )
+                                .authenticated()
+
                                 .requestMatchers(
                                         HttpMethod.PATCH,
                                         "/api/v1/portfolios/*/name",
                                         "/api/v1/portfolios/*/value"
                                 )
                                 .authenticated()
+
                                 .requestMatchers(
                                         HttpMethod.DELETE,
                                         "/api/v1/portfolios/*"
                                 )
                                 .authenticated()
+
                                 .requestMatchers(
                                         HttpMethod.POST,
                                         "/api/v1/portfolios/*/transactions"
                                 )
                                 .authenticated()
+
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         "/api/v1/portfolios/*/transactions",
                                         "/api/v1/portfolios/*/transactions/*"
                                 )
                                 .authenticated()
+
                                 .requestMatchers(
                                         HttpMethod.PUT,
                                         "/api/v1/portfolios/*/transactions/*"
                                 )
                                 .authenticated()
+
                                 .requestMatchers(
                                         HttpMethod.DELETE,
                                         "/api/v1/portfolios/*/transactions/*"
                                 )
                                 .authenticated()
+
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         "/api/v1/users/**"
                                 )
                                 .hasRole("ADMIN")
+
                                 .requestMatchers(
                                         HttpMethod.PATCH,
                                         "/api/v1/users/*"
                                 )
                                 .hasRole("ADMIN")
+
                                 .requestMatchers(
                                         HttpMethod.DELETE,
                                         "/api/v1/users/*"
                                 )
                                 .hasRole("ADMIN")
+
                                 .anyRequest()
                                 .denyAll()
                 )

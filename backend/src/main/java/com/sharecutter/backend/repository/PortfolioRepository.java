@@ -1,6 +1,8 @@
 package com.sharecutter.backend.repository;
 
 import com.sharecutter.backend.domain.entity.PortfolioEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -23,6 +25,12 @@ public interface PortfolioRepository
     List<PortfolioEntity>
     findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(
             UUID userId
+    );
+
+    Page<PortfolioEntity>
+    findAllByUserIdAndDeletedAtIsNull(
+            UUID userId,
+            Pageable pageable
     );
 
     boolean

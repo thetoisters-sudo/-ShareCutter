@@ -4,6 +4,7 @@ import com.sharecutter.backend.domain.entity.TransactionEntity;
 import com.sharecutter.backend.domain.entity.UserEntity;
 import com.sharecutter.backend.domain.enums.TransactionType;
 import com.sharecutter.backend.dto.transaction.TransactionResponse;
+import com.sharecutter.backend.dto.transaction.TransactionSearchCriteria;
 import com.sharecutter.backend.exception.GlobalExceptionHandler;
 import com.sharecutter.backend.mapper.TransactionMapper;
 import com.sharecutter.backend.security.JwtAuthenticationFilter;
@@ -14,6 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -45,6 +49,9 @@ class TransactionControllerTests {
 
     private static final String PORTFOLIOS_PATH =
             "/api/v1/portfolios";
+
+    private static final int DEFAULT_PAGE = 0;
+    private static final int DEFAULT_PAGE_SIZE = 20;
 
     @Autowired
     private MockMvc mockMvc;
@@ -344,52 +351,75 @@ class TransactionControllerTests {
                         secondTransaction
                 );
 
-        List<TransactionResponse> responses =
-                List.of(
-                        createResponse(
-                                UUID.randomUUID(),
-                                portfolioId,
-                                UUID.randomUUID(),
-                                TransactionType.BUY,
-                                new BigDecimal("5.00000000"),
-                                new BigDecimal("100.00000000"),
-                                BigDecimal.ZERO,
-                                new BigDecimal("500.00000000"),
-                                "USD",
-                                transactionTimestamp(),
-                                "Buy transaction"
+        Page<TransactionEntity> transactionPage =
+                new PageImpl<>(
+                        transactions,
+                        PageRequest.of(
+                                DEFAULT_PAGE,
+                                DEFAULT_PAGE_SIZE
                         ),
-                        createResponse(
-                                UUID.randomUUID(),
-                                portfolioId,
-                                null,
-                                TransactionType.DEPOSIT,
-                                null,
-                                null,
-                                BigDecimal.ZERO,
-                                new BigDecimal("2000.00000000"),
-                                "USD",
-                                transactionTimestamp(),
-                                "Deposit transaction"
-                        )
+                        transactions.size()
+                );
+
+        TransactionResponse firstResponse =
+                createResponse(
+                        UUID.randomUUID(),
+                        portfolioId,
+                        UUID.randomUUID(),
+                        TransactionType.BUY,
+                        new BigDecimal("5.00000000"),
+                        new BigDecimal("100.00000000"),
+                        BigDecimal.ZERO,
+                        new BigDecimal("500.00000000"),
+                        "USD",
+                        transactionTimestamp(),
+                        "Buy transaction"
+                );
+
+        TransactionResponse secondResponse =
+                createResponse(
+                        UUID.randomUUID(),
+                        portfolioId,
+                        null,
+                        TransactionType.DEPOSIT,
+                        null,
+                        null,
+                        BigDecimal.ZERO,
+                        new BigDecimal("2000.00000000"),
+                        "USD",
+                        transactionTimestamp(),
+                        "Deposit transaction"
+                );
+
+        TransactionSearchCriteria expectedCriteria =
+                new TransactionSearchCriteria(
+                        null,
+                        null,
+                        null,
+                        null,
+                        DEFAULT_PAGE,
+                        DEFAULT_PAGE_SIZE
                 );
 
         when(
-                transactionService.searchTransactions(
+                transactionService.searchTransactionsPage(
                         userId,
                         portfolioId,
-                        null,
-                        null,
-                        null,
-                        null
+                        expectedCriteria
                 )
-        ).thenReturn(transactions);
+        ).thenReturn(transactionPage);
 
         when(
-                transactionMapper.toResponseList(
-                        transactions
+                transactionMapper.toResponse(
+                        firstTransaction
                 )
-        ).thenReturn(responses);
+        ).thenReturn(firstResponse);
+
+        when(
+                transactionMapper.toResponse(
+                        secondTransaction
+                )
+        ).thenReturn(secondResponse);
 
         mockMvc.perform(
                         get(
@@ -400,37 +430,74 @@ class TransactionControllerTests {
                 )
                 .andExpect(status().isOk())
                 .andExpect(
-                        jsonPath("$.length()").value(2)
+                        jsonPath("$.content.length()")
+                                .value(2)
                 )
                 .andExpect(
-                        jsonPath("$[0].transactionType")
-                                .value("BUY")
+                        jsonPath(
+                                "$.content[0].transactionType"
+                        ).value("BUY")
                 )
                 .andExpect(
-                        jsonPath("$[0].totalAmount")
-                                .value(500.0)
+                        jsonPath(
+                                "$.content[0].totalAmount"
+                        ).value(500.0)
                 )
                 .andExpect(
-                        jsonPath("$[1].transactionType")
-                                .value("DEPOSIT")
+                        jsonPath(
+                                "$.content[1].transactionType"
+                        ).value("DEPOSIT")
                 )
                 .andExpect(
-                        jsonPath("$[1].totalAmount")
-                                .value(2000.0)
+                        jsonPath(
+                                "$.content[1].totalAmount"
+                        ).value(2000.0)
+                )
+                .andExpect(
+                        jsonPath("$.page")
+                                .value(DEFAULT_PAGE)
+                )
+                .andExpect(
+                        jsonPath("$.size")
+                                .value(DEFAULT_PAGE_SIZE)
+                )
+                .andExpect(
+                        jsonPath("$.totalElements")
+                                .value(2)
+                )
+                .andExpect(
+                        jsonPath("$.totalPages")
+                                .value(1)
+                )
+                .andExpect(
+                        jsonPath("$.first")
+                                .value(true)
+                )
+                .andExpect(
+                        jsonPath("$.last")
+                                .value(true)
+                )
+                .andExpect(
+                        jsonPath("$.hasNext")
+                                .value(false)
+                )
+                .andExpect(
+                        jsonPath("$.hasPrevious")
+                                .value(false)
                 );
 
         verify(transactionService)
-                .searchTransactions(
+                .searchTransactionsPage(
                         userId,
                         portfolioId,
-                        null,
-                        null,
-                        null,
-                        null
+                        expectedCriteria
                 );
 
         verify(transactionMapper)
-                .toResponseList(transactions);
+                .toResponse(firstTransaction);
+
+        verify(transactionMapper)
+                .toResponse(secondTransaction);
     }
 
     @Test
@@ -465,6 +532,9 @@ class TransactionControllerTests {
                         ZoneOffset.UTC
                 );
 
+        int page = 2;
+        int size = 10;
+
         mockAuthenticatedUser(userId);
 
         TransactionEntity transaction =
@@ -473,39 +543,54 @@ class TransactionControllerTests {
         List<TransactionEntity> transactions =
                 List.of(transaction);
 
-        List<TransactionResponse> responses =
-                List.of(
-                        createResponse(
-                                UUID.randomUUID(),
-                                portfolioId,
-                                assetId,
-                                TransactionType.BUY,
-                                new BigDecimal("3.00000000"),
-                                new BigDecimal("120.00000000"),
-                                BigDecimal.ZERO,
-                                new BigDecimal("360.00000000"),
-                                "USD",
-                                transactionTimestamp(),
-                                "Filtered transaction"
-                        )
+        Page<TransactionEntity> transactionPage =
+                new PageImpl<>(
+                        transactions,
+                        PageRequest.of(
+                                page,
+                                size
+                        ),
+                        31
                 );
 
-        when(
-                transactionService.searchTransactions(
-                        userId,
+        TransactionResponse response =
+                createResponse(
+                        UUID.randomUUID(),
                         portfolioId,
                         assetId,
                         TransactionType.BUY,
+                        new BigDecimal("3.00000000"),
+                        new BigDecimal("120.00000000"),
+                        BigDecimal.ZERO,
+                        new BigDecimal("360.00000000"),
+                        "USD",
+                        transactionTimestamp(),
+                        "Filtered transaction"
+                );
+
+        TransactionSearchCriteria expectedCriteria =
+                new TransactionSearchCriteria(
+                        assetId,
+                        TransactionType.BUY,
                         startDate,
-                        endDate
-                )
-        ).thenReturn(transactions);
+                        endDate,
+                        page,
+                        size
+                );
 
         when(
-                transactionMapper.toResponseList(
-                        transactions
+                transactionService.searchTransactionsPage(
+                        userId,
+                        portfolioId,
+                        expectedCriteria
                 )
-        ).thenReturn(responses);
+        ).thenReturn(transactionPage);
+
+        when(
+                transactionMapper.toResponse(
+                        transaction
+                )
+        ).thenReturn(response);
 
         mockMvc.perform(
                         get(
@@ -529,32 +614,71 @@ class TransactionControllerTests {
                                         "endDate",
                                         "2026-12-31T23:59:59Z"
                                 )
+                                .param(
+                                        "page",
+                                        String.valueOf(page)
+                                )
+                                .param(
+                                        "size",
+                                        String.valueOf(size)
+                                )
                 )
                 .andExpect(status().isOk())
                 .andExpect(
-                        jsonPath("$.length()").value(1)
+                        jsonPath("$.content.length()")
+                                .value(1)
                 )
                 .andExpect(
-                        jsonPath("$[0].assetId")
+                        jsonPath("$.content[0].assetId")
                                 .value(assetId.toString())
                 )
                 .andExpect(
-                        jsonPath("$[0].transactionType")
-                                .value("BUY")
+                        jsonPath(
+                                "$.content[0].transactionType"
+                        ).value("BUY")
+                )
+                .andExpect(
+                        jsonPath("$.page")
+                                .value(page)
+                )
+                .andExpect(
+                        jsonPath("$.size")
+                                .value(size)
+                )
+                .andExpect(
+                        jsonPath("$.totalElements")
+                                .value(31)
+                )
+                .andExpect(
+                        jsonPath("$.totalPages")
+                                .value(4)
+                )
+                .andExpect(
+                        jsonPath("$.first")
+                                .value(false)
+                )
+                .andExpect(
+                        jsonPath("$.last")
+                                .value(false)
+                )
+                .andExpect(
+                        jsonPath("$.hasNext")
+                                .value(true)
+                )
+                .andExpect(
+                        jsonPath("$.hasPrevious")
+                                .value(true)
                 );
 
         verify(transactionService)
-                .searchTransactions(
+                .searchTransactionsPage(
                         userId,
                         portfolioId,
-                        assetId,
-                        TransactionType.BUY,
-                        startDate,
-                        endDate
+                        expectedCriteria
                 );
 
         verify(transactionMapper)
-                .toResponseList(transactions);
+                .toResponse(transaction);
     }
 
     @Test
