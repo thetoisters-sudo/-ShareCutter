@@ -2,15 +2,21 @@ package com.sharecutter.backend.service;
 
 import com.sharecutter.backend.domain.entity.PortfolioEntity;
 import com.sharecutter.backend.domain.enums.TransactionType;
+import com.sharecutter.backend.dto.analytics.AssetAllocationItemResponse;
+import com.sharecutter.backend.dto.analytics.PortfolioAllocationResponse;
 import com.sharecutter.backend.dto.analytics.PortfolioSummaryResponse;
 import com.sharecutter.backend.repository.AssetRepository;
 import com.sharecutter.backend.repository.TransactionRepository;
+import com.sharecutter.backend.repository.projection.AssetAllocationProjection;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -19,6 +25,11 @@ public class PortfolioAnalyticsService {
 
     private static final BigDecimal ZERO =
             BigDecimal.ZERO;
+
+    private static final BigDecimal ONE_HUNDRED =
+            BigDecimal.valueOf(100);
+
+    private static final int PERCENT_SCALE = 6;
 
     private final PortfolioService portfolioService;
     private final AssetRepository assetRepository;
@@ -137,6 +148,198 @@ public class PortfolioAnalyticsService {
                         ZoneOffset.UTC
                 )
         );
+    }
+
+    public PortfolioAllocationResponse getPortfolioAllocation(
+            UUID userId,
+            UUID portfolioId
+    ) {
+        PortfolioEntity portfolio =
+                portfolioService.getPortfolio(
+                        userId,
+                        portfolioId
+                );
+
+        List<AssetAllocationProjection>
+                allocationProjections =
+                transactionRepository
+                        .findAssetAllocationByPortfolioId(
+                                portfolioId
+                        );
+
+        BigDecimal totalNetInvestedAmount =
+                calculateTotalNetInvestedAmount(
+                        allocationProjections
+                );
+
+        List<AssetAllocationItemResponse>
+                allocationItems =
+                createAllocationItems(
+                        allocationProjections,
+                        totalNetInvestedAmount
+                );
+
+        return new PortfolioAllocationResponse(
+                portfolio.getId(),
+                portfolio.getName(),
+                totalNetInvestedAmount,
+                allocationItems.size(),
+                allocationItems,
+                OffsetDateTime.now(
+                        ZoneOffset.UTC
+                )
+        );
+    }
+
+    private BigDecimal calculateTotalNetInvestedAmount(
+            List<AssetAllocationProjection>
+                    allocationProjections
+    ) {
+        return allocationProjections
+                .stream()
+                .map(
+                        this::
+                                calculateNonNegativeNetInvestedAmount
+                )
+                .reduce(
+                        ZERO,
+                        BigDecimal::add
+                );
+    }
+
+    private List<AssetAllocationItemResponse>
+    createAllocationItems(
+            List<AssetAllocationProjection>
+                    allocationProjections,
+            BigDecimal totalNetInvestedAmount
+    ) {
+        return allocationProjections
+                .stream()
+                .map(
+                        projection ->
+                                createAllocationItem(
+                                        projection,
+                                        totalNetInvestedAmount
+                                )
+                )
+                .sorted(
+                        Comparator
+                                .comparing(
+                                        AssetAllocationItemResponse::
+                                                netInvestedAmount
+                                )
+                                .reversed()
+                                .thenComparing(
+                                        AssetAllocationItemResponse::
+                                                symbol
+                                )
+                )
+                .toList();
+    }
+
+    private AssetAllocationItemResponse
+    createAllocationItem(
+            AssetAllocationProjection projection,
+            BigDecimal totalNetInvestedAmount
+    ) {
+        BigDecimal boughtQuantity =
+                zeroIfNull(
+                        projection.getBoughtQuantity()
+                );
+
+        BigDecimal soldQuantity =
+                zeroIfNull(
+                        projection.getSoldQuantity()
+                );
+
+        BigDecimal totalBuyAmount =
+                zeroIfNull(
+                        projection.getTotalBuyAmount()
+                );
+
+        BigDecimal totalSellAmount =
+                zeroIfNull(
+                        projection.getTotalSellAmount()
+                );
+
+        BigDecimal currentQuantity =
+                boughtQuantity.subtract(
+                        soldQuantity
+                );
+
+        BigDecimal netInvestedAmount =
+                calculateNonNegativeNetInvestedAmount(
+                        totalBuyAmount,
+                        totalSellAmount
+                );
+
+        BigDecimal allocationPercent =
+                calculateAllocationPercent(
+                        netInvestedAmount,
+                        totalNetInvestedAmount
+                );
+
+        return new AssetAllocationItemResponse(
+                projection.getAssetId(),
+                projection.getSymbol(),
+                projection.getDisplayName(),
+                projection.getAssetType(),
+                projection.getCurrency(),
+                boughtQuantity,
+                soldQuantity,
+                currentQuantity,
+                totalBuyAmount,
+                totalSellAmount,
+                netInvestedAmount,
+                allocationPercent
+        );
+    }
+
+    private BigDecimal
+    calculateNonNegativeNetInvestedAmount(
+            AssetAllocationProjection projection
+    ) {
+        return calculateNonNegativeNetInvestedAmount(
+                zeroIfNull(
+                        projection.getTotalBuyAmount()
+                ),
+                zeroIfNull(
+                        projection.getTotalSellAmount()
+                )
+        );
+    }
+
+    private BigDecimal
+    calculateNonNegativeNetInvestedAmount(
+            BigDecimal totalBuyAmount,
+            BigDecimal totalSellAmount
+    ) {
+        BigDecimal netInvestedAmount =
+                totalBuyAmount.subtract(
+                        totalSellAmount
+                );
+
+        return netInvestedAmount.signum() < 0
+                ? ZERO
+                : netInvestedAmount;
+    }
+
+    private BigDecimal calculateAllocationPercent(
+            BigDecimal netInvestedAmount,
+            BigDecimal totalNetInvestedAmount
+    ) {
+        if (totalNetInvestedAmount.signum()
+                <= 0) {
+            return ZERO;
+        }
+
+        return netInvestedAmount
+                .multiply(ONE_HUNDRED)
+                .divide(
+                        totalNetInvestedAmount,
+                        PERCENT_SCALE,
+                        RoundingMode.HALF_UP
+                );
     }
 
     private BigDecimal getTransactionTotal(

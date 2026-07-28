@@ -2,6 +2,7 @@ package com.sharecutter.backend.repository;
 
 import com.sharecutter.backend.domain.entity.TransactionEntity;
 import com.sharecutter.backend.domain.enums.TransactionType;
+import com.sharecutter.backend.repository.projection.AssetAllocationProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -74,5 +75,88 @@ public interface TransactionRepository
 
             @Param("transactionType")
             TransactionType transactionType
+    );
+
+    @Query("""
+            select
+                asset.id as assetId,
+                asset.symbol as symbol,
+                asset.displayName as displayName,
+                asset.assetType as assetType,
+                asset.currency as currency,
+
+                coalesce(
+                    sum(
+                        case
+                            when transaction.transactionType =
+                                com.sharecutter.backend.domain.enums.TransactionType.BUY
+                            then transaction.quantity
+                            else 0
+                        end
+                    ),
+                    0
+                ) as boughtQuantity,
+
+                coalesce(
+                    sum(
+                        case
+                            when transaction.transactionType =
+                                com.sharecutter.backend.domain.enums.TransactionType.SELL
+                            then transaction.quantity
+                            else 0
+                        end
+                    ),
+                    0
+                ) as soldQuantity,
+
+                coalesce(
+                    sum(
+                        case
+                            when transaction.transactionType =
+                                com.sharecutter.backend.domain.enums.TransactionType.BUY
+                            then transaction.totalAmount
+                            else 0
+                        end
+                    ),
+                    0
+                ) as totalBuyAmount,
+
+                coalesce(
+                    sum(
+                        case
+                            when transaction.transactionType =
+                                com.sharecutter.backend.domain.enums.TransactionType.SELL
+                            then transaction.totalAmount
+                            else 0
+                        end
+                    ),
+                    0
+                ) as totalSellAmount
+
+            from TransactionEntity transaction
+            join transaction.asset asset
+
+            where transaction.portfolio.id = :portfolioId
+              and transaction.deletedAt is null
+              and asset.deletedAt is null
+              and (
+                    transaction.transactionType =
+                        com.sharecutter.backend.domain.enums.TransactionType.BUY
+                    or
+                    transaction.transactionType =
+                        com.sharecutter.backend.domain.enums.TransactionType.SELL
+              )
+
+            group by
+                asset.id,
+                asset.symbol,
+                asset.displayName,
+                asset.assetType,
+                asset.currency
+            """)
+    List<AssetAllocationProjection>
+    findAssetAllocationByPortfolioId(
+            @Param("portfolioId")
+            UUID portfolioId
     );
 }
