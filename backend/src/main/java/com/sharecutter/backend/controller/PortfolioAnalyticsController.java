@@ -1,6 +1,7 @@
 package com.sharecutter.backend.controller;
 
 import com.sharecutter.backend.domain.entity.UserEntity;
+import com.sharecutter.backend.dto.analytics.PortfolioAllocationResponse;
 import com.sharecutter.backend.dto.analytics.PortfolioSummaryResponse;
 import com.sharecutter.backend.service.PortfolioAnalyticsService;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +42,25 @@ public class PortfolioAnalyticsController {
         PortfolioSummaryResponse response =
                 portfolioAnalyticsService
                         .getPortfolioSummary(
+                                authenticatedUser.getId(),
+                                portfolioId
+                        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/allocation")
+    public ResponseEntity<PortfolioAllocationResponse>
+    getPortfolioAllocation(
+            @AuthenticationPrincipal
+            UserEntity authenticatedUser,
+
+            @PathVariable
+            UUID portfolioId
+    ) {
+        PortfolioAllocationResponse response =
+                portfolioAnalyticsService
+                        .getPortfolioAllocation(
                                 authenticatedUser.getId(),
                                 portfolioId
                         );
