@@ -3,6 +3,7 @@ package com.sharecutter.backend.repository;
 import com.sharecutter.backend.domain.entity.TransactionEntity;
 import com.sharecutter.backend.domain.enums.TransactionType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -10,7 +11,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface TransactionRepository
-        extends JpaRepository<TransactionEntity, UUID> {
+        extends JpaRepository<TransactionEntity, UUID>,
+        JpaSpecificationExecutor<TransactionEntity> {
 
     Optional<TransactionEntity>
     findByIdAndDeletedAtIsNull(

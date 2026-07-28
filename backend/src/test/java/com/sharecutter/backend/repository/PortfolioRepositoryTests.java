@@ -6,11 +6,17 @@ import com.sharecutter.backend.domain.enums.PortfolioCreationMethod;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -194,6 +200,327 @@ class PortfolioRepositoryTests {
         assertFalse(nameExists);
     }
 
+    @Test
+    void shouldReturnFirstPageOfActivePortfolios() {
+        UserEntity user = saveUser(
+                "portfolio.pagination.first.page@example.com"
+        );
+
+        savePortfolio(user, "Alpha Portfolio", "1000.0000");
+        savePortfolio(user, "Bravo Portfolio", "2000.0000");
+        savePortfolio(user, "Charlie Portfolio", "3000.0000");
+        savePortfolio(user, "Delta Portfolio", "4000.0000");
+        savePortfolio(user, "Echo Portfolio", "5000.0000");
+
+        Pageable pageable = PageRequest.of(
+                0,
+                2,
+                Sort.by(
+                        Sort.Direction.ASC,
+                        "name"
+                )
+        );
+
+        Page<PortfolioEntity> result =
+                portfolioRepository
+                        .findAllByUserIdAndDeletedAtIsNull(
+                                user.getId(),
+                                pageable
+                        );
+
+        assertEquals(0, result.getNumber());
+        assertEquals(2, result.getSize());
+        assertEquals(2, result.getNumberOfElements());
+        assertEquals(5, result.getTotalElements());
+        assertEquals(3, result.getTotalPages());
+        assertTrue(result.isFirst());
+        assertFalse(result.isLast());
+
+        assertEquals(
+                List.of(
+                        "Alpha Portfolio",
+                        "Bravo Portfolio"
+                ),
+                extractNames(result)
+        );
+    }
+
+    @Test
+    void shouldReturnSecondPageOfActivePortfolios() {
+        UserEntity user = saveUser(
+                "portfolio.pagination.second.page@example.com"
+        );
+
+        savePortfolio(user, "Alpha Portfolio", "1000.0000");
+        savePortfolio(user, "Bravo Portfolio", "2000.0000");
+        savePortfolio(user, "Charlie Portfolio", "3000.0000");
+        savePortfolio(user, "Delta Portfolio", "4000.0000");
+        savePortfolio(user, "Echo Portfolio", "5000.0000");
+
+        Pageable pageable = PageRequest.of(
+                1,
+                2,
+                Sort.by(
+                        Sort.Direction.ASC,
+                        "name"
+                )
+        );
+
+        Page<PortfolioEntity> result =
+                portfolioRepository
+                        .findAllByUserIdAndDeletedAtIsNull(
+                                user.getId(),
+                                pageable
+                        );
+
+        assertEquals(1, result.getNumber());
+        assertEquals(2, result.getSize());
+        assertEquals(2, result.getNumberOfElements());
+        assertEquals(5, result.getTotalElements());
+        assertEquals(3, result.getTotalPages());
+        assertFalse(result.isFirst());
+        assertFalse(result.isLast());
+
+        assertEquals(
+                List.of(
+                        "Charlie Portfolio",
+                        "Delta Portfolio"
+                ),
+                extractNames(result)
+        );
+    }
+
+    @Test
+    void shouldReturnLastPageWithRemainingPortfolio() {
+        UserEntity user = saveUser(
+                "portfolio.pagination.last.page@example.com"
+        );
+
+        savePortfolio(user, "Alpha Portfolio", "1000.0000");
+        savePortfolio(user, "Bravo Portfolio", "2000.0000");
+        savePortfolio(user, "Charlie Portfolio", "3000.0000");
+        savePortfolio(user, "Delta Portfolio", "4000.0000");
+        savePortfolio(user, "Echo Portfolio", "5000.0000");
+
+        Pageable pageable = PageRequest.of(
+                2,
+                2,
+                Sort.by(
+                        Sort.Direction.ASC,
+                        "name"
+                )
+        );
+
+        Page<PortfolioEntity> result =
+                portfolioRepository
+                        .findAllByUserIdAndDeletedAtIsNull(
+                                user.getId(),
+                                pageable
+                        );
+
+        assertEquals(2, result.getNumber());
+        assertEquals(2, result.getSize());
+        assertEquals(1, result.getNumberOfElements());
+        assertEquals(5, result.getTotalElements());
+        assertEquals(3, result.getTotalPages());
+        assertFalse(result.isFirst());
+        assertTrue(result.isLast());
+
+        assertEquals(
+                List.of("Echo Portfolio"),
+                extractNames(result)
+        );
+    }
+
+    @Test
+    void shouldSortPortfoliosByNameAscending() {
+        UserEntity user = saveUser(
+                "portfolio.sort.ascending@example.com"
+        );
+
+        savePortfolio(user, "Zulu Portfolio", "1000.0000");
+        savePortfolio(user, "Alpha Portfolio", "2000.0000");
+        savePortfolio(user, "Mike Portfolio", "3000.0000");
+
+        Pageable pageable = PageRequest.of(
+                0,
+                10,
+                Sort.by(
+                        Sort.Direction.ASC,
+                        "name"
+                )
+        );
+
+        Page<PortfolioEntity> result =
+                portfolioRepository
+                        .findAllByUserIdAndDeletedAtIsNull(
+                                user.getId(),
+                                pageable
+                        );
+
+        assertEquals(
+                List.of(
+                        "Alpha Portfolio",
+                        "Mike Portfolio",
+                        "Zulu Portfolio"
+                ),
+                extractNames(result)
+        );
+    }
+
+    @Test
+    void shouldSortPortfoliosByNameDescending() {
+        UserEntity user = saveUser(
+                "portfolio.sort.descending@example.com"
+        );
+
+        savePortfolio(user, "Zulu Portfolio", "1000.0000");
+        savePortfolio(user, "Alpha Portfolio", "2000.0000");
+        savePortfolio(user, "Mike Portfolio", "3000.0000");
+
+        Pageable pageable = PageRequest.of(
+                0,
+                10,
+                Sort.by(
+                        Sort.Direction.DESC,
+                        "name"
+                )
+        );
+
+        Page<PortfolioEntity> result =
+                portfolioRepository
+                        .findAllByUserIdAndDeletedAtIsNull(
+                                user.getId(),
+                                pageable
+                        );
+
+        assertEquals(
+                List.of(
+                        "Zulu Portfolio",
+                        "Mike Portfolio",
+                        "Alpha Portfolio"
+                ),
+                extractNames(result)
+        );
+    }
+
+    @Test
+    void shouldReturnOnlyPortfoliosOwnedByRequestedUser() {
+        UserEntity requestedUser = saveUser(
+                "portfolio.pagination.requested.owner@example.com"
+        );
+
+        UserEntity otherUser = saveUser(
+                "portfolio.pagination.other.owner@example.com"
+        );
+
+        PortfolioEntity requestedFirst = savePortfolio(
+                requestedUser,
+                "Requested Alpha",
+                "1000.0000"
+        );
+
+        PortfolioEntity requestedSecond = savePortfolio(
+                requestedUser,
+                "Requested Bravo",
+                "2000.0000"
+        );
+
+        savePortfolio(
+                otherUser,
+                "Other User Portfolio",
+                "3000.0000"
+        );
+
+        Pageable pageable = PageRequest.of(
+                0,
+                10,
+                Sort.by(
+                        Sort.Direction.ASC,
+                        "name"
+                )
+        );
+
+        Page<PortfolioEntity> result =
+                portfolioRepository
+                        .findAllByUserIdAndDeletedAtIsNull(
+                                requestedUser.getId(),
+                                pageable
+                        );
+
+        Set<?> returnedIds = result
+                .getContent()
+                .stream()
+                .map(PortfolioEntity::getId)
+                .collect(Collectors.toSet());
+
+        assertEquals(2, result.getTotalElements());
+        assertTrue(returnedIds.contains(requestedFirst.getId()));
+        assertTrue(returnedIds.contains(requestedSecond.getId()));
+        assertEquals(2, returnedIds.size());
+    }
+
+    @Test
+    void shouldExcludeSoftDeletedPortfoliosFromPagedResults() {
+        UserEntity user = saveUser(
+                "portfolio.pagination.soft.delete@example.com"
+        );
+
+        PortfolioEntity activeFirst = savePortfolio(
+                user,
+                "Active Alpha",
+                "1000.0000"
+        );
+
+        PortfolioEntity activeSecond = savePortfolio(
+                user,
+                "Active Bravo",
+                "2000.0000"
+        );
+
+        PortfolioEntity deletedPortfolio = savePortfolio(
+                user,
+                "Deleted Charlie",
+                "3000.0000"
+        );
+
+        deletedPortfolio.softDelete();
+        portfolioRepository.saveAndFlush(deletedPortfolio);
+
+        Pageable pageable = PageRequest.of(
+                0,
+                10,
+                Sort.by(
+                        Sort.Direction.ASC,
+                        "name"
+                )
+        );
+
+        Page<PortfolioEntity> result =
+                portfolioRepository
+                        .findAllByUserIdAndDeletedAtIsNull(
+                                user.getId(),
+                                pageable
+                        );
+
+        Set<?> returnedIds = result
+                .getContent()
+                .stream()
+                .map(PortfolioEntity::getId)
+                .collect(Collectors.toSet());
+
+        assertEquals(2, result.getTotalElements());
+        assertEquals(1, result.getTotalPages());
+        assertTrue(returnedIds.contains(activeFirst.getId()));
+        assertTrue(returnedIds.contains(activeSecond.getId()));
+        assertFalse(returnedIds.contains(deletedPortfolio.getId()));
+        assertTrue(
+                result.getContent()
+                        .stream()
+                        .noneMatch(PortfolioEntity::isDeleted)
+        );
+    }
+
     private UserEntity saveUser(String email) {
         UserEntity user = new UserEntity(
                 email,
@@ -218,5 +545,15 @@ class PortfolioRepositoryTests {
         );
 
         return portfolioRepository.saveAndFlush(portfolio);
+    }
+
+    private List<String> extractNames(
+            Page<PortfolioEntity> page
+    ) {
+        return page
+                .getContent()
+                .stream()
+                .map(PortfolioEntity::getName)
+                .toList();
     }
 }

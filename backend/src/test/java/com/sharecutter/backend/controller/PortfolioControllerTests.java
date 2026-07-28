@@ -14,6 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +29,9 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -258,59 +264,230 @@ class PortfolioControllerTests {
         PortfolioEntity secondPortfolio =
                 mock(PortfolioEntity.class);
 
-        List<PortfolioEntity> portfolios =
-                List.of(
-                        firstPortfolio,
-                        secondPortfolio
+        PortfolioResponse firstResponse =
+                createResponse(
+                        UUID.randomUUID(),
+                        userId,
+                        "Main Portfolio",
+                        new BigDecimal("10000.0000"),
+                        new BigDecimal("11000.0000")
                 );
 
-        List<PortfolioResponse> responses =
-                List.of(
-                        createResponse(
-                                UUID.randomUUID(),
-                                userId,
-                                "Main Portfolio",
-                                new BigDecimal("10000.0000"),
-                                new BigDecimal("11000.0000")
-                        ),
-                        createResponse(
-                                UUID.randomUUID(),
-                                userId,
-                                "Retirement Portfolio",
-                                new BigDecimal("20000.0000"),
-                                new BigDecimal("22000.0000")
+        PortfolioResponse secondResponse =
+                createResponse(
+                        UUID.randomUUID(),
+                        userId,
+                        "Retirement Portfolio",
+                        new BigDecimal("20000.0000"),
+                        new BigDecimal("22000.0000")
+                );
+
+        Page<PortfolioEntity> portfolios =
+                new PageImpl<>(
+                        List.of(
+                                firstPortfolio,
+                                secondPortfolio
                         )
                 );
 
         when(
-                portfolioService.getUserPortfolios(userId)
+                portfolioService.getUserPortfolios(
+                        eq(userId),
+                        any(Pageable.class)
+                )
         ).thenReturn(portfolios);
 
         when(
-                portfolioMapper.toResponseList(portfolios)
-        ).thenReturn(responses);
+                portfolioMapper.toResponse(firstPortfolio)
+        ).thenReturn(firstResponse);
+
+        when(
+                portfolioMapper.toResponse(secondPortfolio)
+        ).thenReturn(secondResponse);
 
         mockMvc.perform(
                         get(PORTFOLIOS_PATH)
                 )
                 .andExpect(status().isOk())
                 .andExpect(
-                        jsonPath("$.length()").value(2)
+                        jsonPath("$.content.length()")
+                                .value(2)
                 )
                 .andExpect(
-                        jsonPath("$[0].name")
+                        jsonPath("$.content[0].name")
                                 .value("Main Portfolio")
                 )
                 .andExpect(
-                        jsonPath("$[1].name")
+                        jsonPath("$.content[1].name")
                                 .value("Retirement Portfolio")
+                )
+                .andExpect(
+                        jsonPath("$.page")
+                                .value(0)
+                )
+                .andExpect(
+                        jsonPath("$.size")
+                                .value(2)
+                )
+                .andExpect(
+                        jsonPath("$.totalElements")
+                                .value(2)
+                )
+                .andExpect(
+                        jsonPath("$.totalPages")
+                                .value(1)
+                )
+                .andExpect(
+                        jsonPath("$.first")
+                                .value(true)
+                )
+                .andExpect(
+                        jsonPath("$.last")
+                                .value(true)
+                )
+                .andExpect(
+                        jsonPath("$.hasNext")
+                                .value(false)
+                )
+                .andExpect(
+                        jsonPath("$.hasPrevious")
+                                .value(false)
                 );
 
         verify(portfolioService)
-                .getUserPortfolios(userId);
+                .getUserPortfolios(
+                        eq(userId),
+                        argThat(
+                                pageable ->
+                                        pageable.getPageNumber() == 0
+                                                && pageable.getPageSize() == 20
+                                                && pageable.getSort()
+                                                .getOrderFor("createdAt")
+                                                != null
+                                                && pageable.getSort()
+                                                .getOrderFor("createdAt")
+                                                .isDescending()
+                        )
+                );
 
         verify(portfolioMapper)
-                .toResponseList(portfolios);
+                .toResponse(firstPortfolio);
+
+        verify(portfolioMapper)
+                .toResponse(secondPortfolio);
+    }
+
+    @Test
+    void getPortfoliosSupportsCustomPaginationAndSorting()
+            throws Exception {
+
+        UUID userId = UUID.randomUUID();
+
+        mockAuthenticatedUser(userId);
+
+        Page<PortfolioEntity> portfolios =
+                Page.empty();
+
+        when(
+                portfolioService.getUserPortfolios(
+                        eq(userId),
+                        any(Pageable.class)
+                )
+        ).thenReturn(portfolios);
+
+        mockMvc.perform(
+                        get(PORTFOLIOS_PATH)
+                                .param("page", "2")
+                                .param("size", "5")
+                                .param("sortBy", "name")
+                                .param("sortDirection", "asc")
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.content").isArray()
+                )
+                .andExpect(
+                        jsonPath("$.content.length()")
+                                .value(0)
+                );
+
+        verify(portfolioService)
+                .getUserPortfolios(
+                        eq(userId),
+                        argThat(
+                                pageable ->
+                                        pageable.getPageNumber() == 2
+                                                && pageable.getPageSize() == 5
+                                                && pageable.getSort()
+                                                .getOrderFor("name")
+                                                != null
+                                                && pageable.getSort()
+                                                .getOrderFor("name")
+                                                .isAscending()
+                        )
+                );
+
+        verifyNoInteractions(portfolioMapper);
+    }
+
+    @Test
+    void getPortfoliosRejectsNegativePage()
+            throws Exception {
+
+        mockAuthenticatedUser(UUID.randomUUID());
+
+        mockMvc.perform(
+                        get(PORTFOLIOS_PATH)
+                                .param("page", "-1")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(
+                        jsonPath("$.status")
+                                .value(400)
+                )
+                .andExpect(
+                        jsonPath("$.error")
+                                .value("Bad Request")
+                )
+                .andExpect(
+                        jsonPath("$.path")
+                                .value(PORTFOLIOS_PATH)
+                );
+
+        verifyNoInteractions(
+                portfolioService,
+                portfolioMapper
+        );
+    }
+
+    @Test
+    void getPortfoliosRejectsSizeAboveMaximum()
+            throws Exception {
+
+        mockAuthenticatedUser(UUID.randomUUID());
+
+        mockMvc.perform(
+                        get(PORTFOLIOS_PATH)
+                                .param("size", "101")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(
+                        jsonPath("$.status")
+                                .value(400)
+                )
+                .andExpect(
+                        jsonPath("$.error")
+                                .value("Bad Request")
+                )
+                .andExpect(
+                        jsonPath("$.path")
+                                .value(PORTFOLIOS_PATH)
+                );
+
+        verifyNoInteractions(
+                portfolioService,
+                portfolioMapper
+        );
     }
 
     @Test

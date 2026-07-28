@@ -4,9 +4,12 @@ import com.sharecutter.backend.domain.entity.AssetEntity;
 import com.sharecutter.backend.domain.entity.PortfolioEntity;
 import com.sharecutter.backend.domain.entity.TransactionEntity;
 import com.sharecutter.backend.domain.enums.TransactionType;
+import com.sharecutter.backend.dto.transaction.TransactionSearchCriteria;
 import com.sharecutter.backend.exception.InvalidTransactionException;
 import com.sharecutter.backend.exception.TransactionNotFoundException;
 import com.sharecutter.backend.repository.TransactionRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,15 +26,39 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final PortfolioService portfolioService;
     private final AssetService assetService;
+    private final TransactionSearchService transactionSearchService;
 
     public TransactionService(
             TransactionRepository transactionRepository,
             PortfolioService portfolioService,
             AssetService assetService
     ) {
-        this.transactionRepository = transactionRepository;
-        this.portfolioService = portfolioService;
-        this.assetService = assetService;
+        this(
+                transactionRepository,
+                portfolioService,
+                assetService,
+                null
+        );
+    }
+
+    @Autowired
+    public TransactionService(
+            TransactionRepository transactionRepository,
+            PortfolioService portfolioService,
+            AssetService assetService,
+            TransactionSearchService transactionSearchService
+    ) {
+        this.transactionRepository =
+                transactionRepository;
+
+        this.portfolioService =
+                portfolioService;
+
+        this.assetService =
+                assetService;
+
+        this.transactionSearchService =
+                transactionSearchService;
     }
 
     @Transactional
@@ -54,11 +81,12 @@ public class TransactionService {
                         portfolioId
                 );
 
-        AssetEntity asset = resolveAsset(
-                userId,
-                portfolioId,
-                assetId
-        );
+        AssetEntity asset =
+                resolveAsset(
+                        userId,
+                        portfolioId,
+                        assetId
+                );
 
         validateTransaction(
                 transactionType,
@@ -127,6 +155,24 @@ public class TransactionService {
                 );
     }
 
+    public Page<TransactionEntity> searchTransactionsPage(
+            UUID userId,
+            UUID portfolioId,
+            TransactionSearchCriteria criteria
+    ) {
+        if (transactionSearchService == null) {
+            throw new IllegalStateException(
+                    "Transaction search service is not configured"
+            );
+        }
+
+        return transactionSearchService.searchTransactions(
+                userId,
+                portfolioId,
+                criteria
+        );
+    }
+
     public List<TransactionEntity> searchTransactions(
             UUID userId,
             UUID portfolioId,
@@ -191,11 +237,12 @@ public class TransactionService {
             UUID portfolioId,
             UUID assetId
     ) {
-        AssetEntity asset = assetService.getAsset(
-                userId,
-                portfolioId,
-                assetId
-        );
+        AssetEntity asset =
+                assetService.getAsset(
+                        userId,
+                        portfolioId,
+                        assetId
+                );
 
         return transactionRepository
                 .findAllByAssetIdAndDeletedAtIsNullOrderByExecutedAtDesc(
@@ -272,11 +319,12 @@ public class TransactionService {
                         transactionId
                 );
 
-        AssetEntity asset = resolveAsset(
-                userId,
-                portfolioId,
-                assetId
-        );
+        AssetEntity asset =
+                resolveAsset(
+                        userId,
+                        portfolioId,
+                        assetId
+                );
 
         validateTransaction(
                 transactionType,
@@ -429,16 +477,18 @@ public class TransactionService {
             BigDecimal unitPrice
     ) {
         switch (transactionType) {
-            case BUY, SELL -> validateTradeTransaction(
-                    transactionType,
-                    asset,
-                    quantity,
-                    unitPrice
-            );
+            case BUY, SELL ->
+                    validateTradeTransaction(
+                            transactionType,
+                            asset,
+                            quantity,
+                            unitPrice
+                    );
 
-            case DIVIDEND -> validateDividendTransaction(
-                    asset
-            );
+            case DIVIDEND ->
+                    validateDividendTransaction(
+                            asset
+                    );
 
             case FEE, DEPOSIT, WITHDRAWAL ->
                     validateCashTransaction(

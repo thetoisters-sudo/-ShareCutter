@@ -6,6 +6,8 @@ import com.sharecutter.backend.domain.enums.PortfolioCreationMethod;
 import com.sharecutter.backend.exception.PortfolioAlreadyExistsException;
 import com.sharecutter.backend.exception.PortfolioNotFoundException;
 import com.sharecutter.backend.repository.PortfolioRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,6 +79,19 @@ public class PortfolioService {
         return portfolioRepository
                 .findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(
                         userId
+                );
+    }
+
+    public Page<PortfolioEntity> getUserPortfolios(
+            UUID userId,
+            Pageable pageable
+    ) {
+        userService.getUserById(userId);
+
+        return portfolioRepository
+                .findAllByUserIdAndDeletedAtIsNull(
+                        userId,
+                        pageable
                 );
     }
 

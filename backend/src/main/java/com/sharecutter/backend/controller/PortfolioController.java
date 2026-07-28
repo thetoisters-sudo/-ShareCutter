@@ -2,6 +2,7 @@ package com.sharecutter.backend.controller;
 
 import com.sharecutter.backend.domain.entity.PortfolioEntity;
 import com.sharecutter.backend.domain.entity.UserEntity;
+import com.sharecutter.backend.dto.common.PagedResponse;
 import com.sharecutter.backend.dto.portfolio.PortfolioCreateRequest;
 import com.sharecutter.backend.dto.portfolio.PortfolioRenameRequest;
 import com.sharecutter.backend.dto.portfolio.PortfolioResponse;
@@ -9,6 +10,10 @@ import com.sharecutter.backend.dto.portfolio.PortfolioValueUpdateRequest;
 import com.sharecutter.backend.mapper.PortfolioMapper;
 import com.sharecutter.backend.service.PortfolioService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,15 +23,20 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/portfolios")
 public class PortfolioController {
+
+    private static final int DEFAULT_PAGE = 0;
+    private static final int DEFAULT_SIZE = 20;
+    private static final String DEFAULT_SORT_BY = "createdAt";
+    private static final String DEFAULT_SORT_DIRECTION = "desc";
 
     private final PortfolioService portfolioService;
     private final PortfolioMapper portfolioMapper;
@@ -65,16 +75,50 @@ public class PortfolioController {
     }
 
     @GetMapping
-    public ResponseEntity<List<PortfolioResponse>> getPortfolios(
-            @AuthenticationPrincipal UserEntity authenticatedUser
+    public ResponseEntity<PagedResponse<PortfolioResponse>>
+    getPortfolios(
+            @AuthenticationPrincipal UserEntity authenticatedUser,
+            @RequestParam(
+                    defaultValue = "0"
+            ) int page,
+            @RequestParam(
+                    defaultValue = "20"
+            ) int size,
+            @RequestParam(
+                    defaultValue = "createdAt"
+            ) String sortBy,
+            @RequestParam(
+                    defaultValue = "desc"
+            ) String sortDirection
     ) {
-        List<PortfolioEntity> portfolios =
+        validatePagination(
+                page,
+                size
+        );
+
+        Sort.Direction direction =
+                Sort.Direction.fromString(sortDirection);
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(
+                        direction,
+                        sortBy
+                )
+        );
+
+        Page<PortfolioEntity> portfolios =
                 portfolioService.getUserPortfolios(
-                        authenticatedUser.getId()
+                        authenticatedUser.getId(),
+                        pageable
                 );
 
-        List<PortfolioResponse> response =
-                portfolioMapper.toResponseList(portfolios);
+        PagedResponse<PortfolioResponse> response =
+                PagedResponse.from(
+                        portfolios,
+                        portfolioMapper::toResponse
+                );
 
         return ResponseEntity.ok(response);
     }
@@ -145,5 +189,22 @@ public class PortfolioController {
         );
 
         return ResponseEntity.noContent().build();
+    }
+
+    private void validatePagination(
+            int page,
+            int size
+    ) {
+        if (page < DEFAULT_PAGE) {
+            throw new IllegalArgumentException(
+                    "Page number must not be negative"
+            );
+        }
+
+        if (size < 1 || size > 100) {
+            throw new IllegalArgumentException(
+                    "Page size must be between 1 and 100"
+            );
+        }
     }
 }
