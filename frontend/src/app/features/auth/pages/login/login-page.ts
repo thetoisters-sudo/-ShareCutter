@@ -1,0 +1,234 @@
+import {
+    Component,
+    computed,
+    inject,
+    signal,
+} from '@angular/core';
+import {
+    FormBuilder,
+    ReactiveFormsModule,
+    Validators,
+} from '@angular/forms';
+import {
+    HttpErrorResponse,
+} from '@angular/common/http';
+import {
+    ActivatedRoute,
+    Router,
+    RouterLink,
+} from '@angular/router';
+import {
+    finalize,
+    switchMap,
+} from 'rxjs';
+
+import {
+    ApiErrorResponse,
+    LoginRequest,
+} from '../../../../core/auth/models/auth.models';
+import { AuthService } from '../../../../core/auth/services/auth.service';
+
+@Component({
+    selector: 'app-login-page',
+    imports: [
+        ReactiveFormsModule,
+        RouterLink,
+    ],
+    templateUrl: './login-page.html',
+    styleUrl: './login-page.scss',
+})
+export class LoginPage {
+    private readonly formBuilder = inject(FormBuilder);
+    private readonly authService = inject(AuthService);
+    private readonly router = inject(Router);
+    private readonly activatedRoute = inject(ActivatedRoute);
+
+    protected readonly isSubmitting = signal(false);
+
+    protected readonly errorMessage = signal<string | null>(
+        null,
+    );
+
+    protected readonly registrationMessage =
+        signal<string | null>(
+            this.resolveRegistrationMessage(),
+        );
+
+    protected readonly loginForm =
+        this.formBuilder.nonNullable.group({
+            email: [
+                '',
+                [
+                    Validators.required,
+                    Validators.email,
+                    Validators.maxLength(320),
+                ],
+            ],
+            password: [
+                '',
+                [
+                    Validators.required,
+                    Validators.minLength(8),
+                    Validators.maxLength(100),
+                ],
+            ],
+        });
+
+    protected readonly emailControl =
+        this.loginForm.controls.email;
+
+    protected readonly passwordControl =
+        this.loginForm.controls.password;
+
+    protected readonly submitButtonLabel = computed(() =>
+        this.isSubmitting()
+            ? 'Signing in...'
+            : 'Log in',
+    );
+
+    protected submit(): void {
+        this.errorMessage.set(null);
+
+        this.normalizeEmail();
+
+        if (this.loginForm.invalid) {
+            this.loginForm.markAllAsTouched();
+            return;
+        }
+
+        const request: LoginRequest =
+            this.loginForm.getRawValue();
+
+        this.isSubmitting.set(true);
+
+        this.authService
+            .login(request)
+            .pipe(
+                switchMap(() =>
+                    this.authService.loadCurrentUser(),
+                ),
+                finalize(() => {
+                    this.isSubmitting.set(false);
+                }),
+            )
+            .subscribe({
+                next: () => {
+                    void this.router.navigate([
+                        '/dashboard',
+                    ]);
+                },
+                error: (error: unknown) => {
+                    this.errorMessage.set(
+                        this.resolveErrorMessage(error),
+                    );
+                },
+            });
+    }
+
+    protected shouldShowEmailRequiredError(): boolean {
+        return (
+            this.emailControl.touched &&
+            this.emailControl.hasError('required')
+        );
+    }
+
+    protected shouldShowEmailFormatError(): boolean {
+        return (
+            this.emailControl.touched &&
+            this.emailControl.hasError('email')
+        );
+    }
+
+    protected shouldShowPasswordRequiredError(): boolean {
+        return (
+            this.passwordControl.touched &&
+            this.passwordControl.hasError('required')
+        );
+    }
+
+    protected shouldShowPasswordLengthError(): boolean {
+        return (
+            this.passwordControl.touched &&
+            (
+                this.passwordControl.hasError('minlength') ||
+                this.passwordControl.hasError('maxlength')
+            )
+        );
+    }
+
+    private normalizeEmail(): void {
+        const normalizedEmail =
+            this.emailControl.value
+                .trim()
+                .toLowerCase();
+
+        this.emailControl.setValue(
+            normalizedEmail,
+            {
+                emitEvent: false,
+            },
+        );
+
+        this.emailControl.updateValueAndValidity({
+            emitEvent: false,
+        });
+    }
+
+    private resolveRegistrationMessage(): string | null {
+        const registrationCompleted =
+            this.activatedRoute.snapshot.queryParamMap.get(
+                'registered',
+            );
+
+        if (registrationCompleted !== 'true') {
+            return null;
+        }
+
+        return (
+            'Your account was created successfully. ' +
+            'You can now log in.'
+        );
+    }
+
+    private resolveErrorMessage(
+        error: unknown,
+    ): string {
+        if (!(error instanceof HttpErrorResponse)) {
+            return 'Something went wrong. Please try again.';
+        }
+
+        if (error.status === 0) {
+            return (
+                'The ShareCutter server is unavailable. ' +
+                'Make sure the backend is running.'
+            );
+        }
+
+        if (
+            error.status === 400 ||
+            error.status === 401
+        ) {
+            return 'The email or password is incorrect.';
+        }
+
+        if (error.status === 403) {
+            return (
+                'This account is not currently allowed ' +
+                'to access ShareCutter.'
+            );
+        }
+
+        const response =
+            error.error as ApiErrorResponse | null;
+
+        if (
+            response &&
+            typeof response.message === 'string' &&
+            response.message.trim().length > 0
+        ) {
+            return response.message;
+        }
+
+        return 'Unable to log in. Please try again.';
+    }
+}

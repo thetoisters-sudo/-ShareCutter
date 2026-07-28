@@ -1,0 +1,219 @@
+<section class="auth-page">
+    <div class="auth-page__layout">
+        <div class="auth-page__introduction">
+            <span class="auth-page__eyebrow">
+                Start with ShareCutter
+            </span>
+
+            <h1>Create your account</h1>
+
+            <p>
+                Build portfolios, record transactions and manage
+                weekly allocation targets from one personal workspace.
+            </p>
+
+            <ul class="auth-page__benefits">
+                <li>
+                    Create and manage multiple portfolios
+                </li>
+
+                <li>
+                    Track assets and transaction history
+                </li>
+
+                <li>
+                    Define weekly portfolio targets
+                </li>
+            </ul>
+        </div>
+
+        <div class="auth-card">
+            <div class="auth-card__header">
+                <h2>Create account</h2>
+
+                <p>
+                    Enter your details to create a ShareCutter account.
+                </p>
+            </div>
+
+            @if (errorMessage()) {
+            <div class="auth-card__alert" role="alert">
+                {{ errorMessage() }}
+            </div>
+            }
+
+            <form class="auth-form" [formGroup]="registerForm" (ngSubmit)="submit()" novalidate>
+                <div class="auth-form__name-grid">
+                    <div class="auth-form__field">
+                        <label for="firstName">
+                            First name
+                        </label>
+
+                        <input id="firstName" type="text" formControlName="firstName" autocomplete="given-name"
+                            placeholder="First name" [attr.aria-invalid]="
+                firstNameControl.invalid &&
+                firstNameControl.touched
+              " />
+
+                        @if (
+                        shouldShowFirstNameRequiredError()
+                        ) {
+                        <p class="auth-form__error">
+                            First name is required.
+                        </p>
+                        }
+
+                        @if (
+                        shouldShowFirstNameLengthError()
+                        ) {
+                        <p class="auth-form__error">
+                            First name must not exceed
+                            100 characters.
+                        </p>
+                        }
+                    </div>
+
+                    <div class="auth-form__field">
+                        <label for="lastName">
+                            Last name
+                        </label>
+
+                        <input id="lastName" type="text" formControlName="lastName" autocomplete="family-name"
+                            placeholder="Last name" [attr.aria-invalid]="
+                lastNameControl.invalid &&
+                lastNameControl.touched
+              " />
+
+                        @if (
+                        shouldShowLastNameRequiredError()
+                        ) {
+                        <p class="auth-form__error">
+                            Last name is required.
+                        </p>
+                        }
+
+                        @if (
+                        shouldShowLastNameLengthError()
+                        ) {
+                        <p class="auth-form__error">
+                            Last name must not exceed
+                            100 characters.
+                        </p>
+                        }
+                    </div>
+                </div>
+
+                <div class="auth-form__field">
+                    <label for="email">
+                        Email address
+                    </label>
+
+                    <input id="email" type="email" formControlName="email" autocomplete="email"
+                        placeholder="name@example.com" [attr.aria-invalid]="
+              emailControl.invalid &&
+              emailControl.touched
+            " />
+
+                    @if (shouldShowEmailRequiredError()) {
+                    <p class="auth-form__error">
+                        Email address is required.
+                    </p>
+                    }
+
+                    @if (shouldShowEmailFormatError()) {
+                    <p class="auth-form__error">
+                        Enter a valid email address.
+                    </p>
+                    }
+
+                    @if (shouldShowEmailLengthError()) {
+                    <p class="auth-form__error">
+                        Email address must not exceed
+                        320 characters.
+                    </p>
+                    }
+                </div>
+
+                <div class="auth-form__field">
+                    <div class="auth-form__label-row">
+                        <label for="password">
+                            Password
+                        </label>
+
+                        <span>
+                            8 to 72 characters
+                        </span>
+                    </div>
+
+                    <input id="password" type="password" formControlName="password" autocomplete="new-password"
+                        placeholder="Create a password" [attr.aria-invalid]="
+              passwordControl.invalid &&
+              passwordControl.touched
+            " />
+
+                    @if (
+                    shouldShowPasswordRequiredError()
+                    ) {
+                    <p class="auth-form__error">
+                        Password is required.
+                    </p>
+                    }
+
+                    @if (
+                    shouldShowPasswordLengthError()
+                    ) {
+                    <p class="auth-form__error">
+                        Password must contain between
+                        8 and 72 characters.
+                    </p>
+                    }
+                </div>
+
+                <div class="auth-form__field">
+                    <label for="confirmPassword">
+                        Confirm password
+                    </label>
+
+                    <input id="confirmPassword" type="password" formControlName="confirmPassword"
+                        autocomplete="new-password" placeholder="Enter the password again" [attr.aria-invalid]="
+              (
+                confirmPasswordControl.invalid ||
+                registerForm.hasError(
+                  'passwordsMismatch'
+                )
+              ) &&
+              confirmPasswordControl.touched
+            " />
+
+                    @if (
+                    shouldShowConfirmPasswordRequiredError()
+                    ) {
+                    <p class="auth-form__error">
+                        Password confirmation is required.
+                    </p>
+                    }
+
+                    @if (
+                    shouldShowPasswordMismatchError()
+                    ) {
+                    <p class="auth-form__error">
+                        The passwords do not match.
+                    </p>
+                    }
+                </div>
+
+                <button class="auth-form__submit" type="submit" [disabled]="isSubmitting()">
+                    {{ submitButtonLabel() }}
+                </button>
+            </form>
+
+            <p class="auth-card__footer">
+                Already have an account?
+
+                <a routerLink="/login">
+                    Log in
+                </a>
+            </p>
+        </div>
+    </div>
+</section>

@@ -9,7 +9,9 @@ export const routes: Routes = [
     {
         path: 'dashboard',
         loadComponent: () =>
-            import('./pages/placeholder-page/placeholder-page').then(
+            import(
+                './pages/placeholder-page/placeholder-page'
+            ).then(
                 (module) => module.PlaceholderPage,
             ),
         data: {
@@ -21,7 +23,9 @@ export const routes: Routes = [
     {
         path: 'portfolios',
         loadComponent: () =>
-            import('./pages/placeholder-page/placeholder-page').then(
+            import(
+                './pages/placeholder-page/placeholder-page'
+            ).then(
                 (module) => module.PlaceholderPage,
             ),
         data: {
@@ -33,34 +37,33 @@ export const routes: Routes = [
     {
         path: 'login',
         loadComponent: () =>
-            import('./pages/placeholder-page/placeholder-page').then(
-                (module) => module.PlaceholderPage,
+            import(
+                './features/auth/pages/login/login-page'
+            ).then(
+                (module) => module.LoginPage,
             ),
-        data: {
-            title: 'Log in',
-            description: 'Sign in to access your ShareCutter account.',
-        },
     },
     {
         path: 'register',
         loadComponent: () =>
-            import('./pages/placeholder-page/placeholder-page').then(
-                (module) => module.PlaceholderPage,
+            import(
+                './features/auth/pages/register/register-page'
+            ).then(
+                (module) => module.RegisterPage,
             ),
-        data: {
-            title: 'Create account',
-            description: 'Create an account and begin managing your portfolios.',
-        },
     },
     {
         path: '**',
         loadComponent: () =>
-            import('./pages/placeholder-page/placeholder-page').then(
+            import(
+                './pages/placeholder-page/placeholder-page'
+            ).then(
                 (module) => module.PlaceholderPage,
             ),
         data: {
             title: 'Page not found',
-            description: 'The requested page does not exist.',
+            description:
+                'The requested page does not exist.',
         },
     },
 ];
