@@ -1,0 +1,333 @@
+<section class="dashboard-page">
+    <header class="dashboard-header">
+        <div>
+            <span class="dashboard-header__eyebrow">
+                Portfolio overview
+            </span>
+
+            <h1>Dashboard</h1>
+
+            <p>
+                Review your portfolio values, overall performance
+                and recently updated investment accounts.
+            </p>
+        </div>
+
+        <a class="dashboard-header__action" routerLink="/portfolios">
+            Manage portfolios
+        </a>
+    </header>
+
+    @if (isLoading) {
+    <section class="dashboard-state" aria-live="polite">
+        <span class="dashboard-state__spinner" aria-hidden="true"></span>
+
+        <h2>Loading portfolio data</h2>
+
+        <p>
+            Your latest portfolio values are being retrieved.
+        </p>
+    </section>
+    } @else if (errorMessage) {
+    <section class="dashboard-state dashboard-state--error" role="alert">
+        <span class="dashboard-state__icon" aria-hidden="true">
+            !
+        </span>
+
+        <h2>Dashboard unavailable</h2>
+
+        <p>{{ errorMessage }}</p>
+
+        <button type="button" class="dashboard-state__button" (click)="retry()">
+            Try again
+        </button>
+    </section>
+    } @else if (portfolioCount === 0) {
+    <section class="dashboard-state">
+        <span class="dashboard-state__icon" aria-hidden="true">
+            +
+        </span>
+
+        <h2>No portfolios yet</h2>
+
+        <p>
+            Create your first portfolio to begin tracking
+            allocations, values and returns.
+        </p>
+
+        <a class="dashboard-state__button" routerLink="/portfolios">
+            Create a portfolio
+        </a>
+    </section>
+    } @else {
+    <section class="summary-grid" aria-label="Portfolio summary">
+        <article class="summary-card">
+            <span class="summary-card__label">
+                Portfolios
+            </span>
+
+            <strong class="summary-card__value">
+                {{ portfolioCount }}
+            </strong>
+
+            <span class="summary-card__detail">
+                Active investment accounts
+            </span>
+        </article>
+
+        <article class="summary-card">
+            <span class="summary-card__label">
+                Initial value
+            </span>
+
+            <strong class="summary-card__value">
+                {{
+                totalInitialValue
+                | currency:'USD':'symbol':'1.2-2'
+                }}
+            </strong>
+
+            <span class="summary-card__detail">
+                Total starting capital
+            </span>
+        </article>
+
+        <article class="summary-card">
+            <span class="summary-card__label">
+                Current value
+            </span>
+
+            <strong class="summary-card__value">
+                {{
+                totalCurrentValue
+                | currency:'USD':'symbol':'1.2-2'
+                }}
+            </strong>
+
+            <span class="summary-card__detail">
+                Current combined value
+            </span>
+        </article>
+
+        <article class="summary-card">
+            <span class="summary-card__label">
+                Total return
+            </span>
+
+            <strong class="summary-card__value" [class.summary-card__value--positive]="
+                        isPositiveOrZero(totalReturnPercent)
+                    " [class.summary-card__value--negative]="
+                        !isPositiveOrZero(totalReturnPercent)
+                    ">
+                {{
+                totalReturnPercent
+                | number:'1.2-2'
+                }}%
+            </strong>
+
+            <span class="summary-card__detail" [class.summary-card__detail--positive]="
+                        isPositiveOrZero(totalProfit)
+                    " [class.summary-card__detail--negative]="
+                        !isPositiveOrZero(totalProfit)
+                    ">
+                {{
+                totalProfit
+                | currency:'USD':'symbol':'1.2-2'
+                }}
+            </span>
+        </article>
+    </section>
+
+    <section class="dashboard-content-grid">
+        <article class="portfolio-panel">
+            <header class="panel-header">
+                <div>
+                    <span class="panel-header__eyebrow">
+                        Current accounts
+                    </span>
+
+                    <h2>Your portfolios</h2>
+                </div>
+
+                <a routerLink="/portfolios">
+                    View all
+                </a>
+            </header>
+
+            <div class="portfolio-table-wrapper">
+                <table class="portfolio-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">
+                                Portfolio
+                            </th>
+
+                            <th scope="col">
+                                Initial value
+                            </th>
+
+                            <th scope="col">
+                                Current value
+                            </th>
+
+                            <th scope="col">
+                                Return
+                            </th>
+
+                            <th scope="col">
+                                Updated
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @for (
+                        portfolio of portfolios;
+                        track portfolio.id
+                        ) {
+                        <tr>
+                            <td>
+                                <strong>
+                                    {{ portfolio.name }}
+                                </strong>
+
+                                <span>
+                                    {{
+                                    portfolio.creationMethod ===
+                                    'BY_AMOUNT'
+                                    ? 'Created by amount'
+                                    : 'Created by holdings'
+                                    }}
+                                </span>
+                            </td>
+
+                            <td>
+                                {{
+                                portfolio.initialValue
+                                | currency:
+                                'USD':
+                                'symbol':
+                                '1.2-2'
+                                }}
+                            </td>
+
+                            <td>
+                                {{
+                                portfolio.currentValue
+                                | currency:
+                                'USD':
+                                'symbol':
+                                '1.2-2'
+                                }}
+                            </td>
+
+                            <td>
+                                <span class="return-badge" [class.return-badge--positive]="
+                                                isPositiveOrZero(
+                                                    portfolio
+                                                        .totalReturnPercent
+                                                )
+                                            " [class.return-badge--negative]="
+                                                !isPositiveOrZero(
+                                                    portfolio
+                                                        .totalReturnPercent
+                                                )
+                                            ">
+                                    {{
+                                    portfolio
+                                    .totalReturnPercent
+                                    | number:'1.2-2'
+                                    }}%
+                                </span>
+                            </td>
+
+                            <td>
+                                {{
+                                portfolio.updatedAt
+                                | date:'mediumDate'
+                                }}
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <aside class="performance-panel">
+            <span class="performance-panel__eyebrow">
+                Best performer
+            </span>
+
+            <h2>
+                {{ bestPerformingPortfolio?.name }}
+            </h2>
+
+            <strong class="performance-panel__return" [class.performance-panel__return--positive]="
+                        isPositiveOrZero(
+                            bestPerformingPortfolio
+                                ?.totalReturnPercent ?? 0
+                        )
+                    " [class.performance-panel__return--negative]="
+                        !isPositiveOrZero(
+                            bestPerformingPortfolio
+                                ?.totalReturnPercent ?? 0
+                        )
+                    ">
+                {{
+                bestPerformingPortfolio
+                ?.totalReturnPercent ?? 0
+                | number:'1.2-2'
+                }}%
+            </strong>
+
+            <dl class="performance-panel__details">
+                <div>
+                    <dt>Current value</dt>
+
+                    <dd>
+                        {{
+                        bestPerformingPortfolio
+                        ?.currentValue ?? 0
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Realized profit</dt>
+
+                    <dd>
+                        {{
+                        bestPerformingPortfolio
+                        ?.totalRealizedProfit ?? 0
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Unrealized profit</dt>
+
+                    <dd>
+                        {{
+                        bestPerformingPortfolio
+                        ?.totalUnrealizedProfit ?? 0
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+            </dl>
+        </aside>
+    </section>
+    }
+</section>
