@@ -10,9 +10,9 @@ export const routes: Routes = [
         path: 'dashboard',
         loadComponent: () =>
             import(
-                './pages/placeholder-page/placeholder-page'
+                './features/dashboard/pages/dashboard-page/dashboard-page'
             ).then(
-                (module) => module.PlaceholderPage,
+                (module) => module.DashboardPage,
             ),
         data: {
             title: 'Dashboard',
