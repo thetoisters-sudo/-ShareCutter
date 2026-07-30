@@ -1,0 +1,482 @@
+<section class="assets-page">
+    <header class="assets-header">
+        <div>
+            <span class="assets-header__eyebrow">
+                Asset management
+            </span>
+
+            <h1>Assets</h1>
+
+            <p>
+                Create and maintain the financial instruments
+                held in each investment portfolio.
+            </p>
+        </div>
+
+        <button type="button" class="primary-button" [disabled]="
+                !selectedPortfolioId ||
+                isLoadingPortfolios
+            " (click)="openCreateDialog()">
+            Add asset
+        </button>
+    </header>
+
+    @if (successMessage) {
+    <section class="message-banner" role="status">
+        <span>{{ successMessage }}</span>
+
+        <button type="button" aria-label="Dismiss message" (click)="dismissSuccessMessage()">
+            ×
+        </button>
+    </section>
+    }
+
+    @if (isLoadingPortfolios) {
+    <section class="page-state" aria-live="polite">
+        <span class="page-state__spinner" aria-hidden="true"></span>
+
+        <h2>Loading portfolios</h2>
+
+        <p>
+            Available portfolios are being retrieved.
+        </p>
+    </section>
+    } @else if (
+    errorMessage &&
+    portfolios.length === 0
+    ) {
+    <section class="page-state page-state--error" role="alert">
+        <span class="page-state__icon" aria-hidden="true">
+            !
+        </span>
+
+        <h2>Assets unavailable</h2>
+
+        <p>{{ errorMessage }}</p>
+
+        <button type="button" class="primary-button" (click)="retry()">
+            Try again
+        </button>
+    </section>
+    } @else if (portfolios.length === 0) {
+    <section class="page-state">
+        <span class="page-state__icon" aria-hidden="true">
+            +
+        </span>
+
+        <h2>No portfolios available</h2>
+
+        <p>
+            Create a portfolio before adding assets.
+        </p>
+    </section>
+    } @else {
+    <section class="assets-toolbar">
+        <label>
+            <span>Portfolio</span>
+
+            <select name="selectedPortfolioId" [ngModel]="selectedPortfolioId" [disabled]="isLoadingAssets"
+                (ngModelChange)="
+                        selectPortfolio($event)
+                    ">
+                @for (
+                portfolio of portfolios;
+                track portfolio.id
+                ) {
+                <option [value]="portfolio.id">
+                    {{ portfolio.name }}
+                </option>
+                }
+            </select>
+        </label>
+
+        <label>
+            <span>Search assets</span>
+
+            <input type="search" name="searchValue" placeholder="Symbol, name, currency or exchange" autocomplete="off"
+                [(ngModel)]="searchValue" (ngModelChange)="onSearchChange()" />
+        </label>
+    </section>
+
+    @if (isLoadingAssets) {
+    <section class="page-state" aria-live="polite">
+        <span class="page-state__spinner" aria-hidden="true"></span>
+
+        <h2>Loading assets</h2>
+
+        <p>
+            Assets for the selected portfolio
+            are being retrieved.
+        </p>
+    </section>
+    } @else if (errorMessage) {
+    <section class="page-state page-state--error" role="alert">
+        <span class="page-state__icon" aria-hidden="true">
+            !
+        </span>
+
+        <h2>Assets unavailable</h2>
+
+        <p>{{ errorMessage }}</p>
+
+        <button type="button" class="primary-button" (click)="retry()">
+            Try again
+        </button>
+    </section>
+    } @else if (assets.length === 0) {
+    <section class="page-state">
+        <span class="page-state__icon" aria-hidden="true">
+            +
+        </span>
+
+        <h2>No assets yet</h2>
+
+        <p>
+            Add the first asset to
+            <strong>
+                {{ selectedPortfolio?.name }}
+            </strong>.
+        </p>
+
+        <button type="button" class="primary-button" (click)="openCreateDialog()">
+            Add first asset
+        </button>
+    </section>
+    } @else {
+    <section class="asset-summary" aria-label="Asset summary">
+        <article class="summary-card">
+            <span>Total assets</span>
+
+            <strong>
+                {{ assets.length }}
+            </strong>
+
+            <small>
+                In the selected portfolio
+            </small>
+        </article>
+
+        <article class="summary-card">
+            <span>Asset types</span>
+
+            <strong>
+                {{ uniqueAssetTypes }}
+            </strong>
+
+            <small>
+                Distinct classifications
+            </small>
+        </article>
+
+        <article class="summary-card">
+            <span>Currencies</span>
+
+            <strong>
+                {{ uniqueCurrencies }}
+            </strong>
+
+            <small>
+                Distinct trading currencies
+            </small>
+        </article>
+    </section>
+
+    @if (filteredAssets.length === 0) {
+    <section class="page-state">
+        <span class="page-state__icon" aria-hidden="true">
+            ?
+        </span>
+
+        <h2>No matching assets</h2>
+
+        <p>
+            Change the search value
+            to display other assets.
+        </p>
+    </section>
+    } @else {
+    <section class="asset-list">
+        @for (
+        asset of filteredAssets;
+        track asset.id
+        ) {
+        <article class="asset-card">
+            <header class="asset-card__header">
+                <div>
+                    <span class="asset-card__type">
+                        {{
+                        getAssetTypeLabel(
+                        asset.assetType
+                        )
+                        }}
+                    </span>
+
+                    <h2>
+                        {{ asset.symbol }}
+                    </h2>
+
+                    <p>
+                        {{ asset.displayName }}
+                    </p>
+                </div>
+
+                <span class="currency-badge">
+                    {{ asset.currency }}
+                </span>
+            </header>
+
+            <dl class="asset-card__details">
+                <div>
+                    <dt>Exchange</dt>
+
+                    <dd>
+                        {{
+                        asset.exchange ||
+                        'Not specified'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>ISIN</dt>
+
+                    <dd>
+                        {{
+                        asset.isin ||
+                        'Not specified'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Created</dt>
+
+                    <dd>
+                        {{
+                        asset.createdAt
+                        | date:'mediumDate'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Updated</dt>
+
+                    <dd>
+                        {{
+                        asset.updatedAt
+                        | date:'mediumDate'
+                        }}
+                    </dd>
+                </div>
+            </dl>
+
+            @if (asset.notes) {
+            <p class="asset-card__notes">
+                {{ asset.notes }}
+            </p>
+            }
+
+            <footer class="asset-card__actions">
+                <button type="button" (click)="
+                                        openEditDialog(asset)
+                                    ">
+                    Edit
+                </button>
+
+                <button type="button" class="danger-button" (click)="
+                                        openDeleteDialog(asset)
+                                    ">
+                    Delete
+                </button>
+            </footer>
+        </article>
+        }
+    </section>
+    }
+    }
+    }
+
+    @if (dialogMode) {
+    <div class="dialog-backdrop" role="presentation">
+        <section class="asset-dialog" role="dialog" aria-modal="true" aria-labelledby="asset-dialog-title">
+            <header class="asset-dialog__header">
+                <div>
+                    <span>
+                        Asset action
+                    </span>
+
+                    <h2 id="asset-dialog-title">
+                        @switch (dialogMode) {
+                        @case ('create') {
+                        Add asset
+                        }
+
+                        @case ('edit') {
+                        Edit asset
+                        }
+
+                        @case ('delete') {
+                        Delete asset
+                        }
+                        }
+                    </h2>
+                </div>
+
+                <button type="button" class="dialog-close" aria-label="Close dialog" [disabled]="isSubmitting"
+                    (click)="closeDialog()">
+                    ×
+                </button>
+            </header>
+
+            @if (actionErrorMessage) {
+            <p class="dialog-error" role="alert">
+                {{ actionErrorMessage }}
+            </p>
+            }
+
+            @if (
+            dialogMode === 'create' ||
+            dialogMode === 'edit'
+            ) {
+            <form class="asset-form" (ngSubmit)="
+                            dialogMode === 'create'
+                                ? submitCreate()
+                                : submitEdit()
+                        ">
+                <div class="asset-form__grid">
+                    <label>
+                        <span>Symbol</span>
+
+                        <input type="text" name="symbol" maxlength="30" autocomplete="off" [(ngModel)]="
+                                        formValue.symbol
+                                    " />
+                    </label>
+
+                    <label>
+                        <span>Asset type</span>
+
+                        <select name="assetType" [(ngModel)]="
+                                        formValue.assetType
+                                    ">
+                            @for (
+                            option of
+                            assetTypeOptions;
+                            track option.value
+                            ) {
+                            <option [value]="
+                                                option.value
+                                            ">
+                                {{ option.label }}
+                            </option>
+                            }
+                        </select>
+                    </label>
+                </div>
+
+                <label>
+                    <span>Display name</span>
+
+                    <input type="text" name="displayName" maxlength="160" autocomplete="off" [(ngModel)]="
+                                    formValue.displayName
+                                " />
+                </label>
+
+                <div class="asset-form__grid">
+                    <label>
+                        <span>Currency</span>
+
+                        <input type="text" name="currency" maxlength="3" autocomplete="off" [(ngModel)]="
+                                        formValue.currency
+                                    " />
+                    </label>
+
+                    <label>
+                        <span>Exchange</span>
+
+                        <input type="text" name="exchange" maxlength="40" autocomplete="off" [(ngModel)]="
+                                        formValue.exchange
+                                    " />
+                    </label>
+                </div>
+
+                <label>
+                    <span>ISIN</span>
+
+                    <input type="text" name="isin" maxlength="12" autocomplete="off" [(ngModel)]="
+                                    formValue.isin
+                                " />
+                </label>
+
+                <label>
+                    <span>Notes</span>
+
+                    <textarea name="notes" maxlength="2000" rows="4" [(ngModel)]="
+                                    formValue.notes
+                                "></textarea>
+                </label>
+
+                <footer class="dialog-actions">
+                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
+                        Cancel
+                    </button>
+
+                    <button type="submit" class="primary-button" [disabled]="isSubmitting">
+                        @if (dialogMode === 'create') {
+                        {{
+                        isSubmitting
+                        ? 'Adding...'
+                        : 'Add asset'
+                        }}
+                        } @else {
+                        {{
+                        isSubmitting
+                        ? 'Saving...'
+                        : 'Save asset'
+                        }}
+                        }
+                    </button>
+                </footer>
+            </form>
+            }
+
+            @if (dialogMode === 'delete') {
+            <div class="delete-confirmation">
+                <p>
+                    You are about to delete
+                    <strong>
+                        {{ selectedAsset?.symbol }}
+                    </strong>
+                    from
+                    <strong>
+                        {{ selectedPortfolio?.name }}
+                    </strong>.
+                </p>
+
+                <p>
+                    Existing transactions may still
+                    refer to this asset.
+                </p>
+
+                <footer class="dialog-actions">
+                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
+                        Cancel
+                    </button>
+
+                    <button type="button" class="
+                                    danger-button
+                                    danger-button--filled
+                                " [disabled]="isSubmitting" (click)="submitDelete()">
+                        {{
+                        isSubmitting
+                        ? 'Deleting...'
+                        : 'Delete asset'
+                        }}
+                    </button>
+                </footer>
+            </div>
+            }
+        </section>
+    </div>
+    }
+</section>

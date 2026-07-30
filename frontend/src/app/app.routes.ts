@@ -1,7 +1,11 @@
 import { Routes } from '@angular/router';
 
-import { authGuard } from './core/auth/guards/auth.guard';
-import { guestGuard } from './core/auth/guards/guest.guard';
+import {
+    authGuard,
+} from './core/auth/guards/auth.guard';
+import {
+    guestGuard,
+} from './core/auth/guards/guest.guard';
 
 export const routes: Routes = [
     {
@@ -11,12 +15,15 @@ export const routes: Routes = [
     },
     {
         path: 'dashboard',
-        canActivate: [authGuard],
+        canActivate: [
+            authGuard,
+        ],
         loadComponent: () =>
             import(
                 './features/dashboard/pages/dashboard-page/dashboard-page'
             ).then(
-                (module) => module.DashboardPage,
+                (module) =>
+                    module.DashboardPage,
             ),
         data: {
             title: 'Dashboard',
@@ -26,12 +33,15 @@ export const routes: Routes = [
     },
     {
         path: 'portfolios',
-        canActivate: [authGuard],
+        canActivate: [
+            authGuard,
+        ],
         loadComponent: () =>
             import(
                 './features/portfolios/pages/portfolios-page/portfolios-page'
             ).then(
-                (module) => module.PortfoliosPage,
+                (module) =>
+                    module.PortfoliosPage,
             ),
         data: {
             title: 'Portfolios',
@@ -40,23 +50,65 @@ export const routes: Routes = [
         },
     },
     {
+        path: 'assets',
+        canActivate: [
+            authGuard,
+        ],
+        loadComponent: () =>
+            import(
+                './features/assets/pages/assets-page/assets-page'
+            ).then(
+                (module) =>
+                    module.AssetsPage,
+            ),
+        data: {
+            title: 'Assets',
+            description:
+                'Create and manage the financial instruments held in each portfolio.',
+        },
+    },
+    {
+        path: 'transactions',
+        canActivate: [
+            authGuard,
+        ],
+        loadComponent: () =>
+            import(
+                './features/transactions/pages/transactions-page/transactions-page'
+            ).then(
+                (module) =>
+                    module.TransactionsPage,
+            ),
+        data: {
+            title: 'Transactions',
+            description:
+                'Record and manage purchases, sales, dividends, deposits, withdrawals and fees.',
+        },
+    },
+    {
         path: 'login',
-        canActivate: [guestGuard],
+        canActivate: [
+            guestGuard,
+        ],
         loadComponent: () =>
             import(
                 './features/auth/pages/login/login-page'
             ).then(
-                (module) => module.LoginPage,
+                (module) =>
+                    module.LoginPage,
             ),
     },
     {
         path: 'register',
-        canActivate: [guestGuard],
+        canActivate: [
+            guestGuard,
+        ],
         loadComponent: () =>
             import(
                 './features/auth/pages/register/register-page'
             ).then(
-                (module) => module.RegisterPage,
+                (module) =>
+                    module.RegisterPage,
             ),
     },
     {
@@ -65,7 +117,8 @@ export const routes: Routes = [
             import(
                 './pages/placeholder-page/placeholder-page'
             ).then(
-                (module) => module.PlaceholderPage,
+                (module) =>
+                    module.PlaceholderPage,
             ),
         data: {
             title: 'Page not found',
