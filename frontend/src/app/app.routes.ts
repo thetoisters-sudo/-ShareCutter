@@ -1,5 +1,8 @@
 import { Routes } from '@angular/router';
 
+import { authGuard } from './core/auth/guards/auth.guard';
+import { guestGuard } from './core/auth/guards/guest.guard';
+
 export const routes: Routes = [
     {
         path: '',
@@ -8,6 +11,7 @@ export const routes: Routes = [
     },
     {
         path: 'dashboard',
+        canActivate: [authGuard],
         loadComponent: () =>
             import(
                 './features/dashboard/pages/dashboard-page/dashboard-page'
@@ -22,20 +26,22 @@ export const routes: Routes = [
     },
     {
         path: 'portfolios',
+        canActivate: [authGuard],
         loadComponent: () =>
             import(
-                './pages/placeholder-page/placeholder-page'
+                './features/portfolios/pages/portfolios-page/portfolios-page'
             ).then(
-                (module) => module.PlaceholderPage,
+                (module) => module.PortfoliosPage,
             ),
         data: {
             title: 'Portfolios',
             description:
-                'Create portfolios and manage assets, transactions and allocation targets.',
+                'Create portfolios and manage their values, names and lifecycle.',
         },
     },
     {
         path: 'login',
+        canActivate: [guestGuard],
         loadComponent: () =>
             import(
                 './features/auth/pages/login/login-page'
@@ -45,6 +51,7 @@ export const routes: Routes = [
     },
     {
         path: 'register',
+        canActivate: [guestGuard],
         loadComponent: () =>
             import(
                 './features/auth/pages/register/register-page'

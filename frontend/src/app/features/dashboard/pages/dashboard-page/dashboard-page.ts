@@ -1,7 +1,18 @@
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { finalize } from 'rxjs';
+import {
+    CurrencyPipe,
+    DatePipe,
+    DecimalPipe,
+} from '@angular/common';
+import {
+    ChangeDetectionStrategy,
+    ChangeDetectorRef,
+    Component,
+    OnInit,
+    inject,
+} from '@angular/core';
+import {
+    RouterLink,
+} from '@angular/router';
 
 import {
     PortfolioResponse,
@@ -20,10 +31,14 @@ import {
     ],
     templateUrl: './dashboard-page.html',
     styleUrl: './dashboard-page.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardPage implements OnInit {
     private readonly portfolioService =
         inject(PortfolioService);
+
+    private readonly changeDetectorRef =
+        inject(ChangeDetectorRef);
 
     protected portfolios: PortfolioResponse[] = [];
     protected isLoading = true;
@@ -94,8 +109,9 @@ export class DashboardPage implements OnInit {
             (
                 bestPortfolio,
                 currentPortfolio,
-            ) => currentPortfolio.totalReturnPercent >
-                bestPortfolio.totalReturnPercent
+            ) =>
+                currentPortfolio.totalReturnPercent >
+                    bestPortfolio.totalReturnPercent
                     ? currentPortfolio
                     : bestPortfolio,
         );
@@ -110,6 +126,7 @@ export class DashboardPage implements OnInit {
     private loadPortfolios(): void {
         this.isLoading = true;
         this.errorMessage = '';
+        this.changeDetectorRef.markForCheck();
 
         this.portfolioService
             .getPortfolios({
@@ -118,19 +135,18 @@ export class DashboardPage implements OnInit {
                 sortBy: 'createdAt',
                 sortDirection: 'desc',
             })
-            .pipe(
-                finalize(() => {
-                    this.isLoading = false;
-                }),
-            )
             .subscribe({
                 next: (response) => {
                     this.portfolios = response.content;
+                    this.isLoading = false;
+                    this.changeDetectorRef.markForCheck();
                 },
                 error: () => {
                     this.portfolios = [];
+                    this.isLoading = false;
                     this.errorMessage =
                         'Portfolio data could not be loaded. Please try again.';
+                    this.changeDetectorRef.markForCheck();
                 },
             });
     }

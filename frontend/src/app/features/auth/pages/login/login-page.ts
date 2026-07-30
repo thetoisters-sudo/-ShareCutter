@@ -113,9 +113,9 @@ export class LoginPage {
             )
             .subscribe({
                 next: () => {
-                    void this.router.navigate([
-                        '/dashboard',
-                    ]);
+                    void this.router.navigateByUrl(
+                        this.resolvePostLoginUrl(),
+                    );
                 },
                 error: (error: unknown) => {
                     this.errorMessage.set(
@@ -188,6 +188,49 @@ export class LoginPage {
             'Your account was created successfully. ' +
             'You can now log in.'
         );
+    }
+
+    private resolvePostLoginUrl(): string {
+        const returnUrl =
+            this.activatedRoute.snapshot.queryParamMap.get(
+                'returnUrl',
+            );
+
+        if (!this.isSafeInternalUrl(returnUrl)) {
+            return '/dashboard';
+        }
+
+        return returnUrl;
+    }
+
+    private isSafeInternalUrl(
+        url: string | null,
+    ): url is string {
+        if (!url) {
+            return false;
+        }
+
+        const normalizedUrl = url.trim();
+
+        if (
+            !normalizedUrl.startsWith('/') ||
+            normalizedUrl.startsWith('//') ||
+            normalizedUrl.includes('\\')
+        ) {
+            return false;
+        }
+
+        try {
+            const parsedUrl =
+                this.router.parseUrl(normalizedUrl);
+
+            return (
+                parsedUrl.root.children['primary'] !==
+                undefined
+            );
+        } catch {
+            return false;
+        }
     }
 
     private resolveErrorMessage(

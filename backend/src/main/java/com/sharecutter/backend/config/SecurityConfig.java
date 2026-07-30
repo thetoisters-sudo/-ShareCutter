@@ -1,6 +1,7 @@
 package com.sharecutter.backend.config;
 
 import com.sharecutter.backend.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -49,6 +50,12 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .authorizeHttpRequests(authorize ->
                         authorize
+                                .dispatcherTypeMatchers(
+                                        DispatcherType.ERROR,
+                                        DispatcherType.FORWARD
+                                )
+                                .permitAll()
+
                                 .requestMatchers(
                                         HttpMethod.OPTIONS,
                                         "/**"

@@ -1,0 +1,441 @@
+<section class="portfolios-page">
+    <header class="portfolios-header">
+        <div>
+            <span class="portfolios-header__eyebrow">
+                Portfolio management
+            </span>
+
+            <h1>Portfolios</h1>
+
+            <p>
+                Create and maintain your investment portfolios,
+                update their values and review current performance.
+            </p>
+        </div>
+
+        <button type="button" class="primary-button" (click)="openCreateDialog()">
+            Create portfolio
+        </button>
+    </header>
+
+    @if (successMessage) {
+    <section class="message-banner message-banner--success" role="status">
+        <span>{{ successMessage }}</span>
+
+        <button type="button" aria-label="Dismiss message" (click)="dismissSuccessMessage()">
+            ×
+        </button>
+    </section>
+    }
+
+    @if (isLoading) {
+    <section class="page-state" aria-live="polite">
+        <span class="page-state__spinner" aria-hidden="true"></span>
+
+        <h2>Loading portfolios</h2>
+
+        <p>
+            Your investment accounts are being retrieved.
+        </p>
+    </section>
+    } @else if (errorMessage) {
+    <section class="page-state page-state--error" role="alert">
+        <span class="page-state__icon" aria-hidden="true">
+            !
+        </span>
+
+        <h2>Portfolios unavailable</h2>
+
+        <p>{{ errorMessage }}</p>
+
+        <button type="button" class="primary-button" (click)="retry()">
+            Try again
+        </button>
+    </section>
+    } @else if (portfolios.length === 0) {
+    <section class="page-state">
+        <span class="page-state__icon" aria-hidden="true">
+            +
+        </span>
+
+        <h2>No portfolios yet</h2>
+
+        <p>
+            Create your first portfolio to begin tracking
+            capital, values and investment returns.
+        </p>
+
+        <button type="button" class="primary-button" (click)="openCreateDialog()">
+            Create your first portfolio
+        </button>
+    </section>
+    } @else {
+    <section class="portfolio-summary" aria-label="Current page summary">
+        <article class="summary-card">
+            <span>All portfolios</span>
+
+            <strong>
+                {{ totalElements }}
+            </strong>
+
+            <small>
+                Across all pages
+            </small>
+        </article>
+
+        <article class="summary-card">
+            <span>Displayed value</span>
+
+            <strong>
+                {{
+                totalCurrentValue
+                | currency:'USD':'symbol':'1.2-2'
+                }}
+            </strong>
+
+            <small>
+                Portfolios on this page
+            </small>
+        </article>
+
+        <article class="summary-card">
+            <span>Displayed profit</span>
+
+            <strong [class.summary-card__positive]="
+                        isPositiveOrZero(displayedProfit)
+                    " [class.summary-card__negative]="
+                        !isPositiveOrZero(displayedProfit)
+                    ">
+                {{
+                displayedProfit
+                | currency:'USD':'symbol':'1.2-2'
+                }}
+            </strong>
+
+            <small>
+                Current value minus initial value
+            </small>
+        </article>
+    </section>
+
+    <section class="portfolio-list">
+        @for (
+        portfolio of portfolios;
+        track portfolio.id
+        ) {
+        <article class="portfolio-card">
+            <header class="portfolio-card__header">
+                <div>
+                    <span class="portfolio-card__method">
+                        {{
+                        portfolio.creationMethod ===
+                        'BY_AMOUNT'
+                        ? 'Created by amount'
+                        : 'Created by holdings'
+                        }}
+                    </span>
+
+                    <h2>{{ portfolio.name }}</h2>
+
+                    <small>
+                        Updated
+                        {{
+                        portfolio.updatedAt
+                        | date:'mediumDate'
+                        }}
+                    </small>
+                </div>
+
+                <span class="return-badge" [class.return-badge--positive]="
+                                isPositiveOrZero(
+                                    portfolio.totalReturnPercent
+                                )
+                            " [class.return-badge--negative]="
+                                !isPositiveOrZero(
+                                    portfolio.totalReturnPercent
+                                )
+                            ">
+                    {{
+                    portfolio.totalReturnPercent
+                    | number:'1.2-2'
+                    }}%
+                </span>
+            </header>
+
+            <dl class="portfolio-card__values">
+                <div>
+                    <dt>Initial value</dt>
+
+                    <dd>
+                        {{
+                        portfolio.initialValue
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Current value</dt>
+
+                    <dd>
+                        {{
+                        portfolio.currentValue
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Realized profit</dt>
+
+                    <dd>
+                        {{
+                        portfolio.totalRealizedProfit
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Unrealized profit</dt>
+
+                    <dd>
+                        {{
+                        portfolio.totalUnrealizedProfit
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+            </dl>
+
+            <footer class="portfolio-card__actions">
+                <button type="button" (click)="openRenameDialog(portfolio)">
+                    Rename
+                </button>
+
+                <button type="button" (click)="openValueDialog(portfolio)">
+                    Update value
+                </button>
+
+                <button type="button" class="danger-button" (click)="openDeleteDialog(portfolio)">
+                    Delete
+                </button>
+            </footer>
+        </article>
+        }
+    </section>
+
+    <nav class="pagination" aria-label="Portfolio pages">
+        <button type="button" [disabled]="isFirstPage" (click)="goToPreviousPage()">
+            Previous
+        </button>
+
+        <span>
+            Page {{ visiblePageNumber }}
+            of {{ totalPages }}
+        </span>
+
+        <button type="button" [disabled]="isLastPage" (click)="goToNextPage()">
+            Next
+        </button>
+    </nav>
+    }
+
+    @if (dialogMode) {
+    <div class="dialog-backdrop" role="presentation">
+        <section class="portfolio-dialog" role="dialog" aria-modal="true" aria-labelledby="portfolio-dialog-title">
+            <header class="portfolio-dialog__header">
+                <div>
+                    <span>
+                        Portfolio action
+                    </span>
+
+                    <h2 id="portfolio-dialog-title">
+                        @switch (dialogMode) {
+                        @case ('create') {
+                        Create portfolio
+                        }
+
+                        @case ('rename') {
+                        Rename portfolio
+                        }
+
+                        @case ('value') {
+                        Update portfolio value
+                        }
+
+                        @case ('delete') {
+                        Delete portfolio
+                        }
+                        }
+                    </h2>
+                </div>
+
+                <button type="button" class="dialog-close" aria-label="Close dialog" [disabled]="isSubmitting"
+                    (click)="closeDialog()">
+                    ×
+                </button>
+            </header>
+
+            @if (actionErrorMessage) {
+            <p class="dialog-error" role="alert">
+                {{ actionErrorMessage }}
+            </p>
+            }
+
+            @switch (dialogMode) {
+            @case ('create') {
+            <form class="portfolio-form" (ngSubmit)="submitCreate()">
+                <label>
+                    <span>Portfolio name</span>
+
+                    <input type="text" name="createName" maxlength="120" autocomplete="off" [(ngModel)]="createName" />
+                </label>
+
+                <label>
+                    <span>Creation method</span>
+
+                    <select name="createMethod" [(ngModel)]="createMethod">
+                        <option value="BY_AMOUNT">
+                            Allocate by amount
+                        </option>
+
+                        <option value="BY_HOLDINGS">
+                            Enter existing holdings
+                        </option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Initial value</span>
+
+                    <input type="number" name="createInitialValue" min="0" step="0.01"
+                        [(ngModel)]="createInitialValue" />
+                </label>
+
+                <footer class="dialog-actions">
+                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
+                        Cancel
+                    </button>
+
+                    <button type="submit" class="primary-button" [disabled]="isSubmitting">
+                        {{
+                        isSubmitting
+                        ? 'Creating...'
+                        : 'Create portfolio'
+                        }}
+                    </button>
+                </footer>
+            </form>
+            }
+
+            @case ('rename') {
+            <form class="portfolio-form" (ngSubmit)="submitRename()">
+                <p>
+                    Enter a new name for
+                    <strong>
+                        {{ selectedPortfolio?.name }}
+                    </strong>.
+                </p>
+
+                <label>
+                    <span>Portfolio name</span>
+
+                    <input type="text" name="renameValue" maxlength="120" autocomplete="off"
+                        [(ngModel)]="renameValue" />
+                </label>
+
+                <footer class="dialog-actions">
+                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
+                        Cancel
+                    </button>
+
+                    <button type="submit" class="primary-button" [disabled]="isSubmitting">
+                        {{
+                        isSubmitting
+                        ? 'Saving...'
+                        : 'Save name'
+                        }}
+                    </button>
+                </footer>
+            </form>
+            }
+
+            @case ('value') {
+            <form class="portfolio-form" (ngSubmit)="submitValueUpdate()">
+                <p>
+                    Update the current value of
+                    <strong>
+                        {{ selectedPortfolio?.name }}
+                    </strong>.
+                </p>
+
+                <label>
+                    <span>Current value</span>
+
+                    <input type="number" name="currentValue" min="0" step="0.01" [(ngModel)]="currentValue" />
+                </label>
+
+                <footer class="dialog-actions">
+                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
+                        Cancel
+                    </button>
+
+                    <button type="submit" class="primary-button" [disabled]="isSubmitting">
+                        {{
+                        isSubmitting
+                        ? 'Updating...'
+                        : 'Update value'
+                        }}
+                    </button>
+                </footer>
+            </form>
+            }
+
+            @case ('delete') {
+            <div class="delete-confirmation">
+                <p>
+                    You are about to delete
+                    <strong>
+                        {{ selectedPortfolio?.name }}
+                    </strong>.
+                </p>
+
+                <p>
+                    This action removes the portfolio
+                    from your active account.
+                </p>
+
+                <footer class="dialog-actions">
+                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
+                        Cancel
+                    </button>
+
+                    <button type="button" class="danger-button danger-button--filled" [disabled]="isSubmitting"
+                        (click)="submitDelete()">
+                        {{
+                        isSubmitting
+                        ? 'Deleting...'
+                        : 'Delete portfolio'
+                        }}
+                    </button>
+                </footer>
+            </div>
+            }
+            }
+        </section>
+    </div>
+    }
+</section>
