@@ -1,4 +1,6 @@
-import { signal } from '@angular/core';
+import {
+  signal,
+} from '@angular/core';
 import {
   ComponentFixture,
   TestBed,
@@ -7,49 +9,90 @@ import {
   Router,
   provideRouter,
 } from '@angular/router';
-import { of } from 'rxjs';
-import { vi } from 'vitest';
+import {
+  of,
+} from 'rxjs';
+import {
+  vi,
+} from 'vitest';
 
-import { App } from './app';
-import { UserResponse } from './core/auth/models/auth.models';
-import { AuthService } from './core/auth/services/auth.service';
+import {
+  App,
+} from './app';
+import {
+  UserResponse,
+} from './core/auth/models/auth.models';
+import {
+  AuthService,
+} from './core/auth/services/auth.service';
 
 describe('App', () => {
   const currentUserState =
     signal<UserResponse | null>(null);
 
-  const authenticatedState = signal(false);
-  const loadingState = signal(false);
+  const authenticatedState =
+    signal(false);
+
+  const loadingState =
+    signal(false);
 
   const authServiceMock = {
-    currentUser: currentUserState.asReadonly(),
-    isAuthenticated: authenticatedState.asReadonly(),
-    isLoadingCurrentUser: loadingState.asReadonly(),
-    hasValidStoredSession: vi.fn(() => false),
-    loadCurrentUser: vi.fn(() => of(createUser())),
-    logout: vi.fn(),
+    currentUser:
+      currentUserState.asReadonly(),
+
+    isAuthenticated:
+      authenticatedState.asReadonly(),
+
+    isLoadingCurrentUser:
+      loadingState.asReadonly(),
+
+    hasValidStoredSession:
+      vi.fn(() => false),
+
+    loadCurrentUser:
+      vi.fn(() => of(createUser())),
+
+    logout:
+      vi.fn(),
   };
 
-  let fixture: ComponentFixture<App>;
-  let router: Router;
+  let fixture:
+    ComponentFixture<App>;
+
+  let router:
+    Router;
 
   beforeEach(async () => {
     currentUserState.set(null);
     authenticatedState.set(false);
     loadingState.set(false);
 
-    authServiceMock.hasValidStoredSession.mockReset();
-    authServiceMock.hasValidStoredSession.mockReturnValue(false);
+    authServiceMock
+      .hasValidStoredSession
+      .mockReset();
 
-    authServiceMock.loadCurrentUser.mockReset();
-    authServiceMock.loadCurrentUser.mockReturnValue(
-      of(createUser()),
-    );
+    authServiceMock
+      .hasValidStoredSession
+      .mockReturnValue(false);
 
-    authServiceMock.logout.mockReset();
+    authServiceMock
+      .loadCurrentUser
+      .mockReset();
+
+    authServiceMock
+      .loadCurrentUser
+      .mockReturnValue(
+        of(createUser()),
+      );
+
+    authServiceMock
+      .logout
+      .mockReset();
 
     await TestBed.configureTestingModule({
-      imports: [App],
+      imports: [
+        App,
+      ],
       providers: [
         provideRouter([]),
         {
@@ -59,12 +102,17 @@ describe('App', () => {
       ],
     }).compileComponents();
 
-    router = TestBed.inject(Router);
-    fixture = TestBed.createComponent(App);
+    router =
+      TestBed.inject(Router);
+
+    fixture =
+      TestBed.createComponent(App);
   });
 
   it('should create the application', () => {
-    expect(fixture.componentInstance).toBeTruthy();
+    expect(
+      fixture.componentInstance,
+    ).toBeTruthy();
   });
 
   it('should render the ShareCutter brand', () => {
@@ -74,10 +122,13 @@ describe('App', () => {
       fixture.nativeElement as HTMLElement;
 
     const brandName =
-      compiled.querySelector('.brand__text strong');
+      compiled.querySelector(
+        '.brand__text strong',
+      );
 
-    expect(brandName?.textContent?.trim())
-      .toBe('ShareCutter');
+    expect(
+      brandName?.textContent?.trim(),
+    ).toBe('ShareCutter');
   });
 
   it('should render the primary navigation links', () => {
@@ -86,16 +137,70 @@ describe('App', () => {
     const compiled =
       fixture.nativeElement as HTMLElement;
 
-    const navigationLinks = Array.from(
-      compiled.querySelectorAll<HTMLAnchorElement>(
-        '.main-navigation .main-navigation__link',
-      ),
-    ).map((link) => link.textContent?.trim());
+    const navigationLinks =
+      Array.from(
+        compiled.querySelectorAll<
+          HTMLAnchorElement
+        >(
+          '.main-navigation .main-navigation__link',
+        ),
+      ).map(
+        (link) =>
+          link.textContent?.trim(),
+      );
 
     expect(navigationLinks).toEqual([
       'Dashboard',
       'Portfolios',
+      'Assets',
+      'Transactions',
     ]);
+  });
+
+  it('should link the Assets navigation item to the assets page', () => {
+    fixture.detectChanges();
+
+    const compiled =
+      fixture.nativeElement as HTMLElement;
+
+    const assetsLink =
+      compiled.querySelector<
+        HTMLAnchorElement
+      >(
+        'a[routerLink="/assets"]',
+      );
+
+    expect(
+      assetsLink,
+    ).not.toBeNull();
+
+    expect(
+      assetsLink?.textContent?.trim(),
+    ).toBe('Assets');
+  });
+
+  it('should link the Transactions navigation item to the transactions page', () => {
+    fixture.detectChanges();
+
+    const compiled =
+      fixture.nativeElement as HTMLElement;
+
+    const transactionsLink =
+      compiled.querySelector<
+        HTMLAnchorElement
+      >(
+        'a[routerLink="/transactions"]',
+      );
+
+    expect(
+      transactionsLink,
+    ).not.toBeNull();
+
+    expect(
+      transactionsLink
+        ?.textContent
+        ?.trim(),
+    ).toBe('Transactions');
   });
 
   it('should render guest account actions when logged out', () => {
@@ -105,20 +210,28 @@ describe('App', () => {
       fixture.nativeElement as HTMLElement;
 
     const loginLink =
-      compiled.querySelector<HTMLAnchorElement>(
+      compiled.querySelector<
+        HTMLAnchorElement
+      >(
         'a[routerLink="/login"]',
       );
 
     const registerLink =
-      compiled.querySelector<HTMLAnchorElement>(
+      compiled.querySelector<
+        HTMLAnchorElement
+      >(
         'a[routerLink="/register"]',
       );
 
-    expect(loginLink?.textContent?.trim())
-      .toBe('Log in');
+    expect(
+      loginLink?.textContent?.trim(),
+    ).toBe('Log in');
 
-    expect(registerLink?.textContent?.trim())
-      .toBe('Create account');
+    expect(
+      registerLink
+        ?.textContent
+        ?.trim(),
+    ).toBe('Create account');
 
     expect(
       compiled.querySelector(
@@ -128,10 +241,12 @@ describe('App', () => {
   });
 
   it('should load the current user when a valid session exists', () => {
-    authServiceMock.hasValidStoredSession
+    authServiceMock
+      .hasValidStoredSession
       .mockReturnValue(true);
 
-    fixture = TestBed.createComponent(App);
+    fixture =
+      TestBed.createComponent(App);
 
     expect(
       authServiceMock.loadCurrentUser,
@@ -145,7 +260,8 @@ describe('App', () => {
   });
 
   it('should render the authenticated user identity', () => {
-    const user = createUser();
+    const user =
+      createUser();
 
     currentUserState.set(user);
     authenticatedState.set(true);
@@ -166,18 +282,25 @@ describe('App', () => {
       );
 
     const logoutButton =
-      compiled.querySelector<HTMLButtonElement>(
+      compiled.querySelector<
+        HTMLButtonElement
+      >(
         '.account-navigation__logout',
       );
 
-    expect(userName?.textContent?.trim())
-      .toBe('Dana Cohen');
+    expect(
+      userName?.textContent?.trim(),
+    ).toBe('Dana Cohen');
 
-    expect(userEmail?.textContent?.trim())
-      .toBe('dana@example.com');
+    expect(
+      userEmail?.textContent?.trim(),
+    ).toBe('dana@example.com');
 
-    expect(logoutButton?.textContent?.trim())
-      .toBe('Log out');
+    expect(
+      logoutButton
+        ?.textContent
+        ?.trim(),
+    ).toBe('Log out');
 
     expect(
       compiled.querySelector(
@@ -199,17 +322,25 @@ describe('App', () => {
         '.account-navigation__loading',
       );
 
-    expect(loadingMessage?.textContent?.trim())
-      .toBe('Loading account...');
+    expect(
+      loadingMessage
+        ?.textContent
+        ?.trim(),
+    ).toBe('Loading account...');
   });
 
   it('should log out and navigate to login', async () => {
-    currentUserState.set(createUser());
+    currentUserState.set(
+      createUser(),
+    );
+
     authenticatedState.set(true);
 
-    const navigateSpy = vi
-      .spyOn(router, 'navigate')
-      .mockResolvedValue(true);
+    const navigateSpy =
+      vi.spyOn(
+        router,
+        'navigate',
+      ).mockResolvedValue(true);
 
     fixture.detectChanges();
 
@@ -217,29 +348,51 @@ describe('App', () => {
       fixture.nativeElement as HTMLElement;
 
     const logoutButton =
-      compiled.querySelector<HTMLButtonElement>(
+      compiled.querySelector<
+        HTMLButtonElement
+      >(
         '.account-navigation__logout',
       );
 
     logoutButton?.click();
 
-    expect(authServiceMock.logout)
-      .toHaveBeenCalledTimes(1);
+    expect(
+      authServiceMock.logout,
+    ).toHaveBeenCalledTimes(1);
 
-    expect(navigateSpy)
-      .toHaveBeenCalledWith(['/login']);
+    expect(
+      navigateSpy,
+    ).toHaveBeenCalledWith([
+      '/login',
+    ]);
   });
 });
 
-function createUser(): UserResponse {
+function createUser():
+  UserResponse {
   return {
-    id: '62df8d45-74ef-4ba8-a302-a33cc33b5b21',
-    email: 'dana@example.com',
-    firstName: 'Dana',
-    lastName: 'Cohen',
-    role: 'USER',
-    status: 'ACTIVE',
-    createdAt: '2026-07-30T09:00:00Z',
-    updatedAt: '2026-07-30T09:00:00Z',
+    id:
+      '62df8d45-74ef-4ba8-a302-a33cc33b5b21',
+
+    email:
+      'dana@example.com',
+
+    firstName:
+      'Dana',
+
+    lastName:
+      'Cohen',
+
+    role:
+      'USER',
+
+    status:
+      'ACTIVE',
+
+    createdAt:
+      '2026-07-30T09:00:00Z',
+
+    updatedAt:
+      '2026-07-30T09:00:00Z',
   };
 }

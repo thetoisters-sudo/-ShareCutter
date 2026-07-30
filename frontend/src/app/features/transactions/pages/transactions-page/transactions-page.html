@@ -1,0 +1,636 @@
+<section class="transactions-page">
+    <header class="transactions-header">
+        <div>
+            <span class="transactions-header__eyebrow">
+                Transaction management
+            </span>
+
+            <h1>Transactions</h1>
+
+            <p>
+                Record purchases, sales, dividends,
+                deposits, withdrawals and portfolio fees.
+            </p>
+        </div>
+
+        <button type="button" class="primary-button" [disabled]="
+                !selectedPortfolioId ||
+                isLoadingPortfolios
+            " (click)="openCreateDialog()">
+            Add transaction
+        </button>
+    </header>
+
+    @if (successMessage) {
+    <section class="message-banner" role="status">
+        <span>{{ successMessage }}</span>
+
+        <button type="button" aria-label="Dismiss message" (click)="dismissSuccessMessage()">
+            ×
+        </button>
+    </section>
+    }
+
+    @if (isLoadingPortfolios) {
+    <section class="page-state" aria-live="polite">
+        <span class="page-state__spinner" aria-hidden="true"></span>
+
+        <h2>Loading portfolios</h2>
+
+        <p>
+            Available portfolios are being retrieved.
+        </p>
+    </section>
+    } @else if (
+    errorMessage &&
+    portfolios.length === 0
+    ) {
+    <section class="page-state page-state--error" role="alert">
+        <span class="page-state__icon" aria-hidden="true">
+            !
+        </span>
+
+        <h2>Transactions unavailable</h2>
+
+        <p>{{ errorMessage }}</p>
+
+        <button type="button" class="primary-button" (click)="retry()">
+            Try again
+        </button>
+    </section>
+    } @else if (portfolios.length === 0) {
+    <section class="page-state">
+        <span class="page-state__icon" aria-hidden="true">
+            +
+        </span>
+
+        <h2>No portfolios available</h2>
+
+        <p>
+            Create a portfolio before recording
+            transactions.
+        </p>
+    </section>
+    } @else {
+    <section class="transactions-toolbar">
+        <label>
+            <span>Portfolio</span>
+
+            <select name="selectedPortfolioId" [ngModel]="selectedPortfolioId" [disabled]="isLoadingTransactions"
+                (ngModelChange)="
+                        selectPortfolio($event)
+                    ">
+                @for (
+                portfolio of portfolios;
+                track portfolio.id
+                ) {
+                <option [value]="portfolio.id">
+                    {{ portfolio.name }}
+                </option>
+                }
+            </select>
+        </label>
+
+        <label>
+            <span>Asset</span>
+
+            <select name="filterAssetId" [(ngModel)]="filterAssetId" [disabled]="isLoadingAssets">
+                <option value="">
+                    All assets
+                </option>
+
+                @for (
+                asset of assets;
+                track asset.id
+                ) {
+                <option [value]="asset.id">
+                    {{ asset.symbol }}
+                    ·
+                    {{ asset.displayName }}
+                </option>
+                }
+            </select>
+        </label>
+
+        <label>
+            <span>Type</span>
+
+            <select name="filterTransactionType" [(ngModel)]="
+                        filterTransactionType
+                    ">
+                <option value="">
+                    All types
+                </option>
+
+                @for (
+                option of
+                transactionTypeOptions;
+                track option.value
+                ) {
+                <option [value]="option.value">
+                    {{ option.label }}
+                </option>
+                }
+            </select>
+        </label>
+    </section>
+
+    <section class="date-filters">
+        <label>
+            <span>From date</span>
+
+            <input type="date" name="filterStartDate" [(ngModel)]="filterStartDate" />
+        </label>
+
+        <label>
+            <span>To date</span>
+
+            <input type="date" name="filterEndDate" [(ngModel)]="filterEndDate" />
+        </label>
+
+        <div class="filter-actions">
+            <button type="button" [disabled]="isLoadingTransactions" (click)="clearFilters()">
+                Clear
+            </button>
+
+            <button type="button" class="primary-button" [disabled]="isLoadingTransactions" (click)="applyFilters()">
+                Apply filters
+            </button>
+        </div>
+    </section>
+
+    @if (isLoadingTransactions) {
+    <section class="page-state" aria-live="polite">
+        <span class="page-state__spinner" aria-hidden="true"></span>
+
+        <h2>Loading transactions</h2>
+
+        <p>
+            Transactions for the selected
+            portfolio are being retrieved.
+        </p>
+    </section>
+    } @else if (errorMessage) {
+    <section class="page-state page-state--error" role="alert">
+        <span class="page-state__icon" aria-hidden="true">
+            !
+        </span>
+
+        <h2>Transactions unavailable</h2>
+
+        <p>{{ errorMessage }}</p>
+
+        <button type="button" class="primary-button" (click)="retry()">
+            Try again
+        </button>
+    </section>
+    } @else if (
+    transactions.length === 0 &&
+    totalElements === 0
+    ) {
+    <section class="page-state">
+        <span class="page-state__icon" aria-hidden="true">
+            +
+        </span>
+
+        <h2>No transactions found</h2>
+
+        <p>
+            Record the first transaction for
+            <strong>
+                {{ selectedPortfolio?.name }}
+            </strong>
+            or change the active filters.
+        </p>
+
+        <button type="button" class="primary-button" (click)="openCreateDialog()">
+            Add first transaction
+        </button>
+    </section>
+    } @else {
+    <section class="transaction-summary" aria-label="Transaction summary">
+        <article class="summary-card">
+            <span>Total transactions</span>
+
+            <strong>
+                {{ totalElements }}
+            </strong>
+
+            <small>
+                Matching the active filters
+            </small>
+        </article>
+
+        <article class="summary-card">
+            <span>Displayed amount</span>
+
+            <strong>
+                {{
+                totalDisplayedAmount
+                | number:'1.2-2'
+                }}
+            </strong>
+
+            <small>
+                Total on the current page
+            </small>
+        </article>
+
+        <article class="summary-card">
+            <span>Displayed types</span>
+
+            <strong>
+                {{ displayedTransactionTypes }}
+            </strong>
+
+            <small>
+                Distinct transaction types
+            </small>
+        </article>
+    </section>
+
+    <section class="transaction-list">
+        @for (
+        transaction of transactions;
+        track transaction.id
+        ) {
+        <article class="transaction-card">
+            <header class="transaction-card__header">
+                <div>
+                    <span class="transaction-card__type">
+                        {{
+                        getTransactionTypeLabel(
+                        transaction.transactionType
+                        )
+                        }}
+                    </span>
+
+                    <h2>
+                        {{
+                        transaction.totalAmount
+                        | number:'1.2-2'
+                        }}
+                        {{ transaction.currency }}
+                    </h2>
+
+                    <p>
+                        {{
+                        getAssetLabel(
+                        transaction.assetId
+                        )
+                        }}
+                    </p>
+                </div>
+
+                <span class="currency-badge">
+                    {{ transaction.currency }}
+                </span>
+            </header>
+
+            <dl class="transaction-card__details">
+                <div>
+                    <dt>Executed</dt>
+
+                    <dd>
+                        {{
+                        transaction.executedAt
+                        | date:'medium'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Quantity</dt>
+
+                    <dd>
+                        {{
+                        transaction.quantity
+                        !== null
+                        ? (
+                        transaction.quantity
+                        | number:'1.0-8'
+                        )
+                        : 'Not applicable'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Unit price</dt>
+
+                    <dd>
+                        {{
+                        transaction.unitPrice
+                        !== null
+                        ? (
+                        transaction.unitPrice
+                        | number:'1.2-8'
+                        )
+                        : 'Not applicable'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Fee</dt>
+
+                    <dd>
+                        {{
+                        transaction.fee
+                        !== null
+                        ? (
+                        transaction.fee
+                        | number:'1.2-8'
+                        )
+                        : 'Not specified'
+                        }}
+                    </dd>
+                </div>
+            </dl>
+
+            @if (transaction.notes) {
+            <p class="transaction-card__notes">
+                {{ transaction.notes }}
+            </p>
+            }
+
+            <footer class="transaction-card__actions">
+                <button type="button" (click)="
+                                    openEditDialog(
+                                        transaction
+                                    )
+                                ">
+                    Edit
+                </button>
+
+                <button type="button" class="danger-button" (click)="
+                                    openDeleteDialog(
+                                        transaction
+                                    )
+                                ">
+                    Delete
+                </button>
+            </footer>
+        </article>
+        }
+    </section>
+
+    <nav class="pagination" aria-label="Transaction pages">
+        <button type="button" [disabled]="
+                        isFirstPage ||
+                        isLoadingTransactions
+                    " (click)="goToPreviousPage()">
+            Previous
+        </button>
+
+        <span>
+            Page
+            {{ visiblePageNumber }}
+            of
+            {{ totalPages }}
+        </span>
+
+        <button type="button" [disabled]="
+                        isLastPage ||
+                        isLoadingTransactions
+                    " (click)="goToNextPage()">
+            Next
+        </button>
+    </nav>
+    }
+    }
+
+    @if (dialogMode) {
+    <div class="dialog-backdrop" role="presentation">
+        <section class="transaction-dialog" role="dialog" aria-modal="true" aria-labelledby="transaction-dialog-title">
+            <header class="transaction-dialog__header">
+                <div>
+                    <span>
+                        Transaction action
+                    </span>
+
+                    <h2 id="transaction-dialog-title">
+                        @switch (dialogMode) {
+                        @case ('create') {
+                        Add transaction
+                        }
+
+                        @case ('edit') {
+                        Edit transaction
+                        }
+
+                        @case ('delete') {
+                        Delete transaction
+                        }
+                        }
+                    </h2>
+                </div>
+
+                <button type="button" class="dialog-close" aria-label="Close dialog" [disabled]="isSubmitting"
+                    (click)="closeDialog()">
+                    ×
+                </button>
+            </header>
+
+            @if (actionErrorMessage) {
+            <p class="dialog-error" role="alert">
+                {{ actionErrorMessage }}
+            </p>
+            }
+
+            @if (
+            dialogMode === 'create' ||
+            dialogMode === 'edit'
+            ) {
+            <form class="transaction-form" (ngSubmit)="
+                            dialogMode === 'create'
+                                ? submitCreate()
+                                : submitEdit()
+                        ">
+                <div class="transaction-form__grid">
+                    <label>
+                        <span>Transaction type</span>
+
+                        <select name="transactionType" [(ngModel)]="
+                                        formValue.transactionType
+                                    " (ngModelChange)="
+                                        onTransactionTypeChange()
+                                    ">
+                            @for (
+                            option of
+                            transactionTypeOptions;
+                            track option.value
+                            ) {
+                            <option [value]="option.value">
+                                {{ option.label }}
+                            </option>
+                            }
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Asset</span>
+
+                        <select name="assetId" [(ngModel)]="
+                                        formValue.assetId
+                                    " [disabled]="
+                                        !transactionRequiresAsset(
+                                            formValue.transactionType
+                                        ) ||
+                                        isLoadingAssets
+                                    ">
+                            <option value="">
+                                Select asset
+                            </option>
+
+                            @for (
+                            asset of assets;
+                            track asset.id
+                            ) {
+                            <option [value]="asset.id">
+                                {{ asset.symbol }}
+                                ·
+                                {{ asset.displayName }}
+                            </option>
+                            }
+                        </select>
+                    </label>
+                </div>
+
+                @if (
+                transactionUsesQuantity(
+                formValue.transactionType
+                )
+                ) {
+                <div class="transaction-form__grid">
+                    <label>
+                        <span>Quantity</span>
+
+                        <input type="number" name="quantity" min="0.00000001" step="0.00000001" [(ngModel)]="
+                                            formValue.quantity
+                                        " />
+                    </label>
+
+                    <label>
+                        <span>Unit price</span>
+
+                        <input type="number" name="unitPrice" min="0" step="0.00000001" [(ngModel)]="
+                                            formValue.unitPrice
+                                        " />
+                    </label>
+                </div>
+                }
+
+                <div class="transaction-form__grid">
+                    <label>
+                        <span>Total amount</span>
+
+                        <input type="number" name="totalAmount" min="0" step="0.00000001" [(ngModel)]="
+                                        formValue.totalAmount
+                                    " />
+                    </label>
+
+                    <label>
+                        <span>Fee</span>
+
+                        <input type="number" name="fee" min="0" step="0.00000001" [(ngModel)]="
+                                        formValue.fee
+                                    " />
+                    </label>
+                </div>
+
+                <div class="transaction-form__grid">
+                    <label>
+                        <span>Currency</span>
+
+                        <input type="text" name="currency" maxlength="3" autocomplete="off" [(ngModel)]="
+                                        formValue.currency
+                                    " />
+                    </label>
+
+                    <label>
+                        <span>Execution time</span>
+
+                        <input type="datetime-local" name="executedAt" [(ngModel)]="
+                                        formValue.executedAt
+                                    " />
+                    </label>
+                </div>
+
+                <label>
+                    <span>Notes</span>
+
+                    <textarea name="notes" maxlength="2000" rows="4" [(ngModel)]="
+                                    formValue.notes
+                                "></textarea>
+                </label>
+
+                <footer class="dialog-actions">
+                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
+                        Cancel
+                    </button>
+
+                    <button type="submit" class="primary-button" [disabled]="isSubmitting">
+                        @if (
+                        dialogMode === 'create'
+                        ) {
+                        {{
+                        isSubmitting
+                        ? 'Adding...'
+                        : 'Add transaction'
+                        }}
+                        } @else {
+                        {{
+                        isSubmitting
+                        ? 'Saving...'
+                        : 'Save transaction'
+                        }}
+                        }
+                    </button>
+                </footer>
+            </form>
+            }
+
+            @if (dialogMode === 'delete') {
+            <div class="delete-confirmation">
+                <p>
+                    You are about to delete this
+                    <strong>
+                        {{
+                        selectedTransaction
+                        ?.transactionType
+                        }}
+                    </strong>
+                    transaction from
+                    <strong>
+                        {{ selectedPortfolio?.name }}
+                    </strong>.
+                </p>
+
+                <p>
+                    The transaction will no longer
+                    appear in portfolio calculations.
+                </p>
+
+                <footer class="dialog-actions">
+                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
+                        Cancel
+                    </button>
+
+                    <button type="button" class="
+                                    danger-button
+                                    danger-button--filled
+                                " [disabled]="isSubmitting" (click)="submitDelete()">
+                        {{
+                        isSubmitting
+                        ? 'Deleting...'
+                        : 'Delete transaction'
+                        }}
+                    </button>
+                </footer>
+            </div>
+            }
+        </section>
+    </div>
+    }
+</section>
