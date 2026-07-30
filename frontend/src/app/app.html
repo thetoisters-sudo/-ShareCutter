@@ -20,6 +20,29 @@
     </nav>
 
     <nav class="account-navigation" aria-label="Account navigation">
+      @if (isLoadingCurrentUser()) {
+      <span class="account-navigation__loading" role="status" aria-live="polite">
+        Loading account...
+      </span>
+      } @else if (isAuthenticated() && currentUser(); as user) {
+      <div class="account-navigation__identity">
+        <span class="account-navigation__avatar">
+          {{ user.firstName.charAt(0) }}{{ user.lastName.charAt(0) }}
+        </span>
+
+        <span class="account-navigation__user">
+          <strong>
+            {{ user.firstName }} {{ user.lastName }}
+          </strong>
+
+          <small>{{ user.email }}</small>
+        </span>
+      </div>
+
+      <button type="button" class="account-navigation__logout" (click)="logout()">
+        Log out
+      </button>
+      } @else {
       <a routerLink="/login" routerLinkActive="account-navigation__link--active" class="account-navigation__link">
         Log in
       </a>
@@ -27,6 +50,7 @@
       <a routerLink="/register" routerLinkActive="account-navigation__link--active" class="account-navigation__button">
         Create account
       </a>
+      }
     </nav>
   </header>
 

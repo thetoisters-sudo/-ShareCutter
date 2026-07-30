@@ -88,6 +88,16 @@ describe('LoginPage', () => {
         fixture.detectChanges();
     };
 
+    const configureSuccessfulLogin = (): void => {
+        loginMock.mockReturnValue(
+            of(tokenResponse),
+        );
+
+        loadCurrentUserMock.mockReturnValue(
+            of(userResponse),
+        );
+    };
+
     beforeEach(async () => {
         loginMock.mockReset();
         loadCurrentUserMock.mockReset();
@@ -226,17 +236,11 @@ describe('LoginPage', () => {
     });
 
     it('should normalize the email before login', () => {
-        const navigateSpy = vi
-            .spyOn(router, 'navigate')
+        const navigateByUrlSpy = vi
+            .spyOn(router, 'navigateByUrl')
             .mockResolvedValue(true);
 
-        loginMock.mockReturnValue(
-            of(tokenResponse),
-        );
-
-        loadCurrentUserMock.mockReturnValue(
-            of(userResponse),
-        );
+        configureSuccessfulLogin();
 
         testAccess.loginForm.setValue({
             email: '  USER@EXAMPLE.COM  ',
@@ -250,23 +254,17 @@ describe('LoginPage', () => {
             password: 'password123',
         });
 
-        expect(navigateSpy).toHaveBeenCalledWith([
+        expect(navigateByUrlSpy).toHaveBeenCalledWith(
             '/dashboard',
-        ]);
+        );
     });
 
     it('should log in, load the current user and navigate to dashboard', () => {
-        const navigateSpy = vi
-            .spyOn(router, 'navigate')
+        const navigateByUrlSpy = vi
+            .spyOn(router, 'navigateByUrl')
             .mockResolvedValue(true);
 
-        loginMock.mockReturnValue(
-            of(tokenResponse),
-        );
-
-        loadCurrentUserMock.mockReturnValue(
-            of(userResponse),
-        );
+        configureSuccessfulLogin();
 
         testAccess.loginForm.setValue(loginRequest);
 
@@ -282,12 +280,116 @@ describe('LoginPage', () => {
             loadCurrentUserMock,
         ).toHaveBeenCalledTimes(1);
 
-        expect(navigateSpy).toHaveBeenCalledWith([
+        expect(navigateByUrlSpy).toHaveBeenCalledWith(
             '/dashboard',
-        ]);
+        );
 
         expect(testAccess.isSubmitting()).toBe(false);
         expect(testAccess.errorMessage()).toBeNull();
+    });
+
+    it('should navigate to a safe internal return URL after login', () => {
+        fixture.destroy();
+
+        activatedRouteStub.snapshot.queryParamMap =
+            convertToParamMap({
+                returnUrl:
+                    '/portfolios?view=active',
+            });
+
+        createComponent();
+
+        const navigateByUrlSpy = vi
+            .spyOn(router, 'navigateByUrl')
+            .mockResolvedValue(true);
+
+        configureSuccessfulLogin();
+
+        testAccess.loginForm.setValue(loginRequest);
+
+        testAccess.submit();
+
+        expect(navigateByUrlSpy).toHaveBeenCalledWith(
+            '/portfolios?view=active',
+        );
+    });
+
+    it('should reject an external return URL', () => {
+        fixture.destroy();
+
+        activatedRouteStub.snapshot.queryParamMap =
+            convertToParamMap({
+                returnUrl:
+                    'https://malicious.example.com',
+            });
+
+        createComponent();
+
+        const navigateByUrlSpy = vi
+            .spyOn(router, 'navigateByUrl')
+            .mockResolvedValue(true);
+
+        configureSuccessfulLogin();
+
+        testAccess.loginForm.setValue(loginRequest);
+
+        testAccess.submit();
+
+        expect(navigateByUrlSpy).toHaveBeenCalledWith(
+            '/dashboard',
+        );
+    });
+
+    it('should reject a protocol-relative return URL', () => {
+        fixture.destroy();
+
+        activatedRouteStub.snapshot.queryParamMap =
+            convertToParamMap({
+                returnUrl:
+                    '//malicious.example.com',
+            });
+
+        createComponent();
+
+        const navigateByUrlSpy = vi
+            .spyOn(router, 'navigateByUrl')
+            .mockResolvedValue(true);
+
+        configureSuccessfulLogin();
+
+        testAccess.loginForm.setValue(loginRequest);
+
+        testAccess.submit();
+
+        expect(navigateByUrlSpy).toHaveBeenCalledWith(
+            '/dashboard',
+        );
+    });
+
+    it('should reject a return URL containing backslashes', () => {
+        fixture.destroy();
+
+        activatedRouteStub.snapshot.queryParamMap =
+            convertToParamMap({
+                returnUrl:
+                    '/\\malicious.example.com',
+            });
+
+        createComponent();
+
+        const navigateByUrlSpy = vi
+            .spyOn(router, 'navigateByUrl')
+            .mockResolvedValue(true);
+
+        configureSuccessfulLogin();
+
+        testAccess.loginForm.setValue(loginRequest);
+
+        testAccess.submit();
+
+        expect(navigateByUrlSpy).toHaveBeenCalledWith(
+            '/dashboard',
+        );
     });
 
     it('should display an invalid credentials message for a 401 response', () => {

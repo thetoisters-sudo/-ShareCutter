@@ -32,3 +32,10 @@ app:
     issuer: ${JWT_ISSUER:sharecutter-backend}
     access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:15m}
     refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:30d}
+
+logging:
+  level:
+    com.sharecutter.backend.security.JwtAuthenticationFilter: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.security.web.FilterChainProxy: TRACE
+    org.springframework.security.authorization: TRACE
