@@ -1,13 +1,14 @@
+import { provideHttpClient } from '@angular/common/http';
 import {
     HttpTestingController,
     provideHttpClientTesting,
 } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 
 import { environment } from '../../../../environments/environment';
 import {
     PagedResponse,
+    PortfolioAllocationResponse,
     PortfolioCreateRequest,
     PortfolioRenameRequest,
     PortfolioResponse,
@@ -69,6 +70,50 @@ describe('PortfolioService', () => {
         totalDepositAmount: 10000,
         totalWithdrawalAmount: 0,
         netCashFlow: 10000,
+        calculatedAt: '2026-07-29T20:00:00Z',
+    };
+
+    const allocationResponse:
+        PortfolioAllocationResponse = {
+        portfolioId: portfolio.id,
+        portfolioName: portfolio.name,
+        totalMarketValue: 11250,
+        totalCost: 10000,
+        totalRealizedProfit: 350,
+        totalUnrealizedProfit: 900,
+        allocatedAssetCount: 2,
+        assets: [
+            {
+                assetId: 'asset-1',
+                symbol: 'AAPL',
+                displayName: 'Apple Inc.',
+                assetType: 'STOCK',
+                currency: 'USD',
+                quantity: 10.5,
+                averageCost: 175,
+                currentPrice: 190,
+                totalCost: 1837.5,
+                marketValue: 1995,
+                realizedProfit: 100,
+                unrealizedProfit: 157.5,
+                allocationPercent: 17.73333333,
+            },
+            {
+                assetId: 'asset-2',
+                symbol: 'MSFT',
+                displayName: 'Microsoft Corporation',
+                assetType: 'STOCK',
+                currency: 'USD',
+                quantity: 20.25,
+                averageCost: 395,
+                currentPrice: 457,
+                totalCost: 7998.75,
+                marketValue: 9254.25,
+                realizedProfit: 250,
+                unrealizedProfit: 1255.5,
+                allocationPercent: 82.26666667,
+            },
+        ],
         calculatedAt: '2026-07-29T20:00:00Z',
     };
 
@@ -308,6 +353,30 @@ describe('PortfolioService', () => {
 
         expect(actualResponse).toEqual(
             summaryResponse,
+        );
+    });
+
+    it('should get a portfolio allocation', () => {
+        let actualResponse:
+            PortfolioAllocationResponse | undefined;
+
+        service
+            .getPortfolioAllocation(portfolio.id)
+            .subscribe((response) => {
+                actualResponse = response;
+            });
+
+        const request =
+            httpTestingController.expectOne(
+                `${portfoliosUrl}/${portfolio.id}/analytics/allocation`,
+            );
+
+        expect(request.request.method).toBe('GET');
+
+        request.flush(allocationResponse);
+
+        expect(actualResponse).toEqual(
+            allocationResponse,
         );
     });
 });

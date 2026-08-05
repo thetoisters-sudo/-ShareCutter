@@ -8,8 +8,8 @@
             <h1>Dashboard</h1>
 
             <p>
-                Review your portfolio values, overall performance
-                and recently updated investment accounts.
+                Review your calculated portfolio values,
+                overall performance and investment accounts.
             </p>
         </div>
 
@@ -22,10 +22,11 @@
     <section class="dashboard-state" aria-live="polite">
         <span class="dashboard-state__spinner" aria-hidden="true"></span>
 
-        <h2>Loading portfolio data</h2>
+        <h2>Loading portfolio analytics</h2>
 
         <p>
-            Your latest portfolio values are being retrieved.
+            Your latest transaction-based values
+            are being calculated.
         </p>
     </section>
     } @else if (errorMessage) {
@@ -105,7 +106,7 @@
             </strong>
 
             <span class="summary-card__detail">
-                Current combined value
+                Calculated combined market value
             </span>
         </article>
 
@@ -115,9 +116,13 @@
             </span>
 
             <strong class="summary-card__value" [class.summary-card__value--positive]="
-                        isPositiveOrZero(totalReturnPercent)
+                        isPositiveOrZero(
+                            totalReturnPercent
+                        )
                     " [class.summary-card__value--negative]="
-                        !isPositiveOrZero(totalReturnPercent)
+                        !isPositiveOrZero(
+                            totalReturnPercent
+                        )
                     ">
                 {{
                 totalReturnPercent
@@ -143,7 +148,7 @@
             <header class="panel-header">
                 <div>
                     <span class="panel-header__eyebrow">
-                        Current accounts
+                        Calculated accounts
                     </span>
 
                     <h2>Your portfolios</h2>
@@ -175,7 +180,7 @@
                             </th>
 
                             <th scope="col">
-                                Updated
+                                Calculated
                             </th>
                         </tr>
                     </thead>
@@ -198,6 +203,13 @@
                                     ? 'Created by amount'
                                     : 'Created by holdings'
                                     }}
+
+                                    @if (
+                                    !portfolio
+                                    .analyticsAvailable
+                                    ) {
+                                    · Cached value
+                                    }
                                 </span>
                             </td>
 
@@ -243,7 +255,7 @@
 
                             <td>
                                 {{
-                                portfolio.updatedAt
+                                portfolio.calculatedAt
                                 | date:'mediumDate'
                                 }}
                             </td>
@@ -252,6 +264,20 @@
                     </tbody>
                 </table>
             </div>
+
+            @if (analyticsUnavailableCount > 0) {
+            <p>
+                {{ analyticsUnavailableCount }}
+                portfolio analytics request
+                {{
+                analyticsUnavailableCount === 1
+                ? 'was'
+                : 'were'
+                }}
+                unavailable. Cached portfolio values
+                are shown temporarily.
+            </p>
+            }
         </article>
 
         <aside class="performance-panel">

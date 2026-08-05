@@ -11,7 +11,19 @@ public record PortfolioAllocationResponse(
 
         String portfolioName,
 
-        BigDecimal totalNetInvestedAmount,
+        BigDecimal portfolioValue,
+
+        BigDecimal cashBalance,
+
+        BigDecimal totalMarketValue,
+
+        BigDecimal totalCost,
+
+        BigDecimal totalRealizedProfit,
+
+        BigDecimal totalUnrealizedProfit,
+
+        BigDecimal totalTargetWeightPercent,
 
         long allocatedAssetCount,
 
@@ -33,8 +45,58 @@ public record PortfolioAllocationResponse(
                 "Portfolio name"
         );
 
-        totalNetInvestedAmount =
-                zeroIfNull(totalNetInvestedAmount);
+        portfolioValue = zeroIfNull(
+                portfolioValue
+        );
+
+        cashBalance = zeroIfNull(
+                cashBalance
+        );
+
+        totalMarketValue = zeroIfNull(
+                totalMarketValue
+        );
+
+        totalCost = zeroIfNull(
+                totalCost
+        );
+
+        totalRealizedProfit = zeroIfNull(
+                totalRealizedProfit
+        );
+
+        totalUnrealizedProfit = zeroIfNull(
+                totalUnrealizedProfit
+        );
+
+        totalTargetWeightPercent = zeroIfNull(
+                totalTargetWeightPercent
+        );
+
+        if (portfolioValue.signum() < 0) {
+            throw new IllegalArgumentException(
+                    "Portfolio value must not be negative"
+            );
+        }
+
+        if (totalMarketValue.signum() < 0) {
+            throw new IllegalArgumentException(
+                    "Total market value must not be negative"
+            );
+        }
+
+        if (totalCost.signum() < 0) {
+            throw new IllegalArgumentException(
+                    "Total cost must not be negative"
+            );
+        }
+
+        if (totalTargetWeightPercent.signum() < 0) {
+            throw new IllegalArgumentException(
+                    "Total target weight percent "
+                            + "must not be negative"
+            );
+        }
 
         if (allocatedAssetCount < 0) {
             throw new IllegalArgumentException(
@@ -46,7 +108,10 @@ public record PortfolioAllocationResponse(
                 ? List.of()
                 : List.copyOf(assets);
 
-        if (allocatedAssetCount != assets.size()) {
+        if (
+                allocatedAssetCount
+                        != assets.size()
+        ) {
             throw new IllegalArgumentException(
                     "Allocated asset count must match asset list size"
             );
@@ -73,7 +138,8 @@ public record PortfolioAllocationResponse(
     ) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(
-                    fieldName + " must not be blank"
+                    fieldName
+                            + " must not be blank"
             );
         }
 

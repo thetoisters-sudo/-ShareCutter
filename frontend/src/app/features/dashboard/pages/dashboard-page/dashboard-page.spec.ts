@@ -1,25 +1,68 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { Observable, of, throwError } from 'rxjs';
+import {
+    ComponentFixture,
+    TestBed,
+} from '@angular/core/testing';
+import {
+    provideRouter,
+} from '@angular/router';
+import {
+    Observable,
+    of,
+    throwError,
+} from 'rxjs';
 
 import {
     PagedResponse,
     PortfolioResponse,
+    PortfolioSummaryResponse,
 } from '../../../../core/portfolio/models/portfolio.models';
 import {
     PortfolioService,
 } from '../../../../core/portfolio/services/portfolio.service';
-import { DashboardPage } from './dashboard-page';
+import {
+    DashboardPage,
+} from './dashboard-page';
 
 class PortfolioServiceStub {
     response$: Observable<
         PagedResponse<PortfolioResponse>
     > = of(createPagedResponse());
 
+    summaryResponses = new Map<
+        string,
+        Observable<PortfolioSummaryResponse>
+    >([
+        [
+            'portfolio-1',
+            of(createGrowthSummary()),
+        ],
+        [
+            'portfolio-2',
+            of(createIncomeSummary()),
+        ],
+    ]);
+
+    summaryRequestIds: string[] = [];
+
     getPortfolios(): Observable<
         PagedResponse<PortfolioResponse>
     > {
         return this.response$;
+    }
+
+    getPortfolioSummary(
+        portfolioId: string,
+    ): Observable<PortfolioSummaryResponse> {
+        this.summaryRequestIds.push(portfolioId);
+
+        return (
+            this.summaryResponses.get(portfolioId) ??
+            throwError(
+                () => new Error(
+                    'Summary not configured',
+                ),
+            )
+        );
     }
 }
 
@@ -54,7 +97,18 @@ describe('DashboardPage', () => {
         expect(component).toBeTruthy();
     });
 
-    it('should load and display portfolio data', () => {
+    it('should load summaries for every portfolio', () => {
+        createComponent();
+
+        expect(
+            portfolioService.summaryRequestIds,
+        ).toEqual([
+            'portfolio-1',
+            'portfolio-2',
+        ]);
+    });
+
+    it('should load and display calculated portfolio data', () => {
         createComponent();
 
         const textContent =
@@ -73,7 +127,7 @@ describe('DashboardPage', () => {
         );
     });
 
-    it('should calculate combined portfolio values', () => {
+    it('should calculate combined values from portfolio summaries', () => {
         createComponent();
 
         expect(
@@ -88,28 +142,30 @@ describe('DashboardPage', () => {
                 component,
                 'totalCurrentValue',
             ),
-        ).toBe(16500);
+        ).toBe(16800);
 
         expect(
             getComponentValue<number>(
                 component,
                 'totalProfit',
             ),
-        ).toBe(1500);
+        ).toBe(1800);
 
         expect(
             getComponentValue<number>(
                 component,
                 'totalReturnPercent',
             ),
-        ).toBe(10);
+        ).toBe(12);
     });
 
-    it('should identify the best performing portfolio', () => {
+    it('should identify the best performing summary', () => {
         createComponent();
 
         const bestPortfolio =
-            getComponentValue<PortfolioResponse | null>(
+            getComponentValue<{
+                name: string;
+            } | null>(
                 component,
                 'bestPerformingPortfolio',
             );
@@ -132,9 +188,46 @@ describe('DashboardPage', () => {
         ).toContain(
             'No portfolios yet',
         );
+
+        expect(
+            portfolioService.summaryRequestIds,
+        ).toEqual([]);
     });
 
-    it('should display an error state when loading fails', () => {
+    it('should use cached portfolio data when one summary fails', () => {
+        portfolioService.summaryResponses.set(
+            'portfolio-2',
+            throwError(
+                () => new Error(
+                    'Summary request failed',
+                ),
+            ),
+        );
+
+        createComponent();
+
+        expect(
+            getComponentValue<number>(
+                component,
+                'totalCurrentValue',
+            ),
+        ).toBe(17000);
+
+        expect(
+            getComponentValue<number>(
+                component,
+                'analyticsUnavailableCount',
+            ),
+        ).toBe(1);
+
+        expect(
+            fixture.nativeElement.textContent,
+        ).toContain(
+            'Cached portfolio values',
+        );
+    });
+
+    it('should display an error state when portfolio loading fails', () => {
         portfolioService.response$ =
             throwError(
                 () => new Error(
@@ -214,6 +307,54 @@ function createPortfolios(): PortfolioResponse[] {
             updatedAt: '2026-07-28T10:00:00Z',
         },
     ];
+}
+
+function createGrowthSummary():
+    PortfolioSummaryResponse {
+    return {
+        portfolioId: 'portfolio-1',
+        portfolioName: 'Growth portfolio',
+        initialValue: 10000,
+        currentValue: 12000,
+        totalRealizedProfit: 600,
+        totalUnrealizedProfit: 1400,
+        totalProfit: 2000,
+        totalReturnPercent: 20,
+        activeAssetCount: 4,
+        transactionCount: 12,
+        totalBuyAmount: 12500,
+        totalSellAmount: 2500,
+        totalDividendAmount: 100,
+        totalFeeAmount: 25,
+        totalDepositAmount: 10000,
+        totalWithdrawalAmount: 0,
+        netCashFlow: 10000,
+        calculatedAt: '2026-07-30T20:00:00Z',
+    };
+}
+
+function createIncomeSummary():
+    PortfolioSummaryResponse {
+    return {
+        portfolioId: 'portfolio-2',
+        portfolioName: 'Income portfolio',
+        initialValue: 5000,
+        currentValue: 4800,
+        totalRealizedProfit: 100,
+        totalUnrealizedProfit: -300,
+        totalProfit: -200,
+        totalReturnPercent: -4,
+        activeAssetCount: 2,
+        transactionCount: 5,
+        totalBuyAmount: 5200,
+        totalSellAmount: 0,
+        totalDividendAmount: 0,
+        totalFeeAmount: 10,
+        totalDepositAmount: 5000,
+        totalWithdrawalAmount: 0,
+        netCashFlow: 5000,
+        calculatedAt: '2026-07-30T20:01:00Z',
+    };
 }
 
 function getComponentValue<T>(

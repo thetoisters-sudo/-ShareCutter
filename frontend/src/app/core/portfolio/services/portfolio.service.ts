@@ -1,11 +1,24 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import {
+    HttpClient,
+    HttpParams,
+} from '@angular/common/http';
+import {
+    Injectable,
+    inject,
+} from '@angular/core';
+import {
+    Observable,
+    Subject,
+} from 'rxjs';
 
-import { environment } from '../../../../environments/environment';
+import {
+    environment,
+} from '../../../../environments/environment';
 import {
     PagedResponse,
+    PortfolioAllocationResponse,
     PortfolioCreateRequest,
+    PortfolioCreationMethod,
     PortfolioListQuery,
     PortfolioRenameRequest,
     PortfolioResponse,
@@ -13,26 +26,52 @@ import {
     PortfolioValueUpdateRequest,
 } from '../models/portfolio.models';
 
+export interface PortfolioChangeEvent {
+    portfolioId: string | null;
+    reason:
+    | 'created'
+    | 'renamed'
+    | 'deleted'
+    | 'value-updated'
+    | 'transaction-created'
+    | 'transaction-updated'
+    | 'transaction-deleted'
+    | 'target-weight-updated'
+    | 'rebuilt';
+}
+
+export interface TargetWeightUpdateRequest {
+    targetWeightPercent: number;
+}
+
 @Injectable({
     providedIn: 'root',
 })
 export class PortfolioService {
-    private readonly http = inject(HttpClient);
+    private readonly http =
+        inject(HttpClient);
 
     private readonly portfoliosUrl =
         `${environment.apiBaseUrl}/portfolios`;
 
+    private readonly portfolioChangedSubject =
+        new Subject<PortfolioChangeEvent>();
+
+    readonly portfolioChanged$ =
+        this.portfolioChangedSubject.asObservable();
+
     getPortfolios(
         query: PortfolioListQuery = {},
-    ): Observable<PagedResponse<PortfolioResponse>> {
-        const params = this.buildListParams(query);
-
+    ): Observable<
+        PagedResponse<PortfolioResponse>
+    > {
         return this.http.get<
             PagedResponse<PortfolioResponse>
         >(
             this.portfoliosUrl,
             {
-                params,
+                params:
+                    this.buildListParams(query),
             },
         );
     }
@@ -85,15 +124,69 @@ export class PortfolioService {
     getPortfolioSummary(
         portfolioId: string,
     ): Observable<PortfolioSummaryResponse> {
-        return this.http.get<PortfolioSummaryResponse>(
+        return this.http.get<
+            PortfolioSummaryResponse
+        >(
             `${this.portfoliosUrl}/${portfolioId}/analytics/summary`,
+        );
+    }
+
+    getPortfolioAllocation(
+        portfolioId: string,
+    ): Observable<
+        PortfolioAllocationResponse
+    > {
+        return this.http.get<
+            PortfolioAllocationResponse
+        >(
+            `${this.portfoliosUrl}/${portfolioId}/analytics/allocation`,
+        );
+    }
+
+    updateTargetWeight(
+        portfolioId: string,
+        assetId: string,
+        request: TargetWeightUpdateRequest,
+    ): Observable<
+        PortfolioAllocationResponse
+    > {
+        return this.http.patch<
+            PortfolioAllocationResponse
+        >(
+            (
+                `${this.portfoliosUrl}/${portfolioId}` +
+                `/analytics/allocation/${assetId}` +
+                '/target-weight'
+            ),
+            request,
+        );
+    }
+
+    rebuildPortfolioState(
+        portfolioId: string,
+    ): Observable<void> {
+        return this.http.post<void>(
+            (
+                `${this.portfoliosUrl}/${portfolioId}` +
+                '/transactions/rebuild'
+            ),
+            null,
+        );
+    }
+
+    notifyPortfolioChanged(
+        event: PortfolioChangeEvent,
+    ): void {
+        this.portfolioChangedSubject.next(
+            event,
         );
     }
 
     private buildListParams(
         query: PortfolioListQuery,
     ): HttpParams {
-        let params = new HttpParams();
+        let params =
+            new HttpParams();
 
         if (query.page !== undefined) {
             params = params.set(
@@ -116,7 +209,10 @@ export class PortfolioService {
             );
         }
 
-        if (query.sortDirection !== undefined) {
+        if (
+            query.sortDirection !==
+            undefined
+        ) {
             params = params.set(
                 'sortDirection',
                 query.sortDirection,

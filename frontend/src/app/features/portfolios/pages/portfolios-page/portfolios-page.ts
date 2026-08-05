@@ -10,35 +10,72 @@ import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
+    DestroyRef,
     OnInit,
     inject,
 } from '@angular/core';
 import {
+    takeUntilDestroyed,
+} from '@angular/core/rxjs-interop';
+import {
     FormsModule,
 } from '@angular/forms';
+import {
+    Observable,
+    catchError,
+    forkJoin,
+    map,
+    of,
+    switchMap,
+} from 'rxjs';
 
 import {
     PagedResponse,
+    PortfolioAllocationResponse,
     PortfolioCreateRequest,
     PortfolioCreationMethod,
     PortfolioResponse,
+    PortfolioSummaryResponse,
 } from '../../../../core/portfolio/models/portfolio.models';
 import {
+    PortfolioChangeEvent,
     PortfolioService,
 } from '../../../../core/portfolio/services/portfolio.service';
 
 type PortfolioDialogMode =
     | 'create'
     | 'rename'
-    | 'value'
     | 'delete'
     | null;
 
 type PortfolioAction =
     | 'create'
     | 'rename'
-    | 'update'
     | 'delete';
+
+interface PortfolioListItem {
+    id: string;
+    userId: string;
+    name: string;
+    creationMethod: PortfolioCreationMethod;
+    initialValue: number;
+    currentValue: number;
+    totalRealizedProfit: number;
+    totalUnrealizedProfit: number;
+    totalProfit: number;
+    totalReturnPercent: number;
+    activeAssetCount: number;
+    transactionCount: number;
+    calculatedAt: string;
+    createdAt: string;
+    updatedAt: string;
+    analyticsAvailable: boolean;
+}
+
+interface PortfolioPageResult {
+    response: PagedResponse<PortfolioResponse>;
+    portfolios: PortfolioListItem[];
+}
 
 @Component({
     selector: 'app-portfolios-page',
@@ -59,7 +96,10 @@ export class PortfoliosPage implements OnInit {
     private readonly changeDetectorRef =
         inject(ChangeDetectorRef);
 
-    protected portfolios: PortfolioResponse[] = [];
+    private readonly destroyRef =
+        inject(DestroyRef);
+
+    protected portfolios: PortfolioListItem[] = [];
 
     protected currentPage = 0;
     protected pageSize = 6;
@@ -75,17 +115,35 @@ export class PortfoliosPage implements OnInit {
     protected successMessage = '';
 
     protected dialogMode: PortfolioDialogMode = null;
-    protected selectedPortfolio: PortfolioResponse | null = null;
+
+    protected selectedPortfolio:
+        PortfolioListItem | null = null;
 
     protected createName = '';
+
     protected createMethod: PortfolioCreationMethod =
         'BY_AMOUNT';
+
     protected createInitialValue: number | null = null;
 
     protected renameValue = '';
-    protected currentValue: number | null = null;
+
+    protected expandedPortfolioId: string | null = null;
+
+    private readonly allocations =
+        new Map<
+            string,
+            PortfolioAllocationResponse
+        >();
+
+    private readonly allocationLoadingIds =
+        new Set<string>();
+
+    private readonly allocationErrors =
+        new Map<string, string>();
 
     ngOnInit(): void {
+        this.subscribeToPortfolioChanges();
         this.loadPortfolios();
     }
 
@@ -111,6 +169,78 @@ export class PortfoliosPage implements OnInit {
         this.loadPortfolios();
     }
 
+    protected togglePortfolioDetails(
+        portfolio: PortfolioListItem,
+    ): void {
+        if (
+            this.expandedPortfolioId ===
+            portfolio.id
+        ) {
+            this.expandedPortfolioId = null;
+            this.changeDetectorRef.markForCheck();
+            return;
+        }
+
+        this.expandedPortfolioId = portfolio.id;
+
+        if (
+            !this.allocations.has(portfolio.id) &&
+            !this.allocationLoadingIds.has(
+                portfolio.id,
+            )
+        ) {
+            this.loadPortfolioAllocation(
+                portfolio.id,
+            );
+        }
+
+        this.changeDetectorRef.markForCheck();
+    }
+
+    protected retryPortfolioAllocation(
+        portfolioId: string,
+    ): void {
+        this.allocationErrors.delete(portfolioId);
+        this.allocations.delete(portfolioId);
+
+        this.loadPortfolioAllocation(portfolioId);
+    }
+
+    protected isPortfolioExpanded(
+        portfolioId: string,
+    ): boolean {
+        return (
+            this.expandedPortfolioId === portfolioId
+        );
+    }
+
+    protected isAllocationLoading(
+        portfolioId: string,
+    ): boolean {
+        return this.allocationLoadingIds.has(
+            portfolioId,
+        );
+    }
+
+    protected getPortfolioAllocation(
+        portfolioId: string,
+    ): PortfolioAllocationResponse | null {
+        return (
+            this.allocations.get(portfolioId) ??
+            null
+        );
+    }
+
+    protected getAllocationError(
+        portfolioId: string,
+    ): string {
+        return (
+            this.allocationErrors.get(
+                portfolioId,
+            ) ?? ''
+        );
+    }
+
     protected openCreateDialog(): void {
         this.clearMessages();
         this.selectedPortfolio = null;
@@ -121,7 +251,7 @@ export class PortfoliosPage implements OnInit {
     }
 
     protected openRenameDialog(
-        portfolio: PortfolioResponse,
+        portfolio: PortfolioListItem,
     ): void {
         this.clearMessages();
         this.selectedPortfolio = portfolio;
@@ -129,17 +259,8 @@ export class PortfoliosPage implements OnInit {
         this.dialogMode = 'rename';
     }
 
-    protected openValueDialog(
-        portfolio: PortfolioResponse,
-    ): void {
-        this.clearMessages();
-        this.selectedPortfolio = portfolio;
-        this.currentValue = portfolio.currentValue;
-        this.dialogMode = 'value';
-    }
-
     protected openDeleteDialog(
-        portfolio: PortfolioResponse,
+        portfolio: PortfolioListItem,
     ): void {
         this.clearMessages();
         this.selectedPortfolio = portfolio;
@@ -186,30 +307,35 @@ export class PortfoliosPage implements OnInit {
         this.portfolioService
             .createPortfolio(request)
             .subscribe({
-                next: () => {
-                    this.finishSubmission();
-                    this.dialogMode = null;
-                    this.selectedPortfolio = null;
+                next: (createdPortfolio) => {
+                    this.portfolioService
+                        .notifyPortfolioChanged({
+                            portfolioId:
+                                createdPortfolio.id,
+                            reason: 'created',
+                        });
+
+                    this.finishSuccessfulSubmission(
+                        'Portfolio created successfully.',
+                    );
+
                     this.currentPage = 0;
-                    this.successMessage =
-                        'Portfolio created successfully.';
-                    this.changeDetectorRef.markForCheck();
                     this.loadPortfolios(false);
                 },
                 error: (error: unknown) => {
-                    this.finishSubmission();
-                    this.actionErrorMessage =
+                    this.finishFailedSubmission(
                         this.resolveActionError(
                             error,
                             'create',
-                        );
-                    this.changeDetectorRef.markForCheck();
+                        ),
+                    );
                 },
             });
     }
 
     protected submitRename(): void {
         const portfolio = this.selectedPortfolio;
+
         const normalizedName =
             this.renameValue.trim();
 
@@ -234,69 +360,26 @@ export class PortfoliosPage implements OnInit {
             )
             .subscribe({
                 next: () => {
-                    this.finishSubmission();
-                    this.dialogMode = null;
-                    this.selectedPortfolio = null;
-                    this.successMessage =
-                        'Portfolio renamed successfully.';
-                    this.changeDetectorRef.markForCheck();
+                    this.portfolioService
+                        .notifyPortfolioChanged({
+                            portfolioId:
+                                portfolio.id,
+                            reason: 'renamed',
+                        });
+
+                    this.finishSuccessfulSubmission(
+                        'Portfolio renamed successfully.',
+                    );
+
                     this.loadPortfolios(false);
                 },
                 error: (error: unknown) => {
-                    this.finishSubmission();
-                    this.actionErrorMessage =
+                    this.finishFailedSubmission(
                         this.resolveActionError(
                             error,
                             'rename',
-                        );
-                    this.changeDetectorRef.markForCheck();
-                },
-            });
-    }
-
-    protected submitValueUpdate(): void {
-        const portfolio = this.selectedPortfolio;
-
-        if (!portfolio) {
-            return;
-        }
-
-        if (
-            this.currentValue === null ||
-            this.currentValue < 0
-        ) {
-            this.actionErrorMessage =
-                'Current value must be zero or greater.';
-            return;
-        }
-
-        this.startSubmission();
-
-        this.portfolioService
-            .updatePortfolioValue(
-                portfolio.id,
-                {
-                    currentValue: this.currentValue,
-                },
-            )
-            .subscribe({
-                next: () => {
-                    this.finishSubmission();
-                    this.dialogMode = null;
-                    this.selectedPortfolio = null;
-                    this.successMessage =
-                        'Portfolio value updated successfully.';
-                    this.changeDetectorRef.markForCheck();
-                    this.loadPortfolios(false);
-                },
-                error: (error: unknown) => {
-                    this.finishSubmission();
-                    this.actionErrorMessage =
-                        this.resolveActionError(
-                            error,
-                            'update',
-                        );
-                    this.changeDetectorRef.markForCheck();
+                        ),
+                    );
                 },
             });
     }
@@ -314,30 +397,34 @@ export class PortfoliosPage implements OnInit {
             .deletePortfolio(portfolio.id)
             .subscribe({
                 next: () => {
-                    this.finishSubmission();
-                    this.dialogMode = null;
-                    this.selectedPortfolio = null;
-                    this.successMessage =
-                        'Portfolio deleted successfully.';
-
-                    if (
+                    const shouldMoveToPreviousPage =
                         this.portfolios.length === 1 &&
-                        this.currentPage > 0
-                    ) {
+                        this.currentPage > 0;
+
+                    this.portfolioService
+                        .notifyPortfolioChanged({
+                            portfolioId:
+                                portfolio.id,
+                            reason: 'deleted',
+                        });
+
+                    this.finishSuccessfulSubmission(
+                        'Portfolio deleted successfully.',
+                    );
+
+                    if (shouldMoveToPreviousPage) {
                         this.currentPage -= 1;
                     }
 
-                    this.changeDetectorRef.markForCheck();
                     this.loadPortfolios(false);
                 },
                 error: (error: unknown) => {
-                    this.finishSubmission();
-                    this.actionErrorMessage =
+                    this.finishFailedSubmission(
                         this.resolveActionError(
                             error,
                             'delete',
-                        );
-                    this.changeDetectorRef.markForCheck();
+                        ),
+                    );
                 },
             });
     }
@@ -360,6 +447,13 @@ export class PortfoliosPage implements OnInit {
         return this.currentPage + 1;
     }
 
+    protected get analyticsUnavailableCount(): number {
+        return this.portfolios.filter(
+            (portfolio) =>
+                !portfolio.analyticsAvailable,
+        ).length;
+    }
+
     protected get totalCurrentValue(): number {
         return this.portfolios.reduce(
             (
@@ -375,14 +469,63 @@ export class PortfoliosPage implements OnInit {
             (
                 total,
                 portfolio,
-            ) =>
-                total +
-                (
-                    portfolio.currentValue -
-                    portfolio.initialValue
-                ),
+            ) => total + portfolio.totalProfit,
             0,
         );
+    }
+
+    private subscribeToPortfolioChanges(): void {
+        this.portfolioService
+            .portfolioChanged$
+            .pipe(
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe(
+                (
+                    event:
+                        PortfolioChangeEvent,
+                ) => {
+                    this.refreshAfterPortfolioChange(
+                        event,
+                    );
+                },
+            );
+    }
+
+    private refreshAfterPortfolioChange(
+        event: PortfolioChangeEvent,
+    ): void {
+        if (
+            event.reason === 'created' ||
+            event.reason === 'renamed' ||
+            event.reason === 'deleted'
+        ) {
+            return;
+        }
+
+        const expandedPortfolioId =
+            this.expandedPortfolioId;
+
+        this.loadPortfolios(false);
+
+        if (
+            expandedPortfolioId &&
+            (
+                event.portfolioId === null ||
+                event.portfolioId ===
+                expandedPortfolioId
+            )
+        ) {
+            this.allocations.delete(
+                expandedPortfolioId,
+            );
+
+            this.allocationErrors.delete(
+                expandedPortfolioId,
+            );
+        }
     }
 
     private loadPortfolios(
@@ -390,6 +533,8 @@ export class PortfoliosPage implements OnInit {
     ): void {
         this.isLoading = true;
         this.errorMessage = '';
+
+        this.resetPortfolioDetails();
 
         if (clearMessages) {
             this.successMessage = '';
@@ -404,33 +549,204 @@ export class PortfoliosPage implements OnInit {
                 sortBy: 'createdAt',
                 sortDirection: 'desc',
             })
+            .pipe(
+                switchMap((response) =>
+                    this.loadPortfolioSummaries(
+                        response,
+                    ),
+                ),
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
             .subscribe({
-                next: (
-                    response:
-                        PagedResponse<PortfolioResponse>,
-                ) => {
-                    this.applyResponse(response);
+                next: (result) => {
+                    this.applyResponse(
+                        result.response,
+                        result.portfolios,
+                    );
+
                     this.isLoading = false;
                     this.changeDetectorRef.markForCheck();
                 },
                 error: (error: unknown) => {
-                    this.isLoading = false;
-                    this.portfolios = [];
-                    this.totalElements = 0;
-                    this.totalPages = 0;
-                    this.isFirstPage = true;
-                    this.isLastPage = true;
-                    this.errorMessage =
-                        this.resolveLoadError(error);
+                    this.applyLoadFailure(
+                        this.resolveLoadError(error),
+                    );
+                },
+            });
+    }
+
+    private loadPortfolioSummaries(
+        response: PagedResponse<PortfolioResponse>,
+    ): Observable<PortfolioPageResult> {
+        if (response.content.length === 0) {
+            return of({
+                response,
+                portfolios: [],
+            });
+        }
+
+        const summaryRequests =
+            response.content.map(
+                (portfolio) =>
+                    this.loadPortfolioSummary(
+                        portfolio,
+                    ),
+            );
+
+        return forkJoin(summaryRequests).pipe(
+            map((portfolios) => ({
+                response,
+                portfolios,
+            })),
+        );
+    }
+
+    private loadPortfolioSummary(
+        portfolio: PortfolioResponse,
+    ): Observable<PortfolioListItem> {
+        return this.portfolioService
+            .getPortfolioSummary(portfolio.id)
+            .pipe(
+                map((summary) =>
+                    this.createPortfolioListItem(
+                        portfolio,
+                        summary,
+                    ),
+                ),
+                catchError(() =>
+                    of(
+                        this.createFallbackPortfolio(
+                            portfolio,
+                        ),
+                    ),
+                ),
+            );
+    }
+
+    private loadPortfolioAllocation(
+        portfolioId: string,
+    ): void {
+        this.allocationLoadingIds.add(
+            portfolioId,
+        );
+
+        this.allocationErrors.delete(
+            portfolioId,
+        );
+
+        this.changeDetectorRef.markForCheck();
+
+        this.portfolioService
+            .getPortfolioAllocation(portfolioId)
+            .pipe(
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: (allocation) => {
+                    this.allocations.set(
+                        portfolioId,
+                        allocation,
+                    );
+
+                    this.allocationLoadingIds.delete(
+                        portfolioId,
+                    );
+
+                    this.allocationErrors.delete(
+                        portfolioId,
+                    );
+
+                    this.changeDetectorRef.markForCheck();
+                },
+                error: (error: unknown) => {
+                    this.allocations.delete(
+                        portfolioId,
+                    );
+
+                    this.allocationLoadingIds.delete(
+                        portfolioId,
+                    );
+
+                    this.allocationErrors.set(
+                        portfolioId,
+                        this.resolveAllocationError(
+                            error,
+                        ),
+                    );
+
                     this.changeDetectorRef.markForCheck();
                 },
             });
     }
 
+    private createPortfolioListItem(
+        portfolio: PortfolioResponse,
+        summary: PortfolioSummaryResponse,
+    ): PortfolioListItem {
+        return {
+            id: portfolio.id,
+            userId: portfolio.userId,
+            name: summary.portfolioName,
+            creationMethod:
+                portfolio.creationMethod,
+            initialValue: summary.initialValue,
+            currentValue: summary.currentValue,
+            totalRealizedProfit:
+                summary.totalRealizedProfit,
+            totalUnrealizedProfit:
+                summary.totalUnrealizedProfit,
+            totalProfit: summary.totalProfit,
+            totalReturnPercent:
+                summary.totalReturnPercent,
+            activeAssetCount:
+                summary.activeAssetCount,
+            transactionCount:
+                summary.transactionCount,
+            calculatedAt: summary.calculatedAt,
+            createdAt: portfolio.createdAt,
+            updatedAt: portfolio.updatedAt,
+            analyticsAvailable: true,
+        };
+    }
+
+    private createFallbackPortfolio(
+        portfolio: PortfolioResponse,
+    ): PortfolioListItem {
+        return {
+            id: portfolio.id,
+            userId: portfolio.userId,
+            name: portfolio.name,
+            creationMethod:
+                portfolio.creationMethod,
+            initialValue: portfolio.initialValue,
+            currentValue: portfolio.currentValue,
+            totalRealizedProfit:
+                portfolio.totalRealizedProfit,
+            totalUnrealizedProfit:
+                portfolio.totalUnrealizedProfit,
+            totalProfit:
+                portfolio.currentValue -
+                portfolio.initialValue,
+            totalReturnPercent:
+                portfolio.totalReturnPercent,
+            activeAssetCount: 0,
+            transactionCount: 0,
+            calculatedAt: portfolio.updatedAt,
+            createdAt: portfolio.createdAt,
+            updatedAt: portfolio.updatedAt,
+            analyticsAvailable: false,
+        };
+    }
+
     private applyResponse(
         response: PagedResponse<PortfolioResponse>,
+        portfolios: PortfolioListItem[],
     ): void {
-        this.portfolios = response.content;
+        this.portfolios = portfolios;
         this.currentPage = response.page;
         this.pageSize = response.size;
         this.totalElements = response.totalElements;
@@ -439,14 +755,47 @@ export class PortfoliosPage implements OnInit {
         this.isLastPage = response.last;
     }
 
+    private applyLoadFailure(
+        message: string,
+    ): void {
+        this.isLoading = false;
+        this.portfolios = [];
+        this.totalElements = 0;
+        this.totalPages = 0;
+        this.isFirstPage = true;
+        this.isLastPage = true;
+        this.errorMessage = message;
+        this.changeDetectorRef.markForCheck();
+    }
+
+    private resetPortfolioDetails(): void {
+        this.expandedPortfolioId = null;
+        this.allocations.clear();
+        this.allocationLoadingIds.clear();
+        this.allocationErrors.clear();
+    }
+
     private startSubmission(): void {
         this.isSubmitting = true;
         this.actionErrorMessage = '';
         this.changeDetectorRef.markForCheck();
     }
 
-    private finishSubmission(): void {
+    private finishSuccessfulSubmission(
+        message: string,
+    ): void {
         this.isSubmitting = false;
+        this.dialogMode = null;
+        this.selectedPortfolio = null;
+        this.successMessage = message;
+        this.changeDetectorRef.markForCheck();
+    }
+
+    private finishFailedSubmission(
+        message: string,
+    ): void {
+        this.isSubmitting = false;
+        this.actionErrorMessage = message;
         this.changeDetectorRef.markForCheck();
     }
 
@@ -484,6 +833,52 @@ export class PortfoliosPage implements OnInit {
         return (
             'Portfolios could not be loaded. ' +
             'Please try again.'
+        );
+    }
+
+    private resolveAllocationError(
+        error: unknown,
+    ): string {
+        if (!(error instanceof HttpErrorResponse)) {
+            return (
+                'Portfolio allocation could not be loaded. ' +
+                'Please try again.'
+            );
+        }
+
+        if (error.status === 0) {
+            return (
+                'The server could not be reached. ' +
+                'Check that the backend is running.'
+            );
+        }
+
+        if (error.status === 401) {
+            return (
+                'Your session has expired. ' +
+                'Please log in again.'
+            );
+        }
+
+        if (error.status === 403) {
+            return (
+                'You do not have permission to view ' +
+                'this portfolio allocation.'
+            );
+        }
+
+        if (error.status === 404) {
+            return (
+                'Portfolio allocation was not found.'
+            );
+        }
+
+        return (
+            this.extractBackendMessage(error) ??
+            (
+                'Portfolio allocation could not be loaded. ' +
+                'Please try again.'
+            )
         );
     }
 
@@ -592,11 +987,6 @@ export class PortfoliosPage implements OnInit {
             case 'rename':
                 return (
                     'The portfolio could not be renamed.'
-                );
-
-            case 'update':
-                return (
-                    'The portfolio value could not be updated.'
                 );
 
             case 'delete':

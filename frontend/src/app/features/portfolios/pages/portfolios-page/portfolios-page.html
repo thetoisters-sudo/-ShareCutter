@@ -8,8 +8,9 @@
             <h1>Portfolios</h1>
 
             <p>
-                Create and maintain your investment portfolios,
-                update their values and review current performance.
+                Create and manage your investment portfolios,
+                review transaction-based values and monitor
+                calculated performance.
             </p>
         </div>
 
@@ -32,10 +33,11 @@
     <section class="page-state" aria-live="polite">
         <span class="page-state__spinner" aria-hidden="true"></span>
 
-        <h2>Loading portfolios</h2>
+        <h2>Loading portfolio analytics</h2>
 
         <p>
-            Your investment accounts are being retrieved.
+            Portfolio values and performance are being
+            calculated from your transaction history.
         </p>
     </section>
     } @else if (errorMessage) {
@@ -62,7 +64,7 @@
 
         <p>
             Create your first portfolio to begin tracking
-            capital, values and investment returns.
+            holdings, transactions, values and returns.
         </p>
 
         <button type="button" class="primary-button" (click)="openCreateDialog()">
@@ -94,7 +96,7 @@
             </strong>
 
             <small>
-                Portfolios on this page
+                Calculated value on this page
             </small>
         </article>
 
@@ -113,10 +115,26 @@
             </strong>
 
             <small>
-                Current value minus initial value
+                Combined calculated profit
             </small>
         </article>
     </section>
+
+    @if (analyticsUnavailableCount > 0) {
+    <section class="message-banner message-banner--warning" role="status">
+        <span>
+            {{ analyticsUnavailableCount }}
+            portfolio analytics request
+            {{
+            analyticsUnavailableCount === 1
+            ? 'was'
+            : 'were'
+            }}
+            unavailable. Cached portfolio values
+            are shown temporarily.
+        </span>
+    </section>
+    }
 
     <section class="portfolio-list">
         @for (
@@ -138,9 +156,13 @@
                     <h2>{{ portfolio.name }}</h2>
 
                     <small>
-                        Updated
                         {{
-                        portfolio.updatedAt
+                        portfolio.analyticsAvailable
+                        ? 'Calculated'
+                        : 'Cached'
+                        }}
+                        {{
+                        portfolio.calculatedAt
                         | date:'mediumDate'
                         }}
                     </small>
@@ -192,6 +214,28 @@
                 </div>
 
                 <div>
+                    <dt>Total profit</dt>
+
+                    <dd [class.summary-card__positive]="
+                                    isPositiveOrZero(
+                                        portfolio.totalProfit
+                                    )
+                                " [class.summary-card__negative]="
+                                    !isPositiveOrZero(
+                                        portfolio.totalProfit
+                                    )
+                                ">
+                        {{
+                        portfolio.totalProfit
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
                     <dt>Realized profit</dt>
 
                     <dd>
@@ -218,21 +262,497 @@
                         }}
                     </dd>
                 </div>
+
+                <div>
+                    <dt>Active assets</dt>
+
+                    <dd>
+                        {{ portfolio.activeAssetCount }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Transactions</dt>
+
+                    <dd>
+                        {{ portfolio.transactionCount }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Data source</dt>
+
+                    <dd>
+                        {{
+                        portfolio.analyticsAvailable
+                        ? 'Live analytics'
+                        : 'Cached portfolio'
+                        }}
+                    </dd>
+                </div>
             </dl>
 
             <footer class="portfolio-card__actions">
-                <button type="button" (click)="openRenameDialog(portfolio)">
-                    Rename
+                <button type="button" class="portfolio-details-button" [attr.aria-expanded]="
+                                isPortfolioExpanded(portfolio.id)
+                            " [attr.aria-controls]="
+                                'portfolio-allocation-' +
+                                portfolio.id
+                            " (click)="togglePortfolioDetails(
+                                portfolio
+                            )">
+                    {{
+                    isPortfolioExpanded(portfolio.id)
+                    ? 'Hide allocation'
+                    : 'View allocation'
+                    }}
                 </button>
 
-                <button type="button" (click)="openValueDialog(portfolio)">
-                    Update value
+                <button type="button" (click)="openRenameDialog(portfolio)">
+                    Rename
                 </button>
 
                 <button type="button" class="danger-button" (click)="openDeleteDialog(portfolio)">
                     Delete
                 </button>
             </footer>
+
+            @if (
+            isPortfolioExpanded(portfolio.id)
+            ) {
+            <section class="portfolio-allocation" [id]="
+                                'portfolio-allocation-' +
+                                portfolio.id
+                            ">
+                <header class="portfolio-allocation__header">
+                    <div>
+                        <span>
+                            Current allocation
+                        </span>
+
+                        <h3>
+                            Holdings and weights
+                        </h3>
+                    </div>
+
+                    @if (
+                    getPortfolioAllocation(
+                    portfolio.id
+                    );
+                    as allocation
+                    ) {
+                    <small>
+                        Calculated
+                        {{
+                        allocation.calculatedAt
+                        | date:'medium'
+                        }}
+                    </small>
+                    }
+                </header>
+
+                @if (
+                isAllocationLoading(
+                portfolio.id
+                )
+                ) {
+                <div class="
+                                        allocation-state
+                                        allocation-state--loading
+                                    " aria-live="polite">
+                    <span class="
+                                            page-state__spinner
+                                        " aria-hidden="true"></span>
+
+                    <p>
+                        Loading portfolio
+                        allocation...
+                    </p>
+                </div>
+                } @else if (
+                getAllocationError(
+                portfolio.id
+                );
+                as allocationError
+                ) {
+                <div class="
+                                        allocation-state
+                                        allocation-state--error
+                                    " role="alert">
+                    <span class="
+                                            allocation-state__icon
+                                        " aria-hidden="true">
+                        !
+                    </span>
+
+                    <div>
+                        <h4>
+                            Allocation unavailable
+                        </h4>
+
+                        <p>
+                            {{ allocationError }}
+                        </p>
+                    </div>
+
+                    <button type="button" class="primary-button" (click)="
+                                            retryPortfolioAllocation(
+                                                portfolio.id
+                                            )
+                                        ">
+                        Try again
+                    </button>
+                </div>
+                } @else if (
+                getPortfolioAllocation(
+                portfolio.id
+                );
+                as allocation
+                ) {
+                <section class="
+                                        allocation-summary
+                                    " aria-label="
+                                        Portfolio allocation summary
+                                    ">
+                    <article>
+                        <span>
+                            Market value
+                        </span>
+
+                        <strong>
+                            {{
+                            allocation
+                            .totalMarketValue
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            Total cost
+                        </span>
+
+                        <strong>
+                            {{
+                            allocation.totalCost
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            Realized profit
+                        </span>
+
+                        <strong [class.summary-card__positive]="
+                                                isPositiveOrZero(
+                                                    allocation
+                                                        .totalRealizedProfit
+                                                )
+                                            " [class.summary-card__negative]="
+                                                !isPositiveOrZero(
+                                                    allocation
+                                                        .totalRealizedProfit
+                                                )
+                                            ">
+                            {{
+                            allocation
+                            .totalRealizedProfit
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            Unrealized profit
+                        </span>
+
+                        <strong [class.summary-card__positive]="
+                                                isPositiveOrZero(
+                                                    allocation
+                                                        .totalUnrealizedProfit
+                                                )
+                                            " [class.summary-card__negative]="
+                                                !isPositiveOrZero(
+                                                    allocation
+                                                        .totalUnrealizedProfit
+                                                )
+                                            ">
+                            {{
+                            allocation
+                            .totalUnrealizedProfit
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            Allocated assets
+                        </span>
+
+                        <strong>
+                            {{
+                            allocation
+                            .allocatedAssetCount
+                            }}
+                        </strong>
+                    </article>
+                </section>
+
+                @if (
+                allocation.assets.length === 0
+                ) {
+                <div class="
+                                            allocation-state
+                                            allocation-state--empty
+                                        ">
+                    <span class="
+                                                allocation-state__icon
+                                            " aria-hidden="true">
+                        +
+                    </span>
+
+                    <div>
+                        <h4>
+                            No allocated assets
+                        </h4>
+
+                        <p>
+                            Add assets and
+                            transactions to this
+                            portfolio to calculate
+                            quantities, values and
+                            weights.
+                        </p>
+                    </div>
+                </div>
+                } @else {
+                <div class="
+                                            allocation-table-wrapper
+                                        ">
+                    <table class="
+                                                allocation-table
+                                            ">
+                        <thead>
+                            <tr>
+                                <th scope="col">
+                                    Asset
+                                </th>
+
+                                <th scope="col">
+                                    Quantity
+                                </th>
+
+                                <th scope="col">
+                                    Average cost
+                                </th>
+
+                                <th scope="col">
+                                    Current price
+                                </th>
+
+                                <th scope="col">
+                                    Total cost
+                                </th>
+
+                                <th scope="col">
+                                    Market value
+                                </th>
+
+                                <th scope="col">
+                                    Weight
+                                </th>
+
+                                <th scope="col">
+                                    Realized
+                                </th>
+
+                                <th scope="col">
+                                    Unrealized
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @for (
+                            asset of
+                            allocation.assets;
+                            track asset.assetId
+                            ) {
+                            <tr>
+                                <td>
+                                    <div class="
+                                                                    asset-identity
+                                                                ">
+                                        <strong>
+                                            {{
+                                            asset.symbol
+                                            }}
+                                        </strong>
+
+                                        <span>
+                                            {{
+                                            asset
+                                            .displayName
+                                            }}
+                                        </span>
+
+                                        <small>
+                                            {{
+                                            asset
+                                            .assetType
+                                            }}
+                                            ·
+                                            {{
+                                            asset
+                                            .currency
+                                            }}
+                                        </small>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    {{
+                                    asset.quantity
+                                    | number:
+                                    '1.0-8'
+                                    }}
+                                </td>
+
+                                <td>
+                                    {{
+                                    asset.averageCost
+                                    | currency:
+                                    asset.currency:
+                                    'symbol':
+                                    '1.2-8'
+                                    }}
+                                </td>
+
+                                <td>
+                                    {{
+                                    asset.currentPrice
+                                    | currency:
+                                    asset.currency:
+                                    'symbol':
+                                    '1.2-8'
+                                    }}
+                                </td>
+
+                                <td>
+                                    {{
+                                    asset.totalCost
+                                    | currency:
+                                    asset.currency:
+                                    'symbol':
+                                    '1.2-2'
+                                    }}
+                                </td>
+
+                                <td>
+                                    {{
+                                    asset.marketValue
+                                    | currency:
+                                    asset.currency:
+                                    'symbol':
+                                    '1.2-2'
+                                    }}
+                                </td>
+
+                                <td>
+                                    <div class="
+                                                                    allocation-weight
+                                                                ">
+                                        <strong>
+                                            {{
+                                            asset
+                                            .allocationPercent
+                                            | number:
+                                            '1.2-2'
+                                            }}%
+                                        </strong>
+
+                                        <span class="
+                                                                        allocation-weight__track
+                                                                    " aria-hidden="
+                                                                        true
+                                                                    ">
+                                            <span class="
+                                                                            allocation-weight__fill
+                                                                        " [style.width.%]="
+                                                                            asset
+                                                                                .allocationPercent
+                                                                        "></span>
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td [class.summary-card__positive]="
+                                                                isPositiveOrZero(
+                                                                    asset
+                                                                        .realizedProfit
+                                                                )
+                                                            " [class.summary-card__negative]="
+                                                                !isPositiveOrZero(
+                                                                    asset
+                                                                        .realizedProfit
+                                                                )
+                                                            ">
+                                    {{
+                                    asset
+                                    .realizedProfit
+                                    | currency:
+                                    asset.currency:
+                                    'symbol':
+                                    '1.2-2'
+                                    }}
+                                </td>
+
+                                <td [class.summary-card__positive]="
+                                                                isPositiveOrZero(
+                                                                    asset
+                                                                        .unrealizedProfit
+                                                                )
+                                                            " [class.summary-card__negative]="
+                                                                !isPositiveOrZero(
+                                                                    asset
+                                                                        .unrealizedProfit
+                                                                )
+                                                            ">
+                                    {{
+                                    asset
+                                    .unrealizedProfit
+                                    | currency:
+                                    asset.currency:
+                                    'symbol':
+                                    '1.2-2'
+                                    }}
+                                </td>
+                            </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                }
+                }
+            </section>
+            }
         </article>
         }
     </section>
@@ -270,10 +790,6 @@
 
                         @case ('rename') {
                         Rename portfolio
-                        }
-
-                        @case ('value') {
-                        Update portfolio value
                         }
 
                         @case ('delete') {
@@ -321,9 +837,16 @@
                 <label>
                     <span>Initial value</span>
 
-                    <input type="number" name="createInitialValue" min="0" step="0.01"
-                        [(ngModel)]="createInitialValue" />
+                    <input type="number" name="createInitialValue" min="0" step="0.01" [(ngModel)]="
+                                        createInitialValue
+                                    " />
                 </label>
+
+                <p>
+                    Current value will be calculated
+                    automatically from transactions
+                    and portfolio analytics.
+                </p>
 
                 <footer class="dialog-actions">
                     <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
@@ -373,37 +896,6 @@
             </form>
             }
 
-            @case ('value') {
-            <form class="portfolio-form" (ngSubmit)="submitValueUpdate()">
-                <p>
-                    Update the current value of
-                    <strong>
-                        {{ selectedPortfolio?.name }}
-                    </strong>.
-                </p>
-
-                <label>
-                    <span>Current value</span>
-
-                    <input type="number" name="currentValue" min="0" step="0.01" [(ngModel)]="currentValue" />
-                </label>
-
-                <footer class="dialog-actions">
-                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
-                        Cancel
-                    </button>
-
-                    <button type="submit" class="primary-button" [disabled]="isSubmitting">
-                        {{
-                        isSubmitting
-                        ? 'Updating...'
-                        : 'Update value'
-                        }}
-                    </button>
-                </footer>
-            </form>
-            }
-
             @case ('delete') {
             <div class="delete-confirmation">
                 <p>
@@ -423,8 +915,10 @@
                         Cancel
                     </button>
 
-                    <button type="button" class="danger-button danger-button--filled" [disabled]="isSubmitting"
-                        (click)="submitDelete()">
+                    <button type="button" class="
+                                        danger-button
+                                        danger-button--filled
+                                    " [disabled]="isSubmitting" (click)="submitDelete()">
                         {{
                         isSubmitting
                         ? 'Deleting...'

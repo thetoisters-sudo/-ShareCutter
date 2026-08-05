@@ -73,3 +73,31 @@ export interface PortfolioSummaryResponse {
     netCashFlow: number;
     calculatedAt: string;
 }
+
+export interface AssetAllocationItemResponse {
+    assetId: string;
+    symbol: string;
+    displayName: string;
+    assetType: string;
+    currency: string;
+    quantity: number;
+    averageCost: number;
+    currentPrice: number;
+    totalCost: number;
+    marketValue: number;
+    realizedProfit: number;
+    unrealizedProfit: number;
+    allocationPercent: number;
+}
+
+export interface PortfolioAllocationResponse {
+    portfolioId: string;
+    portfolioName: string;
+    totalMarketValue: number;
+    totalCost: number;
+    totalRealizedProfit: number;
+    totalUnrealizedProfit: number;
+    allocatedAssetCount: number;
+    assets: AssetAllocationItemResponse[];
+    calculatedAt: string;
+}

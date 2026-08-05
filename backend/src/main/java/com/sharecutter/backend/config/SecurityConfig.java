@@ -30,7 +30,8 @@ public class SecurityConfig {
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter
     ) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.jwtAuthenticationFilter =
+                jwtAuthenticationFilter;
     }
 
     @Bean
@@ -39,144 +40,213 @@ public class SecurityConfig {
     ) throws Exception {
 
         http
-                .csrf(csrf -> csrf.disable())
-                .cors(Customizer.withDefaults())
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS
-                        )
+                .csrf(
+                        csrf ->
+                                csrf.disable()
                 )
-                .formLogin(form -> form.disable())
-                .httpBasic(basic -> basic.disable())
-                .authorizeHttpRequests(authorize ->
-                        authorize
-                                .dispatcherTypeMatchers(
-                                        DispatcherType.ERROR,
-                                        DispatcherType.FORWARD
+                .cors(
+                        Customizer.withDefaults()
+                )
+                .sessionManagement(
+                        session ->
+                                session.sessionCreationPolicy(
+                                        SessionCreationPolicy.STATELESS
                                 )
-                                .permitAll()
+                )
+                .formLogin(
+                        form ->
+                                form.disable()
+                )
+                .httpBasic(
+                        basic ->
+                                basic.disable()
+                )
+                .authorizeHttpRequests(
+                        authorize ->
+                                authorize
+                                        .dispatcherTypeMatchers(
+                                                DispatcherType.ERROR,
+                                                DispatcherType.FORWARD
+                                        )
+                                        .permitAll()
 
-                                .requestMatchers(
-                                        HttpMethod.OPTIONS,
-                                        "/**"
-                                )
-                                .permitAll()
+                                        .requestMatchers(
+                                                HttpMethod.OPTIONS,
+                                                "/**"
+                                        )
+                                        .permitAll()
 
-                                .requestMatchers(
-                                        "/swagger-ui.html",
-                                        "/swagger-ui/**",
-                                        "/v3/api-docs/**"
-                                )
-                                .permitAll()
+                                        .requestMatchers(
+                                                "/swagger-ui.html",
+                                                "/swagger-ui/**",
+                                                "/v3/api-docs/**"
+                                        )
+                                        .permitAll()
 
-                                .requestMatchers(
-                                        HttpMethod.POST,
-                                        "/api/v1/users"
-                                )
-                                .permitAll()
+                                        .requestMatchers(
+                                                HttpMethod.POST,
+                                                "/api/v1/users"
+                                        )
+                                        .permitAll()
 
-                                .requestMatchers(
-                                        HttpMethod.POST,
-                                        "/api/v1/auth/login"
-                                )
-                                .permitAll()
+                                        .requestMatchers(
+                                                HttpMethod.POST,
+                                                "/api/v1/auth/login"
+                                        )
+                                        .permitAll()
 
-                                .requestMatchers(
-                                        HttpMethod.GET,
-                                        "/actuator/health",
-                                        "/actuator/health/**"
-                                )
-                                .permitAll()
+                                        .requestMatchers(
+                                                HttpMethod.GET,
+                                                "/actuator/health",
+                                                "/actuator/health/**"
+                                        )
+                                        .permitAll()
 
-                                .requestMatchers(
-                                        HttpMethod.GET,
-                                        "/api/v1/users/me"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.GET,
+                                                "/api/v1/users/me"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.PATCH,
-                                        "/api/v1/users/me"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.PATCH,
+                                                "/api/v1/users/me"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.POST,
-                                        "/api/v1/portfolios"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.POST,
+                                                "/api/v1/portfolios"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.GET,
-                                        "/api/v1/portfolios",
-                                        "/api/v1/portfolios/*"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.GET,
+                                                "/api/v1/portfolios",
+                                                "/api/v1/portfolios/*"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.GET,
-                                        "/api/v1/portfolios/*/analytics/summary"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.GET,
+                                                "/api/v1/portfolios/*/analytics/summary",
+                                                "/api/v1/portfolios/*/analytics/allocation"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.PATCH,
-                                        "/api/v1/portfolios/*/name",
-                                        "/api/v1/portfolios/*/value"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.PATCH,
+                                                "/api/v1/portfolios/*/analytics/allocation/*/target-weight"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.DELETE,
-                                        "/api/v1/portfolios/*"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.PATCH,
+                                                "/api/v1/portfolios/*/name",
+                                                "/api/v1/portfolios/*/value"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.POST,
-                                        "/api/v1/portfolios/*/transactions"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.DELETE,
+                                                "/api/v1/portfolios/*"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.GET,
-                                        "/api/v1/portfolios/*/transactions",
-                                        "/api/v1/portfolios/*/transactions/*"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.POST,
+                                                "/api/v1/portfolios/*/assets"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.PUT,
-                                        "/api/v1/portfolios/*/transactions/*"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.GET,
+                                                "/api/v1/portfolios/*/assets",
+                                                "/api/v1/portfolios/*/assets/*"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.DELETE,
-                                        "/api/v1/portfolios/*/transactions/*"
-                                )
-                                .authenticated()
+                                        .requestMatchers(
+                                                HttpMethod.PUT,
+                                                "/api/v1/portfolios/*/assets/*"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.GET,
-                                        "/api/v1/users/**"
-                                )
-                                .hasRole("ADMIN")
+                                        .requestMatchers(
+                                                HttpMethod.PATCH,
+                                                "/api/v1/portfolios/*/assets/*"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.PATCH,
-                                        "/api/v1/users/*"
-                                )
-                                .hasRole("ADMIN")
+                                        .requestMatchers(
+                                                HttpMethod.DELETE,
+                                                "/api/v1/portfolios/*/assets/*"
+                                        )
+                                        .authenticated()
 
-                                .requestMatchers(
-                                        HttpMethod.DELETE,
-                                        "/api/v1/users/*"
-                                )
-                                .hasRole("ADMIN")
+                                        .requestMatchers(
+                                                HttpMethod.POST,
+                                                "/api/v1/portfolios/*/transactions"
+                                        )
+                                        .authenticated()
 
-                                .anyRequest()
-                                .denyAll()
+                                        .requestMatchers(
+                                                HttpMethod.POST,
+                                                "/api/v1/portfolios/*/transactions/rebuild"
+                                        )
+                                        .authenticated()
+
+                                        .requestMatchers(
+                                                HttpMethod.GET,
+                                                "/api/v1/portfolios/*/transactions",
+                                                "/api/v1/portfolios/*/transactions/*"
+                                        )
+                                        .authenticated()
+
+                                        .requestMatchers(
+                                                HttpMethod.PUT,
+                                                "/api/v1/portfolios/*/transactions/*"
+                                        )
+                                        .authenticated()
+
+                                        .requestMatchers(
+                                                HttpMethod.PATCH,
+                                                "/api/v1/portfolios/*/transactions/*"
+                                        )
+                                        .authenticated()
+
+                                        .requestMatchers(
+                                                HttpMethod.DELETE,
+                                                "/api/v1/portfolios/*/transactions/*"
+                                        )
+                                        .authenticated()
+
+                                        .requestMatchers(
+                                                HttpMethod.GET,
+                                                "/api/v1/users/**"
+                                        )
+                                        .hasRole(
+                                                "ADMIN"
+                                        )
+
+                                        .requestMatchers(
+                                                HttpMethod.PATCH,
+                                                "/api/v1/users/*"
+                                        )
+                                        .hasRole(
+                                                "ADMIN"
+                                        )
+
+                                        .requestMatchers(
+                                                HttpMethod.DELETE,
+                                                "/api/v1/users/*"
+                                        )
+                                        .hasRole(
+                                                "ADMIN"
+                                        )
+
+                                        .anyRequest()
+                                        .denyAll()
                 )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
@@ -192,7 +262,9 @@ public class SecurityConfig {
                 new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of(LOCAL_ANGULAR_ORIGIN)
+                List.of(
+                        LOCAL_ANGULAR_ORIGIN
+                )
         );
 
         configuration.setAllowedMethods(
@@ -220,8 +292,13 @@ public class SecurityConfig {
                 )
         );
 
-        configuration.setAllowCredentials(false);
-        configuration.setMaxAge(3600L);
+        configuration.setAllowCredentials(
+                false
+        );
+
+        configuration.setMaxAge(
+                3600L
+        );
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
