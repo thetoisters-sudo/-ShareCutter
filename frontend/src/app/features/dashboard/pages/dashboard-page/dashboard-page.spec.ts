@@ -19,6 +19,7 @@ import {
     PortfolioSummaryResponse,
 } from '../../../../core/portfolio/models/portfolio.models';
 import {
+    PortfolioMarketRefreshResponse,
     PortfolioService,
 } from '../../../../core/portfolio/services/portfolio.service';
 import {
@@ -34,10 +35,15 @@ class PortfolioServiceStub {
             | 'renamed'
             | 'deleted'
             | 'value-updated'
+            | 'asset-created'
+            | 'asset-updated'
+            | 'asset-deleted'
             | 'transaction-created'
             | 'transaction-updated'
             | 'transaction-deleted'
             | 'target-weight-updated'
+            | 'allocation-executed'
+            | 'market-price-updated'
             | 'rebuilt';
         }>();
 
@@ -47,6 +53,38 @@ class PortfolioServiceStub {
     response$: Observable<
         PagedResponse<PortfolioResponse>
     > = of(createPagedResponse());
+
+    marketRefreshResponse$: Observable<
+        PortfolioMarketRefreshResponse
+    > = of({
+        portfolioCount: 2,
+        refreshedPortfolioCount: 2,
+        refreshedHoldingCount: 5,
+        failedSymbols: [],
+        refreshedAt:
+            '2026-08-07T16:30:00Z',
+    });
+
+    refreshMarketDataCallCount = 0;
+
+    notifiedEvents: Array<{
+        portfolioId: string | null;
+        reason:
+        | 'created'
+        | 'renamed'
+        | 'deleted'
+        | 'value-updated'
+        | 'asset-created'
+        | 'asset-updated'
+        | 'asset-deleted'
+        | 'transaction-created'
+        | 'transaction-updated'
+        | 'transaction-deleted'
+        | 'target-weight-updated'
+        | 'allocation-executed'
+        | 'market-price-updated'
+        | 'rebuilt';
+    }> = [];
 
     summaryResponses = new Map<
         string,
@@ -78,6 +116,40 @@ class PortfolioServiceStub {
 
     summaryRequestIds: string[] = [];
     allocationRequestIds: string[] = [];
+
+    refreshMarketData(): Observable<
+        PortfolioMarketRefreshResponse
+    > {
+        this.refreshMarketDataCallCount += 1;
+
+        return this.marketRefreshResponse$;
+    }
+
+    notifyPortfolioChanged(
+        event: {
+            portfolioId: string | null;
+            reason:
+            | 'created'
+            | 'renamed'
+            | 'deleted'
+            | 'value-updated'
+            | 'asset-created'
+            | 'asset-updated'
+            | 'asset-deleted'
+            | 'transaction-created'
+            | 'transaction-updated'
+            | 'transaction-deleted'
+            | 'target-weight-updated'
+            | 'allocation-executed'
+            | 'market-price-updated'
+            | 'rebuilt';
+        },
+    ): void {
+        this.notifiedEvents.push(event);
+        this.portfolioChangedSubject.next(
+            event,
+        );
+    }
 
     getPortfolios(): Observable<
         PagedResponse<PortfolioResponse>
@@ -370,6 +442,141 @@ describe('DashboardPage', () => {
                 'allocationUnavailableCount',
             ),
         ).toBe(1);
+    });
+
+
+    it('should refresh market data and reload dashboard data', () => {
+        createComponent();
+
+        portfolioService.summaryRequestIds = [];
+        portfolioService.allocationRequestIds = [];
+
+        const access =
+            component as unknown as {
+                refreshMarketData(): void;
+                isRefreshingMarketData: boolean;
+                lastMarketRefreshAt:
+                string | null;
+                marketRefreshFailedSymbols:
+                string[];
+            };
+
+        access.refreshMarketData();
+
+        expect(
+            portfolioService
+                .refreshMarketDataCallCount,
+        ).toBe(1);
+
+        expect(
+            access.lastMarketRefreshAt,
+        ).toBe(
+            '2026-08-07T16:30:00Z',
+        );
+
+        expect(
+            access.marketRefreshFailedSymbols,
+        ).toEqual([]);
+
+        expect(
+            access.isRefreshingMarketData,
+        ).toBe(false);
+
+        expect(
+            portfolioService.notifiedEvents,
+        ).toContainEqual({
+            portfolioId: null,
+            reason:
+                'market-price-updated',
+        });
+
+        expect(
+            portfolioService.summaryRequestIds,
+        ).toEqual([
+            'portfolio-1',
+            'portfolio-2',
+        ]);
+
+        expect(
+            portfolioService.allocationRequestIds,
+        ).toEqual([
+            'portfolio-1',
+            'portfolio-2',
+        ]);
+    });
+
+    it('should keep failed symbols from a partial market refresh', () => {
+        portfolioService.marketRefreshResponse$ =
+            of({
+                portfolioCount: 2,
+                refreshedPortfolioCount: 1,
+                refreshedHoldingCount: 4,
+                failedSymbols: [
+                    'NVDA@NASDAQ',
+                ],
+                refreshedAt:
+                    '2026-08-07T17:00:00Z',
+            });
+
+        createComponent();
+
+        const access =
+            component as unknown as {
+                refreshMarketData(): void;
+                lastMarketRefreshAt:
+                string | null;
+                marketRefreshFailedSymbols:
+                string[];
+            };
+
+        access.refreshMarketData();
+
+        expect(
+            access.lastMarketRefreshAt,
+        ).toBe(
+            '2026-08-07T17:00:00Z',
+        );
+
+        expect(
+            access.marketRefreshFailedSymbols,
+        ).toEqual([
+            'NVDA@NASDAQ',
+        ]);
+    });
+
+    it('should recover when manual market refresh fails', () => {
+        portfolioService.marketRefreshResponse$ =
+            throwError(
+                () =>
+                    new Error(
+                        'Market refresh failed',
+                    ),
+            );
+
+        createComponent();
+
+        const access =
+            component as unknown as {
+                refreshMarketData(): void;
+                isRefreshingMarketData: boolean;
+                lastMarketRefreshAt:
+                string | null;
+            };
+
+        access.refreshMarketData();
+
+        expect(
+            portfolioService
+                .refreshMarketDataCallCount,
+        ).toBe(1);
+
+        expect(
+            access.isRefreshingMarketData,
+        ).toBe(false);
+
+        expect(
+            access.lastMarketRefreshAt,
+        ).toBeNull();
     });
 
     it('should display an error state when portfolio loading fails', () => {

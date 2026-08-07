@@ -47,6 +47,13 @@ interface DashboardTranslations {
     bestPerformer: string;
     realizedProfit: string;
     unrealizedProfit: string;
+    refreshMarketData: string;
+    refreshingMarketData: string;
+    lastMarketRefresh: string;
+    marketRefreshSuccess: string;
+    marketRefreshPartial: string;
+    marketRefreshFailed: string;
+    failedSymbols: string;
     loadError: string;
 }
 
@@ -727,6 +734,26 @@ const ENGLISH_TRANSLATIONS:
             'Realized profit',
         unrealizedProfit:
             'Unrealized profit',
+        refreshMarketData:
+            'Refresh market prices',
+        refreshingMarketData:
+            'Refreshing prices...',
+        lastMarketRefresh:
+            'Last market refresh',
+        marketRefreshSuccess:
+            'Market prices were refreshed successfully.',
+        marketRefreshPartial:
+            (
+                'Market prices were refreshed, but some symbols ' +
+                'could not be updated.'
+            ),
+        marketRefreshFailed:
+            (
+                'Market prices could not be refreshed. ' +
+                'The existing portfolio values are still shown.'
+            ),
+        failedSymbols:
+            'Symbols not updated',
         loadError:
             (
                 'Portfolio data could not be loaded. ' +
@@ -1894,6 +1921,26 @@ const HEBREW_TRANSLATIONS:
             'רווח ממומש',
         unrealizedProfit:
             'רווח לא ממומש',
+        refreshMarketData:
+            'רענון מחירי שוק',
+        refreshingMarketData:
+            'מרענן מחירים...',
+        lastMarketRefresh:
+            'רענון שוק אחרון',
+        marketRefreshSuccess:
+            'מחירי השוק עודכנו בהצלחה.',
+        marketRefreshPartial:
+            (
+                'מחירי השוק עודכנו, אך לא ניתן היה ' +
+                'לעדכן חלק מהסימולים.'
+            ),
+        marketRefreshFailed:
+            (
+                'לא ניתן היה לרענן את מחירי השוק. ' +
+                'הנתונים הקיימים של התיקים ממשיכים להיות מוצגים.'
+            ),
+        failedSymbols:
+            'סימולים שלא עודכנו',
         loadError:
             (
                 'לא ניתן לטעון את נתוני תיקי ההשקעות. ' +

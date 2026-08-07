@@ -48,6 +48,14 @@ export interface TargetWeightUpdateRequest {
     targetWeightPercent: number;
 }
 
+export interface PortfolioMarketRefreshResponse {
+    portfolioCount: number;
+    refreshedPortfolioCount: number;
+    refreshedHoldingCount: number;
+    failedSymbols: string[];
+    refreshedAt: string;
+}
+
 @Injectable({
     providedIn: 'root',
 })
@@ -122,6 +130,16 @@ export class PortfolioService {
     ): Observable<void> {
         return this.http.delete<void>(
             `${this.portfoliosUrl}/${portfolioId}`,
+        );
+    }
+
+    refreshMarketData():
+        Observable<PortfolioMarketRefreshResponse> {
+        return this.http.post<
+            PortfolioMarketRefreshResponse
+        >(
+            `${this.portfoliosUrl}/market-refresh`,
+            null,
         );
     }
 

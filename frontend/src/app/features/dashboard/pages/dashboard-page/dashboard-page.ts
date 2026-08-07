@@ -36,6 +36,7 @@ import {
     PortfolioSummaryResponse,
 } from '../../../../core/portfolio/models/portfolio.models';
 import {
+    PortfolioMarketRefreshResponse,
     PortfolioService,
 } from '../../../../core/portfolio/services/portfolio.service';
 
@@ -98,6 +99,18 @@ export class DashboardPage
 
     protected errorMessage = '';
 
+    protected isRefreshingMarketData = false;
+
+    protected lastMarketRefreshAt: string | null =
+        null;
+
+    protected marketRefreshFailedSymbols:
+        string[] = [];
+
+    protected marketRefreshMessage = '';
+
+    protected marketRefreshErrorMessage = '';
+
     ngOnInit(): void {
         this.subscribeToPortfolioChanges();
         this.loadPortfolios();
@@ -105,6 +118,72 @@ export class DashboardPage
 
     protected retry(): void {
         this.loadPortfolios();
+    }
+
+    protected refreshMarketData(): void {
+        if (this.isRefreshingMarketData) {
+            return;
+        }
+
+        this.isRefreshingMarketData = true;
+        this.marketRefreshFailedSymbols = [];
+        this.marketRefreshMessage = '';
+        this.marketRefreshErrorMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+
+        this.portfolioService
+            .refreshMarketData()
+            .pipe(
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: (
+                    response:
+                        PortfolioMarketRefreshResponse,
+                ) => {
+                    this.lastMarketRefreshAt =
+                        response.refreshedAt;
+
+                    this.marketRefreshFailedSymbols =
+                        response.failedSymbols;
+
+                    this.marketRefreshMessage =
+                        response.failedSymbols.length > 0
+                            ? this.text().dashboard
+                                .marketRefreshPartial
+                            : this.text().dashboard
+                                .marketRefreshSuccess;
+
+                    this.isRefreshingMarketData =
+                        false;
+
+                    this.portfolioService
+                        .notifyPortfolioChanged({
+                            portfolioId: null,
+                            reason:
+                                'market-price-updated',
+                        });
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+
+                error: () => {
+                    this.isRefreshingMarketData =
+                        false;
+
+                    this.marketRefreshErrorMessage =
+                        this.text().dashboard
+                            .marketRefreshFailed;
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            });
     }
 
     protected trackPortfolioById(

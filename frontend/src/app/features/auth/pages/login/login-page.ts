@@ -18,7 +18,9 @@ import {
     RouterLink,
 } from '@angular/router';
 import {
+    catchError,
     finalize,
+    of,
     switchMap,
 } from 'rxjs';
 
@@ -32,6 +34,9 @@ import {
 import {
     TranslationService,
 } from '../../../../core/i18n/services/translation.service';
+import {
+    PortfolioService,
+} from '../../../../core/portfolio/services/portfolio.service';
 
 @Component({
     selector: 'app-login-page',
@@ -48,6 +53,9 @@ export class LoginPage {
 
     private readonly authService =
         inject(AuthService);
+
+    private readonly portfolioService =
+        inject(PortfolioService);
 
     private readonly router =
         inject(Router);
@@ -127,6 +135,15 @@ export class LoginPage {
             .pipe(
                 switchMap(() =>
                     this.authService.loadCurrentUser(),
+                ),
+                switchMap(() =>
+                    this.portfolioService
+                        .refreshMarketData()
+                        .pipe(
+                            catchError(() =>
+                                of(null),
+                            ),
+                        ),
                 ),
                 finalize(() => {
                     this.isSubmitting.set(false);

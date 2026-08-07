@@ -22,6 +22,10 @@ import {
     UserResponse,
 } from '../../../../core/auth/models/auth.models';
 import { AuthService } from '../../../../core/auth/services/auth.service';
+import {
+    PortfolioMarketRefreshResponse,
+    PortfolioService,
+} from '../../../../core/portfolio/services/portfolio.service';
 import { LoginPage } from './login-page';
 
 interface LoginPageTestAccess {
@@ -41,6 +45,7 @@ describe('LoginPage', () => {
 
     const loginMock = vi.fn();
     const loadCurrentUserMock = vi.fn();
+    const refreshMarketDataMock = vi.fn();
 
     const activatedRouteStub = {
         snapshot: {
@@ -51,6 +56,11 @@ describe('LoginPage', () => {
     const authServiceMock = {
         login: loginMock,
         loadCurrentUser: loadCurrentUserMock,
+    };
+
+    const portfolioServiceMock = {
+        refreshMarketData:
+            refreshMarketDataMock,
     };
 
     const loginRequest: LoginRequest = {
@@ -76,6 +86,16 @@ describe('LoginPage', () => {
         updatedAt: '2026-07-28T10:00:00Z',
     };
 
+    const marketRefreshResponse:
+        PortfolioMarketRefreshResponse = {
+        portfolioCount: 2,
+        refreshedPortfolioCount: 2,
+        refreshedHoldingCount: 5,
+        failedSymbols: [],
+        refreshedAt:
+            '2026-08-07T16:30:00Z',
+    };
+
     const createComponent = (): void => {
         fixture = TestBed.createComponent(LoginPage);
         component = fixture.componentInstance;
@@ -96,11 +116,16 @@ describe('LoginPage', () => {
         loadCurrentUserMock.mockReturnValue(
             of(userResponse),
         );
+
+        refreshMarketDataMock.mockReturnValue(
+            of(marketRefreshResponse),
+        );
     };
 
     beforeEach(async () => {
         loginMock.mockReset();
         loadCurrentUserMock.mockReset();
+        refreshMarketDataMock.mockReset();
 
         activatedRouteStub.snapshot.queryParamMap =
             convertToParamMap({});
@@ -112,6 +137,10 @@ describe('LoginPage', () => {
                 {
                     provide: AuthService,
                     useValue: authServiceMock,
+                },
+                {
+                    provide: PortfolioService,
+                    useValue: portfolioServiceMock,
                 },
                 {
                     provide: ActivatedRoute,
@@ -280,6 +309,10 @@ describe('LoginPage', () => {
             loadCurrentUserMock,
         ).toHaveBeenCalledTimes(1);
 
+        expect(
+            refreshMarketDataMock,
+        ).toHaveBeenCalledTimes(1);
+
         expect(navigateByUrlSpy).toHaveBeenCalledWith(
             '/dashboard',
         );
@@ -390,6 +423,86 @@ describe('LoginPage', () => {
         expect(navigateByUrlSpy).toHaveBeenCalledWith(
             '/dashboard',
         );
+    });
+
+
+    it('should refresh market data after loading the current user', () => {
+        const navigateByUrlSpy = vi
+            .spyOn(router, 'navigateByUrl')
+            .mockResolvedValue(true);
+
+        configureSuccessfulLogin();
+
+        testAccess.loginForm.setValue(
+            loginRequest,
+        );
+
+        testAccess.submit();
+
+        expect(
+            refreshMarketDataMock,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(
+            loadCurrentUserMock.mock
+                .invocationCallOrder[0],
+        ).toBeLessThan(
+            refreshMarketDataMock.mock
+                .invocationCallOrder[0],
+        );
+
+        expect(navigateByUrlSpy)
+            .toHaveBeenCalledWith(
+                '/dashboard',
+            );
+    });
+
+    it('should continue navigation when market refresh fails', () => {
+        const navigateByUrlSpy = vi
+            .spyOn(router, 'navigateByUrl')
+            .mockResolvedValue(true);
+
+        loginMock.mockReturnValue(
+            of(tokenResponse),
+        );
+
+        loadCurrentUserMock.mockReturnValue(
+            of(userResponse),
+        );
+
+        refreshMarketDataMock.mockReturnValue(
+            throwError(
+                () =>
+                    new HttpErrorResponse({
+                        status: 503,
+                        statusText:
+                            'Service Unavailable',
+                    }),
+            ),
+        );
+
+        testAccess.loginForm.setValue(
+            loginRequest,
+        );
+
+        testAccess.submit();
+
+        expect(
+            refreshMarketDataMock,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(navigateByUrlSpy)
+            .toHaveBeenCalledWith(
+                '/dashboard',
+            );
+
+        expect(
+            testAccess.errorMessage(),
+        ).toBeNull();
+
+        expect(
+            testAccess.isSubmitting(),
+        ).toBe(false);
     });
 
     it('should display an invalid credentials message for a 401 response', () => {

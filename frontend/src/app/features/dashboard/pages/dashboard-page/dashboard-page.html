@@ -20,13 +20,79 @@
             </p>
         </div>
 
-        <a class="dashboard-header__action" routerLink="/portfolios">
+        <div class="dashboard-header__actions">
+            <button type="button" class="dashboard-header__action" (click)="refreshMarketData()" [disabled]="
+                    isRefreshingMarketData ||
+                    isLoading
+                ">
+                @if (isRefreshingMarketData) {
+                {{
+                text().dashboard
+                .refreshingMarketData
+                }}
+                } @else {
+                {{
+                text().dashboard
+                .refreshMarketData
+                }}
+                }
+            </button>
+
+            <a class="dashboard-header__action" routerLink="/portfolios">
+                {{
+                text().dashboard
+                .managePortfolios
+                }}
+            </a>
+        </div>
+    </header>
+
+    @if (
+    marketRefreshMessage ||
+    marketRefreshErrorMessage ||
+    lastMarketRefreshAt
+    ) {
+    <section class="dashboard-market-status" [class.dashboard-market-status--error]="
+            !!marketRefreshErrorMessage
+        " [class.dashboard-market-status--warning]="
+            marketRefreshFailedSymbols.length > 0
+        " aria-live="polite">
+        @if (marketRefreshErrorMessage) {
+        <strong>
+            {{ marketRefreshErrorMessage }}
+        </strong>
+        } @else if (marketRefreshMessage) {
+        <strong>
+            {{ marketRefreshMessage }}
+        </strong>
+        }
+
+        @if (lastMarketRefreshAt) {
+        <span>
             {{
             text().dashboard
-            .managePortfolios
+            .lastMarketRefresh
+            }}:
+            {{
+            lastMarketRefreshAt
+            | date:'medium'
             }}
-        </a>
-    </header>
+        </span>
+        }
+
+        @if (marketRefreshFailedSymbols.length > 0) {
+        <span>
+            {{
+            text().dashboard
+            .failedSymbols
+            }}:
+            {{
+            marketRefreshFailedSymbols.join(', ')
+            }}
+        </span>
+        }
+    </section>
+    }
 
     @if (isLoading) {
     <section class="dashboard-state" aria-live="polite">
