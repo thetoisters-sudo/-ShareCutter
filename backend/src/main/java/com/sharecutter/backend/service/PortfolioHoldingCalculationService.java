@@ -356,6 +356,12 @@ public class PortfolioHoldingCalculationService {
                         portfolio
                 );
 
+        if (cashBalance.signum() < 0) {
+            throw new InvalidTransactionException(
+                    "Portfolio cash balance must not be negative"
+            );
+        }
+
         BigDecimal currentValue =
                 cashBalance.add(
                         totalMarketValue

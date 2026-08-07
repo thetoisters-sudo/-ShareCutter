@@ -25,7 +25,8 @@ public class SecurityConfig {
     private static final String LOCAL_ANGULAR_ORIGIN =
             "http://localhost:4200";
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationFilter
+            jwtAuthenticationFilter;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter
@@ -104,6 +105,13 @@ public class SecurityConfig {
 
                                         .requestMatchers(
                                                 HttpMethod.GET,
+                                                "/api/v1/market-data/search",
+                                                "/api/v1/market-data/price"
+                                        )
+                                        .authenticated()
+
+                                        .requestMatchers(
+                                                HttpMethod.GET,
                                                 "/api/v1/users/me"
                                         )
                                         .authenticated()
@@ -116,7 +124,8 @@ public class SecurityConfig {
 
                                         .requestMatchers(
                                                 HttpMethod.POST,
-                                                "/api/v1/portfolios"
+                                                "/api/v1/portfolios",
+                                                "/api/v1/portfolios/market-refresh"
                                         )
                                         .authenticated()
 
@@ -181,6 +190,13 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 HttpMethod.DELETE,
                                                 "/api/v1/portfolios/*/assets/*"
+                                        )
+                                        .authenticated()
+
+                                        .requestMatchers(
+                                                HttpMethod.POST,
+                                                "/api/v1/portfolios/*/allocation-purchases/preview",
+                                                "/api/v1/portfolios/*/allocation-purchases/execute"
                                         )
                                         .authenticated()
 
@@ -257,7 +273,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource
+    corsConfigurationSource() {
         CorsConfiguration configuration =
                 new CorsConfiguration();
 

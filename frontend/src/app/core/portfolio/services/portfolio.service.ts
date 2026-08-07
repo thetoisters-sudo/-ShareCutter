@@ -18,7 +18,6 @@ import {
     PagedResponse,
     PortfolioAllocationResponse,
     PortfolioCreateRequest,
-    PortfolioCreationMethod,
     PortfolioListQuery,
     PortfolioRenameRequest,
     PortfolioResponse,
@@ -33,10 +32,15 @@ export interface PortfolioChangeEvent {
     | 'renamed'
     | 'deleted'
     | 'value-updated'
+    | 'asset-created'
+    | 'asset-updated'
+    | 'asset-deleted'
     | 'transaction-created'
     | 'transaction-updated'
     | 'transaction-deleted'
     | 'target-weight-updated'
+    | 'allocation-executed'
+    | 'market-price-updated'
     | 'rebuilt';
 }
 

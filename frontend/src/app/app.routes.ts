@@ -86,6 +86,24 @@ export const routes: Routes = [
         },
     },
     {
+        path: 'allocation-purchase',
+        canActivate: [
+            authGuard,
+        ],
+        loadComponent: () =>
+            import(
+                './features/allocation-purchase/pages/allocation-purchase-page/allocation-purchase-page'
+            ).then(
+                (module) =>
+                    module.AllocationPurchasePage,
+            ),
+        data: {
+            title: 'Allocation Purchase',
+            description:
+                'Calculate and execute fractional purchases based on portfolio target weights.',
+        },
+    },
+    {
         path: 'login',
         canActivate: [
             guestGuard,

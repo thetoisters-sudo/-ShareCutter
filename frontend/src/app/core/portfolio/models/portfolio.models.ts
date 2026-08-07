@@ -93,10 +93,17 @@ export interface AssetAllocationItemResponse {
 export interface PortfolioAllocationResponse {
     portfolioId: string;
     portfolioName: string;
+
+    portfolioValue?: number;
+    cashBalance?: number;
+
     totalMarketValue: number;
     totalCost: number;
     totalRealizedProfit: number;
     totalUnrealizedProfit: number;
+
+    totalTargetWeightPercent?: number;
+
     allocatedAssetCount: number;
     assets: AssetAllocationItemResponse[];
     calculatedAt: string;

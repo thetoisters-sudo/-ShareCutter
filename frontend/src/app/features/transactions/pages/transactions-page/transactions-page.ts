@@ -23,6 +23,15 @@ import {
     AssetService,
 } from '../../../../core/asset/services/asset.service';
 import {
+    TranslationService,
+} from '../../../../core/i18n/services/translation.service';
+import {
+    MarketPriceResponse,
+} from '../../../../core/market-data/models/market-data.models';
+import {
+    MarketDataService,
+} from '../../../../core/market-data/services/market-data.service';
+import {
     PagedResponse,
     PortfolioResponse,
 } from '../../../../core/portfolio/models/portfolio.models';
@@ -51,6 +60,10 @@ type TransactionAction =
     | 'create'
     | 'edit'
     | 'delete';
+
+type TransactionCalculationMode =
+    | 'BY_QUANTITY'
+    | 'BY_AMOUNT';
 
 interface TransactionFormValue {
     assetId: string;
@@ -86,11 +99,20 @@ export class TransactionsPage implements OnInit {
     private readonly assetService =
         inject(AssetService);
 
+    private readonly translationService =
+        inject(TranslationService);
+
+    private readonly marketDataService =
+        inject(MarketDataService);
+
     private readonly changeDetectorRef =
         inject(ChangeDetectorRef);
 
     protected readonly transactionTypeOptions =
         TRANSACTION_TYPE_OPTIONS;
+
+    protected readonly text =
+        this.translationService.text;
 
     protected portfolios: PortfolioResponse[] = [];
     protected assets: AssetResponse[] = [];
@@ -115,6 +137,11 @@ export class TransactionsPage implements OnInit {
     protected isLoadingTransactions = false;
     protected isLoadingAssets = false;
     protected isSubmitting = false;
+    protected isLoadingMarketPrice = false;
+
+    protected marketPriceRetrievedAt = '';
+    protected marketPriceErrorMessage = '';
+    protected isManualPrice = false;
 
     protected errorMessage = '';
     protected actionErrorMessage = '';
@@ -122,6 +149,10 @@ export class TransactionsPage implements OnInit {
 
     protected dialogMode:
         TransactionDialogMode = null;
+
+    protected calculationMode:
+        TransactionCalculationMode =
+        'BY_QUANTITY';
 
     protected selectedTransaction:
         TransactionResponse | null = null;
@@ -170,7 +201,7 @@ export class TransactionsPage implements OnInit {
             this.filterEndDate
         ) {
             this.errorMessage =
-                'Start date must not be after end date.';
+                this.text().transactions.startDateAfterEndDate;
             return;
         }
 
@@ -217,6 +248,11 @@ export class TransactionsPage implements OnInit {
         this.selectedTransaction = null;
         this.formValue =
             this.createEmptyFormValue();
+
+        this.resetMarketPriceState();
+        this.isManualPrice = false;
+        this.calculationMode =
+            'BY_QUANTITY';
         this.dialogMode = 'create';
     }
 
@@ -250,6 +286,10 @@ export class TransactionsPage implements OnInit {
                 transaction.notes ?? '',
         };
 
+        this.resetMarketPriceState();
+        this.isManualPrice = true;
+        this.calculationMode =
+            'BY_QUANTITY';
         this.dialogMode = 'edit';
     }
 
@@ -270,6 +310,7 @@ export class TransactionsPage implements OnInit {
         this.dialogMode = null;
         this.selectedTransaction = null;
         this.actionErrorMessage = '';
+        this.resetMarketPriceState();
     }
 
     protected submitCreate(): void {
@@ -296,7 +337,7 @@ export class TransactionsPage implements OnInit {
                     this.closeCompletedDialog();
                     this.currentPage = 0;
                     this.successMessage =
-                        'Transaction created successfully.';
+                        this.text().transactions.createdSuccess;
                     this.changeDetectorRef
                         .markForCheck();
                     this.loadTransactions(false);
@@ -342,7 +383,7 @@ export class TransactionsPage implements OnInit {
                     this.finishSubmission();
                     this.closeCompletedDialog();
                     this.successMessage =
-                        'Transaction updated successfully.';
+                        this.text().transactions.updatedSuccess;
                     this.changeDetectorRef
                         .markForCheck();
                     this.loadTransactions(false);
@@ -383,7 +424,7 @@ export class TransactionsPage implements OnInit {
                     this.finishSubmission();
                     this.closeCompletedDialog();
                     this.successMessage =
-                        'Transaction deleted successfully.';
+                        this.text().transactions.deletedSuccess;
 
                     if (
                         this.transactions.length === 1 &&
@@ -414,25 +455,195 @@ export class TransactionsPage implements OnInit {
     }
 
     protected onTransactionTypeChange(): void {
+        this.actionErrorMessage = '';
+        this.resetMarketPriceState();
+
         if (
             !this.transactionRequiresAsset(
                 this.formValue.transactionType,
             )
         ) {
             this.formValue.assetId = '';
-            this.formValue.quantity = null;
-            this.formValue.unitPrice = null;
         }
 
         if (
-            this.formValue.transactionType !==
-            'BUY' &&
-            this.formValue.transactionType !==
-            'SELL'
+            !this.transactionUsesQuantity(
+                this.formValue.transactionType,
+            )
         ) {
             this.formValue.quantity = null;
             this.formValue.unitPrice = null;
+            this.formValue.totalAmount = null;
+            this.isManualPrice = false;
+            this.calculationMode =
+                'BY_QUANTITY';
+            this.changeDetectorRef.markForCheck();
+            return;
         }
+
+        this.formValue.quantity = null;
+        this.formValue.unitPrice = null;
+        this.formValue.totalAmount = null;
+        this.isManualPrice =
+            this.dialogMode === 'edit';
+
+        if (
+            this.formValue.assetId &&
+            !this.isManualPrice
+        ) {
+            this.refreshMarketPrice();
+        }
+
+        this.changeDetectorRef.markForCheck();
+    }
+
+    protected onTransactionAssetChange(
+        assetId: string,
+    ): void {
+        this.formValue.assetId = assetId;
+        this.formValue.quantity = null;
+        this.formValue.unitPrice = null;
+
+        if (
+            this.calculationMode ===
+            'BY_QUANTITY'
+        ) {
+            this.formValue.totalAmount =
+                null;
+        }
+
+        this.resetMarketPriceState();
+        this.actionErrorMessage = '';
+
+        const asset =
+            this.getSelectedFormAsset();
+
+        if (asset) {
+            this.formValue.currency =
+                asset.currency;
+        }
+
+        if (
+            asset &&
+            this.transactionUsesQuantity(
+                this.formValue.transactionType,
+            ) &&
+            !this.isManualPrice
+        ) {
+            this.loadLatestMarketPrice(asset);
+        }
+
+        this.changeDetectorRef.markForCheck();
+    }
+
+    protected setCalculationMode(
+        mode:
+            TransactionCalculationMode,
+    ): void {
+        if (
+            this.calculationMode ===
+            mode
+        ) {
+            return;
+        }
+
+        this.calculationMode = mode;
+        this.actionErrorMessage = '';
+
+        if (
+            mode === 'BY_AMOUNT'
+        ) {
+            this.formValue.quantity =
+                null;
+            this.recalculateQuantityFromTotal();
+        } else {
+            this.formValue.totalAmount =
+                null;
+            this.recalculateTotalAmount();
+        }
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected onTransactionQuantityChange(): void {
+        if (
+            this.calculationMode ===
+            'BY_QUANTITY'
+        ) {
+            this.recalculateTotalAmount();
+        }
+    }
+
+    protected onTransactionTotalAmountChange():
+        void {
+        if (
+            this.calculationMode ===
+            'BY_AMOUNT'
+        ) {
+            this.recalculateQuantityFromTotal();
+        }
+    }
+
+    protected onTransactionFeeChange(): void {
+        if (
+            this.calculationMode ===
+            'BY_QUANTITY'
+        ) {
+            this.recalculateTotalAmount();
+        }
+    }
+
+    protected onManualUnitPriceChange(): void {
+        this.isManualPrice = true;
+        this.marketPriceRetrievedAt = '';
+        this.marketPriceErrorMessage = '';
+
+        this.recalculateByCurrentMode();
+    }
+
+    protected setManualPriceMode(
+        enabled: boolean,
+    ): void {
+        this.isManualPrice = enabled;
+        this.marketPriceErrorMessage = '';
+
+        if (!enabled) {
+            this.refreshMarketPrice();
+            return;
+        }
+
+        this.isLoadingMarketPrice = false;
+        this.marketPriceRetrievedAt = '';
+        this.changeDetectorRef.markForCheck();
+    }
+
+    protected refreshMarketPrice(): void {
+        if (
+            !this.transactionUsesQuantity(
+                this.formValue.transactionType,
+            )
+        ) {
+            return;
+        }
+
+        const asset =
+            this.getSelectedFormAsset();
+
+        if (!asset) {
+            this.marketPriceErrorMessage =
+                this.text().transactions.selectAssetBeforeMarketPrice;
+            this.changeDetectorRef.markForCheck();
+            return;
+        }
+
+        this.isManualPrice = false;
+        this.loadLatestMarketPrice(asset);
+    }
+
+    protected get selectedFormAsset():
+        AssetResponse | null {
+        return this.getSelectedFormAsset();
     }
 
     protected transactionRequiresAsset(
@@ -498,19 +709,35 @@ export class TransactionsPage implements OnInit {
     protected getTransactionTypeLabel(
         type: TransactionType,
     ): string {
-        return (
-            this.transactionTypeOptions.find(
-                (option) =>
-                    option.value === type,
-            )?.label ?? type
-        );
+        const translations =
+            this.text().transactions;
+
+        switch (type) {
+            case 'BUY':
+                return translations.typeBuy;
+
+            case 'SELL':
+                return translations.typeSell;
+
+            case 'DIVIDEND':
+                return translations.typeDividend;
+
+            case 'DEPOSIT':
+                return translations.typeDeposit;
+
+            case 'WITHDRAWAL':
+                return translations.typeWithdrawal;
+
+            case 'FEE':
+                return translations.typeFee;
+        }
     }
 
     protected getAssetLabel(
         assetId: string | null,
     ): string {
         if (!assetId) {
-            return 'No asset';
+            return this.text().transactions.noAsset;
         }
 
         const asset =
@@ -520,12 +747,232 @@ export class TransactionsPage implements OnInit {
             );
 
         if (!asset) {
-            return 'Unknown asset';
+            return this.text().transactions.unknownAsset;
         }
 
         return (
             `${asset.symbol} · ` +
             asset.displayName
+        );
+    }
+
+    private loadLatestMarketPrice(
+        asset: AssetResponse,
+    ): void {
+        this.isLoadingMarketPrice = true;
+        this.marketPriceErrorMessage = '';
+        this.marketPriceRetrievedAt = '';
+        this.changeDetectorRef.markForCheck();
+
+        this.marketDataService
+            .getLatestPrice({
+                symbol: asset.symbol,
+                exchange: asset.exchange,
+            })
+            .subscribe({
+                next: (
+                    response:
+                        MarketPriceResponse,
+                ) => {
+                    if (
+                        this.formValue.assetId !==
+                        asset.id
+                    ) {
+                        return;
+                    }
+
+                    this.formValue.unitPrice =
+                        response.price;
+                    this.formValue.currency =
+                        asset.currency;
+                    this.marketPriceRetrievedAt =
+                        response.retrievedAt;
+                    this.isLoadingMarketPrice = false;
+                    this.marketPriceErrorMessage = '';
+                    this.recalculateByCurrentMode();
+                    this.changeDetectorRef.markForCheck();
+                },
+                error: (error: unknown) => {
+                    if (
+                        this.formValue.assetId !==
+                        asset.id
+                    ) {
+                        return;
+                    }
+
+                    this.isLoadingMarketPrice = false;
+                    this.marketPriceRetrievedAt = '';
+                    this.marketPriceErrorMessage =
+                        this.resolveMarketPriceError(
+                            error,
+                        );
+                    this.isManualPrice = true;
+                    this.changeDetectorRef.markForCheck();
+                },
+            });
+    }
+
+    private recalculateByCurrentMode(): void {
+        if (
+            this.calculationMode ===
+            'BY_AMOUNT'
+        ) {
+            this.recalculateQuantityFromTotal();
+            return;
+        }
+
+        this.recalculateTotalAmount();
+    }
+
+    private recalculateQuantityFromTotal(): void {
+        if (
+            !this.transactionUsesQuantity(
+                this.formValue.transactionType,
+            )
+        ) {
+            return;
+        }
+
+        const totalAmount =
+            this.formValue.totalAmount;
+
+        const unitPrice =
+            this.formValue.unitPrice;
+
+        if (
+            totalAmount === null ||
+            totalAmount <= 0 ||
+            unitPrice === null ||
+            unitPrice <= 0
+        ) {
+            this.formValue.quantity =
+                null;
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        this.formValue.quantity =
+            this.roundToEightDecimals(
+                totalAmount /
+                unitPrice,
+            );
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    private recalculateTotalAmount(): void {
+        if (
+            !this.transactionUsesQuantity(
+                this.formValue.transactionType,
+            )
+        ) {
+            return;
+        }
+
+        const quantity =
+            this.formValue.quantity;
+
+        const unitPrice =
+            this.formValue.unitPrice;
+
+        if (
+            quantity === null ||
+            quantity <= 0 ||
+            unitPrice === null ||
+            unitPrice < 0
+        ) {
+            this.formValue.totalAmount = null;
+            this.changeDetectorRef.markForCheck();
+            return;
+        }
+
+        const fee =
+            this.formValue.fee ?? 0;
+
+        const grossAmount =
+            quantity * unitPrice;
+
+        const totalAmount =
+            this.formValue.transactionType ===
+                'SELL'
+                ? grossAmount - fee
+                : grossAmount + fee;
+
+        this.formValue.totalAmount =
+            this.roundToEightDecimals(
+                Math.max(
+                    totalAmount,
+                    0,
+                ),
+            );
+
+        this.changeDetectorRef.markForCheck();
+    }
+
+    private roundToEightDecimals(
+        value: number,
+    ): number {
+        return Math.round(
+            (
+                value +
+                Number.EPSILON
+            ) *
+            100_000_000,
+        ) / 100_000_000;
+    }
+
+    private getSelectedFormAsset():
+        AssetResponse | null {
+        return (
+            this.assets.find(
+                (asset) =>
+                    asset.id ===
+                    this.formValue.assetId,
+            ) ?? null
+        );
+    }
+
+    private resetMarketPriceState(): void {
+        this.isLoadingMarketPrice = false;
+        this.marketPriceRetrievedAt = '';
+        this.marketPriceErrorMessage = '';
+    }
+
+    private resolveMarketPriceError(
+        error: unknown,
+    ): string {
+        const translations =
+            this.text().transactions;
+
+        if (
+            !(error instanceof HttpErrorResponse)
+        ) {
+            return translations.marketPriceError;
+        }
+
+        if (error.status === 0) {
+            return translations.marketServiceUnavailable;
+        }
+
+        if (error.status === 401) {
+            return translations.sessionExpired;
+        }
+
+        if (error.status === 403) {
+            return translations.marketPriceForbidden;
+        }
+
+        if (error.status === 404) {
+            return translations.marketPriceNotFound;
+        }
+
+        return (
+            this.extractBackendMessage(error) ??
+            translations.marketPriceError
         );
     }
 
@@ -737,12 +1184,16 @@ export class TransactionsPage implements OnInit {
         const usesQuantity =
             this.transactionUsesQuantity(type);
 
+        if (usesQuantity) {
+            this.recalculateByCurrentMode();
+        }
+
         if (
             requiresAsset &&
             !this.formValue.assetId
         ) {
             this.actionErrorMessage =
-                'Select an asset for this transaction type.';
+                this.text().transactions.selectAssetRequired;
             return null;
         }
 
@@ -755,7 +1206,7 @@ export class TransactionsPage implements OnInit {
             )
         ) {
             this.actionErrorMessage =
-                'Quantity must be greater than zero.';
+                this.text().transactions.quantityInvalid;
             return null;
         }
 
@@ -768,7 +1219,7 @@ export class TransactionsPage implements OnInit {
             )
         ) {
             this.actionErrorMessage =
-                'Unit price must be zero or greater.';
+                this.text().transactions.unitPriceInvalid;
             return null;
         }
 
@@ -777,7 +1228,7 @@ export class TransactionsPage implements OnInit {
             this.formValue.fee < 0
         ) {
             this.actionErrorMessage =
-                'Fee must be zero or greater.';
+                this.text().transactions.feeInvalid;
             return null;
         }
 
@@ -787,19 +1238,19 @@ export class TransactionsPage implements OnInit {
             this.formValue.totalAmount < 0
         ) {
             this.actionErrorMessage =
-                'Total amount must be zero or greater.';
+                this.text().transactions.totalAmountInvalid;
             return null;
         }
 
         if (!/^[A-Z]{3}$/.test(currency)) {
             this.actionErrorMessage =
-                'Currency must contain exactly 3 letters.';
+                this.text().transactions.currencyInvalid;
             return null;
         }
 
         if (!this.formValue.executedAt) {
             this.actionErrorMessage =
-                'Execution date and time are required.';
+                this.text().transactions.executionTimeRequired;
             return null;
         }
 
@@ -808,7 +1259,7 @@ export class TransactionsPage implements OnInit {
             notes.length > 2000
         ) {
             this.actionErrorMessage =
-                'Notes must not exceed 2000 characters.';
+                this.text().transactions.notesTooLong;
             return null;
         }
 
@@ -823,7 +1274,7 @@ export class TransactionsPage implements OnInit {
             )
         ) {
             this.actionErrorMessage =
-                'Execution date and time are invalid.';
+                this.text().transactions.executionTimeInvalid;
             return null;
         }
 
@@ -992,99 +1443,75 @@ export class TransactionsPage implements OnInit {
     private resolvePortfolioLoadError(
         error: unknown,
     ): string {
+        const translations =
+            this.text().transactions;
+
         if (
             !(error instanceof HttpErrorResponse)
         ) {
-            return (
-                'Portfolios could not be loaded. ' +
-                'Please try again.'
-            );
+            return translations.portfolioLoadError;
         }
 
         if (error.status === 0) {
-            return (
-                'The server could not be reached. ' +
-                'Check that the backend is running.'
-            );
+            return translations.serverUnavailable;
         }
 
         if (error.status === 401) {
-            return (
-                'Your session has expired. ' +
-                'Please log in again.'
-            );
+            return translations.sessionExpired;
         }
 
         if (error.status === 403) {
-            return (
-                'You do not have permission ' +
-                'to view portfolios.'
-            );
+            return translations.forbiddenViewPortfolios;
         }
 
-        return (
-            'Portfolios could not be loaded. ' +
-            'Please try again.'
-        );
+        return translations.portfolioLoadError;
     }
 
     private resolveTransactionLoadError(
         error: unknown,
     ): string {
+        const translations =
+            this.text().transactions;
+
         if (
             !(error instanceof HttpErrorResponse)
         ) {
-            return (
-                'Transactions could not be loaded. ' +
-                'Please try again.'
-            );
+            return translations.transactionsLoadError;
         }
 
         if (error.status === 0) {
-            return (
-                'The server could not be reached. ' +
-                'Check that the backend is running.'
-            );
+            return translations.serverUnavailable;
         }
 
         if (error.status === 401) {
-            return (
-                'Your session has expired. ' +
-                'Please log in again.'
-            );
+            return translations.sessionExpired;
         }
 
         if (error.status === 403) {
-            return (
-                'You do not have permission ' +
-                'to view transactions.'
-            );
+            return translations.forbiddenViewTransactions;
         }
 
         if (error.status === 404) {
-            return (
-                'The selected portfolio ' +
-                'could not be found.'
-            );
+            return translations.selectedPortfolioNotFound;
         }
 
         if (error.status === 400) {
             return (
                 this.extractBackendMessage(error) ??
-                'The transaction filters are invalid.'
+                translations.invalidFilters
             );
         }
 
-        return (
-            'Transactions could not be loaded. ' +
-            'Please try again.'
-        );
+        return translations.transactionsLoadError;
     }
 
     private resolveActionError(
         error: unknown,
         action: TransactionAction,
     ): string {
+        const translations =
+            this.text().transactions;
+
         if (
             !(error instanceof HttpErrorResponse)
         ) {
@@ -1094,44 +1521,32 @@ export class TransactionsPage implements OnInit {
         }
 
         if (error.status === 0) {
-            return (
-                'The server could not be reached. ' +
-                'Check that the backend is running.'
-            );
+            return translations.serverUnavailable;
         }
 
         if (error.status === 401) {
-            return (
-                'Your session has expired. ' +
-                'Please log in again.'
-            );
+            return translations.sessionExpired;
         }
 
         if (error.status === 403) {
-            return (
-                'You do not have permission ' +
-                'to perform this action.'
-            );
+            return translations.forbiddenAction;
         }
 
         if (error.status === 404) {
-            return (
-                'The portfolio, transaction or asset ' +
-                'could not be found.'
-            );
+            return translations.transactionResourceNotFound;
         }
 
         if (error.status === 409) {
             return (
                 this.extractBackendMessage(error) ??
-                'The transaction conflicts with existing data.'
+                translations.transactionConflict
             );
         }
 
         if (error.status === 400) {
             return (
                 this.extractBackendMessage(error) ??
-                'The submitted transaction information is invalid.'
+                translations.invalidTransaction
             );
         }
 
@@ -1179,21 +1594,18 @@ export class TransactionsPage implements OnInit {
     private defaultActionError(
         action: TransactionAction,
     ): string {
+        const translations =
+            this.text().transactions;
+
         switch (action) {
             case 'create':
-                return (
-                    'The transaction could not be created.'
-                );
+                return translations.createError;
 
             case 'edit':
-                return (
-                    'The transaction could not be updated.'
-                );
+                return translations.editError;
 
             case 'delete':
-                return (
-                    'The transaction could not be deleted.'
-                );
+                return translations.deleteError;
         }
     }
 

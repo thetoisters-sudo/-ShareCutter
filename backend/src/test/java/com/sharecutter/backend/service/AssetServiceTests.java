@@ -7,9 +7,11 @@ import com.sharecutter.backend.domain.entity.UserEntity;
 import com.sharecutter.backend.domain.enums.AssetType;
 import com.sharecutter.backend.domain.enums.PortfolioCreationMethod;
 import com.sharecutter.backend.exception.AssetAlreadyExistsException;
+import com.sharecutter.backend.exception.AssetInUseException;
 import com.sharecutter.backend.exception.AssetNotFoundException;
 import com.sharecutter.backend.repository.AssetRepository;
 import com.sharecutter.backend.repository.PortfolioHoldingRepository;
+import com.sharecutter.backend.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +43,9 @@ class AssetServiceTests {
     private PortfolioHoldingRepository portfolioHoldingRepository;
 
     @Mock
+    private TransactionRepository transactionRepository;
+
+    @Mock
     private PortfolioService portfolioService;
 
     @Mock
@@ -54,6 +59,7 @@ class AssetServiceTests {
         assetService = new AssetService(
                 assetRepository,
                 portfolioHoldingRepository,
+                transactionRepository,
                 portfolioService,
                 portfolioHoldingCalculationService
         );
@@ -666,6 +672,9 @@ class AssetServiceTests {
         PortfolioHoldingEntity holding =
                 mock(PortfolioHoldingEntity.class);
 
+        when(holding.getQuantity())
+                .thenReturn(BigDecimal.ZERO);
+
         when(portfolioService.getPortfolio(
                 userId,
                 portfolioId
@@ -677,6 +686,12 @@ class AssetServiceTests {
                         portfolioId
                 ))
                 .thenReturn(Optional.of(asset));
+
+        when(transactionRepository
+                .existsByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(false);
 
         when(portfolioHoldingRepository
                 .findAllByAssetIdAndDeletedAtIsNull(
@@ -756,6 +771,12 @@ class AssetServiceTests {
                 ))
                 .thenReturn(Optional.of(asset));
 
+        when(transactionRepository
+                .existsByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(false);
+
         when(portfolioHoldingRepository
                 .findAllByAssetIdAndDeletedAtIsNull(
                         assetId
@@ -783,6 +804,161 @@ class AssetServiceTests {
                         userId,
                         portfolioId
                 );
+    }
+
+
+    @Test
+    void shouldRejectDeletingAssetWithActiveTransactions() {
+        UUID userId = UUID.randomUUID();
+        UUID portfolioId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+
+        PortfolioEntity portfolio = createPortfolio(
+                "asset.delete.transactions@example.com",
+                "Protected Transaction Portfolio"
+        );
+
+        AssetEntity asset = createAsset(
+                portfolio,
+                "AAPL",
+                "Apple Inc."
+        );
+
+        when(portfolioService.getPortfolio(
+                userId,
+                portfolioId
+        )).thenReturn(portfolio);
+
+        when(assetRepository
+                .findByIdAndPortfolioIdAndDeletedAtIsNull(
+                        assetId,
+                        portfolioId
+                ))
+                .thenReturn(Optional.of(asset));
+
+        when(transactionRepository
+                .existsByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(true);
+
+        assertThatThrownBy(
+                () -> assetService.deleteAsset(
+                        userId,
+                        portfolioId,
+                        assetId
+                )
+        )
+                .isInstanceOf(
+                        AssetInUseException.class
+                )
+                .hasMessageContaining(
+                        assetId.toString()
+                )
+                .hasMessageContaining(
+                        "active transactions still exist"
+                );
+
+        assertThat(asset.isDeleted()).isFalse();
+
+        verify(transactionRepository)
+                .existsByAssetIdAndDeletedAtIsNull(
+                        assetId
+                );
+
+        verifyNoInteractions(
+                portfolioHoldingRepository,
+                portfolioHoldingCalculationService
+        );
+
+        verify(assetRepository, never())
+                .save(asset);
+    }
+
+    @Test
+    void shouldRejectDeletingAssetWithPositiveHolding() {
+        UUID userId = UUID.randomUUID();
+        UUID portfolioId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+
+        PortfolioEntity portfolio = createPortfolio(
+                "asset.delete.holding@example.com",
+                "Protected Holding Portfolio"
+        );
+
+        AssetEntity asset = createAsset(
+                portfolio,
+                "MSFT",
+                "Microsoft Corporation"
+        );
+
+        PortfolioHoldingEntity holding =
+                mock(PortfolioHoldingEntity.class);
+
+        when(holding.getQuantity())
+                .thenReturn(
+                        new BigDecimal(
+                                "2.50000000"
+                        )
+                );
+
+        when(portfolioService.getPortfolio(
+                userId,
+                portfolioId
+        )).thenReturn(portfolio);
+
+        when(assetRepository
+                .findByIdAndPortfolioIdAndDeletedAtIsNull(
+                        assetId,
+                        portfolioId
+                ))
+                .thenReturn(Optional.of(asset));
+
+        when(transactionRepository
+                .existsByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(false);
+
+        when(portfolioHoldingRepository
+                .findAllByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(
+                        List.of(holding)
+                );
+
+        assertThatThrownBy(
+                () -> assetService.deleteAsset(
+                        userId,
+                        portfolioId,
+                        assetId
+                )
+        )
+                .isInstanceOf(
+                        AssetInUseException.class
+                )
+                .hasMessageContaining(
+                        assetId.toString()
+                )
+                .hasMessageContaining(
+                        "positive quantity"
+                );
+
+        assertThat(asset.isDeleted()).isFalse();
+
+        verify(holding, never())
+                .softDelete();
+
+        verify(portfolioHoldingRepository, never())
+                .saveAll(any());
+
+        verify(assetRepository, never())
+                .save(asset);
+
+        verifyNoInteractions(
+                portfolioHoldingCalculationService
+        );
     }
 
     @Test
@@ -829,6 +1005,7 @@ class AssetServiceTests {
                 .delete(any(AssetEntity.class));
 
         verifyNoInteractions(
+                transactionRepository,
                 portfolioHoldingRepository,
                 portfolioHoldingCalculationService
         );

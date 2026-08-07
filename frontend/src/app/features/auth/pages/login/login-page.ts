@@ -26,7 +26,12 @@ import {
     ApiErrorResponse,
     LoginRequest,
 } from '../../../../core/auth/models/auth.models';
-import { AuthService } from '../../../../core/auth/services/auth.service';
+import {
+    AuthService,
+} from '../../../../core/auth/services/auth.service';
+import {
+    TranslationService,
+} from '../../../../core/i18n/services/translation.service';
 
 @Component({
     selector: 'app-login-page',
@@ -38,16 +43,31 @@ import { AuthService } from '../../../../core/auth/services/auth.service';
     styleUrl: './login-page.scss',
 })
 export class LoginPage {
-    private readonly formBuilder = inject(FormBuilder);
-    private readonly authService = inject(AuthService);
-    private readonly router = inject(Router);
-    private readonly activatedRoute = inject(ActivatedRoute);
+    private readonly formBuilder =
+        inject(FormBuilder);
 
-    protected readonly isSubmitting = signal(false);
+    private readonly authService =
+        inject(AuthService);
 
-    protected readonly errorMessage = signal<string | null>(
-        null,
-    );
+    private readonly router =
+        inject(Router);
+
+    private readonly activatedRoute =
+        inject(ActivatedRoute);
+
+    private readonly translationService =
+        inject(TranslationService);
+
+    protected readonly text =
+        this.translationService.text;
+
+    protected readonly isSubmitting =
+        signal(false);
+
+    protected readonly errorMessage =
+        signal<string | null>(
+            null,
+        );
 
     protected readonly registrationMessage =
         signal<string | null>(
@@ -80,11 +100,12 @@ export class LoginPage {
     protected readonly passwordControl =
         this.loginForm.controls.password;
 
-    protected readonly submitButtonLabel = computed(() =>
-        this.isSubmitting()
-            ? 'Signing in...'
-            : 'Log in',
-    );
+    protected readonly submitButtonLabel =
+        computed(() =>
+            this.isSubmitting()
+                ? this.text().auth.login.signingIn
+                : this.text().auth.login.login,
+        );
 
     protected submit(): void {
         this.errorMessage.set(null);
@@ -184,10 +205,7 @@ export class LoginPage {
             return null;
         }
 
-        return (
-            'Your account was created successfully. ' +
-            'You can now log in.'
-        );
+        return this.text().auth.login.registrationSuccess;
     }
 
     private resolvePostLoginUrl(): string {
@@ -236,29 +254,26 @@ export class LoginPage {
     private resolveErrorMessage(
         error: unknown,
     ): string {
+        const translations =
+            this.text().auth.login;
+
         if (!(error instanceof HttpErrorResponse)) {
-            return 'Something went wrong. Please try again.';
+            return translations.genericError;
         }
 
         if (error.status === 0) {
-            return (
-                'The ShareCutter server is unavailable. ' +
-                'Make sure the backend is running.'
-            );
+            return translations.serverUnavailable;
         }
 
         if (
             error.status === 400 ||
             error.status === 401
         ) {
-            return 'The email or password is incorrect.';
+            return translations.invalidCredentials;
         }
 
         if (error.status === 403) {
-            return (
-                'This account is not currently allowed ' +
-                'to access ShareCutter.'
-            );
+            return translations.forbidden;
         }
 
         const response =
@@ -272,6 +287,6 @@ export class LoginPage {
             return response.message;
         }
 
-        return 'Unable to log in. Please try again.';
+        return translations.loginFailed;
     }
 }

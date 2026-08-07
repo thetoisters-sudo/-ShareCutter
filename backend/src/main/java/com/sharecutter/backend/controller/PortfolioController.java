@@ -3,11 +3,13 @@ package com.sharecutter.backend.controller;
 import com.sharecutter.backend.domain.entity.PortfolioEntity;
 import com.sharecutter.backend.domain.entity.UserEntity;
 import com.sharecutter.backend.dto.common.PagedResponse;
+import com.sharecutter.backend.dto.marketdata.PortfolioMarketRefreshResponse;
 import com.sharecutter.backend.dto.portfolio.PortfolioCreateRequest;
 import com.sharecutter.backend.dto.portfolio.PortfolioRenameRequest;
 import com.sharecutter.backend.dto.portfolio.PortfolioResponse;
 import com.sharecutter.backend.dto.portfolio.PortfolioValueUpdateRequest;
 import com.sharecutter.backend.mapper.PortfolioMapper;
+import com.sharecutter.backend.service.PortfolioMarketRefreshService;
 import com.sharecutter.backend.service.PortfolioService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -40,13 +42,18 @@ public class PortfolioController {
 
     private final PortfolioService portfolioService;
     private final PortfolioMapper portfolioMapper;
+    private final PortfolioMarketRefreshService
+            portfolioMarketRefreshService;
 
     public PortfolioController(
             PortfolioService portfolioService,
-            PortfolioMapper portfolioMapper
+            PortfolioMapper portfolioMapper,
+            PortfolioMarketRefreshService portfolioMarketRefreshService
     ) {
         this.portfolioService = portfolioService;
         this.portfolioMapper = portfolioMapper;
+        this.portfolioMarketRefreshService =
+                portfolioMarketRefreshService;
     }
 
     @PostMapping
@@ -72,6 +79,22 @@ public class PortfolioController {
         return ResponseEntity
                 .created(location)
                 .body(response);
+    }
+
+    @PostMapping("/market-refresh")
+    public ResponseEntity<PortfolioMarketRefreshResponse>
+    refreshMarketData(
+            @AuthenticationPrincipal UserEntity authenticatedUser
+    ) {
+        PortfolioMarketRefreshResponse response =
+                portfolioMarketRefreshService
+                        .refreshUserPortfolios(
+                                authenticatedUser.getId()
+                        );
+
+        return ResponseEntity.ok(
+                response
+        );
     }
 
     @GetMapping

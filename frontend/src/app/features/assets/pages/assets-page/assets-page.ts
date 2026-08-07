@@ -1,5 +1,6 @@
 import {
     DatePipe,
+    DecimalPipe,
 } from '@angular/common';
 import {
     HttpErrorResponse,
@@ -8,12 +9,27 @@ import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
+    DestroyRef,
     OnInit,
     inject,
 } from '@angular/core';
 import {
+    takeUntilDestroyed,
+} from '@angular/core/rxjs-interop';
+import {
     FormsModule,
 } from '@angular/forms';
+import {
+    Subject,
+    catchError,
+    debounceTime,
+    distinctUntilChanged,
+    finalize,
+    map,
+    of,
+    switchMap,
+    tap,
+} from 'rxjs';
 
 import {
     ASSET_TYPE_OPTIONS,
@@ -25,6 +41,16 @@ import {
 import {
     AssetService,
 } from '../../../../core/asset/services/asset.service';
+import {
+    TranslationService,
+} from '../../../../core/i18n/services/translation.service';
+import {
+    MarketPriceResponse,
+    MarketSymbolSearchResponse,
+} from '../../../../core/market-data/models/market-data.models';
+import {
+    MarketDataService,
+} from '../../../../core/market-data/services/market-data.service';
 import {
     PagedResponse,
     PortfolioResponse,
@@ -58,52 +84,98 @@ interface AssetFormValue {
     selector: 'app-assets-page',
     imports: [
         DatePipe,
+        DecimalPipe,
         FormsModule,
     ],
     templateUrl: './assets-page.html',
     styleUrl: './assets-page.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush,
+    changeDetection:
+        ChangeDetectionStrategy.OnPush,
 })
-export class AssetsPage implements OnInit {
+export class AssetsPage
+    implements OnInit {
+
     private readonly assetService =
         inject(AssetService);
+
+    private readonly marketDataService =
+        inject(MarketDataService);
 
     private readonly portfolioService =
         inject(PortfolioService);
 
+    private readonly translationService =
+        inject(TranslationService);
+
     private readonly changeDetectorRef =
         inject(ChangeDetectorRef);
+
+    private readonly destroyRef =
+        inject(DestroyRef);
+
+    private readonly marketSearchSubject =
+        new Subject<string>();
+
+    protected readonly text =
+        this.translationService.text;
 
     protected readonly assetTypeOptions =
         ASSET_TYPE_OPTIONS;
 
-    protected portfolios: PortfolioResponse[] = [];
-    protected assets: AssetResponse[] = [];
-    protected filteredAssets: AssetResponse[] = [];
+    protected portfolios:
+        PortfolioResponse[] = [];
+
+    protected assets:
+        AssetResponse[] = [];
+
+    protected filteredAssets:
+        AssetResponse[] = [];
+
+    protected marketSearchResults:
+        MarketSymbolSearchResponse[] = [];
 
     protected selectedPortfolioId = '';
     protected searchValue = '';
+    protected marketSearchValue = '';
 
     protected isLoadingPortfolios = true;
     protected isLoadingAssets = false;
     protected isSubmitting = false;
+    protected isSearchingMarket = false;
+    protected isLoadingMarketPrice = false;
 
     protected errorMessage = '';
     protected actionErrorMessage = '';
     protected successMessage = '';
+    protected marketSearchMessage = '';
 
-    protected dialogMode: AssetDialogMode = null;
-    protected selectedAsset: AssetResponse | null = null;
+    protected selectedMarketResult:
+        MarketSymbolSearchResponse | null =
+        null;
 
-    protected formValue: AssetFormValue =
+    protected selectedMarketPrice:
+        MarketPriceResponse | null =
+        null;
+
+    protected dialogMode:
+        AssetDialogMode = null;
+
+    protected selectedAsset:
+        AssetResponse | null = null;
+
+    protected formValue:
+        AssetFormValue =
         this.createEmptyFormValue();
 
     ngOnInit(): void {
+        this.configureMarketSearch();
         this.loadPortfolios();
     }
 
     protected retry(): void {
-        if (this.portfolios.length === 0) {
+        if (
+            this.portfolios.length === 0
+        ) {
             this.loadPortfolios();
             return;
         }
@@ -115,14 +187,18 @@ export class AssetsPage implements OnInit {
         portfolioId: string,
     ): void {
         if (
-            portfolioId === this.selectedPortfolioId ||
+            portfolioId ===
+            this.selectedPortfolioId ||
             this.isLoadingAssets
         ) {
             return;
         }
 
-        this.selectedPortfolioId = portfolioId;
+        this.selectedPortfolioId =
+            portfolioId;
+
         this.searchValue = '';
+
         this.loadAssets();
     }
 
@@ -130,64 +206,168 @@ export class AssetsPage implements OnInit {
         this.applySearchFilter();
     }
 
-    protected openCreateDialog(): void {
-        if (!this.selectedPortfolioId) {
+    protected onMarketSearchChange(
+        value: string,
+    ): void {
+        this.marketSearchValue = value;
+        this.selectedMarketResult = null;
+        this.selectedMarketPrice = null;
+        this.marketSearchMessage = '';
+
+        this.marketSearchSubject.next(
+            value,
+        );
+    }
+
+    protected selectMarketResult(
+        result:
+            MarketSymbolSearchResponse,
+    ): void {
+        this.selectedMarketResult =
+            result;
+
+        this.formValue = {
+            ...this.formValue,
+            symbol:
+                result.symbol,
+            displayName:
+                result.displayName,
+            assetType:
+                result.assetType,
+            currency:
+                result.currency,
+            exchange:
+                result.exchange ?? '',
+        };
+
+        this.marketSearchValue =
+            `${result.symbol} · ${result.displayName}`;
+
+        this.marketSearchResults = [];
+        this.marketSearchMessage = '';
+        this.selectedMarketPrice = null;
+
+        this.loadLatestMarketPrice(
+            result,
+        );
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected clearSelectedMarketResult():
+        void {
+        this.selectedMarketResult = null;
+        this.selectedMarketPrice = null;
+        this.marketSearchValue = '';
+        this.marketSearchResults = [];
+        this.marketSearchMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected openCreateDialog():
+        void {
+        if (
+            !this.selectedPortfolioId
+        ) {
             return;
         }
 
         this.clearMessages();
+        this.resetMarketSearchState();
+
         this.selectedAsset = null;
-        this.formValue = this.createEmptyFormValue();
+
+        this.formValue =
+            this.createEmptyFormValue();
+
         this.dialogMode = 'create';
+
+        this.changeDetectorRef
+            .markForCheck();
     }
 
     protected openEditDialog(
         asset: AssetResponse,
     ): void {
         this.clearMessages();
+        this.resetMarketSearchState();
+
         this.selectedAsset = asset;
 
         this.formValue = {
-            symbol: asset.symbol,
-            displayName: asset.displayName,
-            assetType: asset.assetType,
-            currency: asset.currency,
-            isin: asset.isin ?? '',
-            exchange: asset.exchange ?? '',
-            notes: asset.notes ?? '',
+            symbol:
+                asset.symbol,
+            displayName:
+                asset.displayName,
+            assetType:
+                asset.assetType,
+            currency:
+                asset.currency,
+            isin:
+                asset.isin ?? '',
+            exchange:
+                asset.exchange ?? '',
+            notes:
+                asset.notes ?? '',
         };
 
         this.dialogMode = 'edit';
+
+        this.changeDetectorRef
+            .markForCheck();
     }
 
     protected openDeleteDialog(
         asset: AssetResponse,
     ): void {
         this.clearMessages();
+        this.resetMarketSearchState();
+
         this.selectedAsset = asset;
         this.dialogMode = 'delete';
+
+        this.changeDetectorRef
+            .markForCheck();
     }
 
     protected closeDialog(): void {
-        if (this.isSubmitting) {
+        if (
+            this.isSubmitting
+        ) {
             return;
         }
 
         this.dialogMode = null;
         this.selectedAsset = null;
         this.actionErrorMessage = '';
+
+        this.resetMarketSearchState();
+
+        this.changeDetectorRef
+            .markForCheck();
     }
 
     protected submitCreate(): void {
-        const request = this.buildRequest();
+        const request =
+            this.buildRequest();
 
-        if (!request) {
+        if (
+            !request
+        ) {
             return;
         }
 
-        if (!this.selectedPortfolioId) {
+        if (
+            !this.selectedPortfolioId
+        ) {
             this.actionErrorMessage =
-                'Select a portfolio before creating an asset.';
+                this.text()
+                    .assets
+                    .selectPortfolioBeforeCreate;
+
             return;
         }
 
@@ -201,28 +381,51 @@ export class AssetsPage implements OnInit {
             .subscribe({
                 next: () => {
                     this.finishSubmission();
-                    this.dialogMode = null;
-                    this.selectedAsset = null;
+
+                    this.dialogMode =
+                        null;
+
+                    this.selectedAsset =
+                        null;
+
+                    this.resetMarketSearchState();
+
                     this.successMessage =
-                        'Asset created successfully.';
-                    this.changeDetectorRef.markForCheck();
-                    this.loadAssets(false);
+                        this.text()
+                            .assets
+                            .createdSuccess;
+
+                    this.changeDetectorRef
+                        .markForCheck();
+
+                    this.loadAssets(
+                        false,
+                    );
                 },
-                error: (error: unknown) => {
+
+                error: (
+                    error: unknown,
+                ) => {
                     this.finishSubmission();
+
                     this.actionErrorMessage =
                         this.resolveActionError(
                             error,
                             'create',
                         );
-                    this.changeDetectorRef.markForCheck();
+
+                    this.changeDetectorRef
+                        .markForCheck();
                 },
             });
     }
 
     protected submitEdit(): void {
-        const asset = this.selectedAsset;
-        const request = this.buildRequest();
+        const asset =
+            this.selectedAsset;
+
+        const request =
+            this.buildRequest();
 
         if (
             !asset ||
@@ -243,27 +446,48 @@ export class AssetsPage implements OnInit {
             .subscribe({
                 next: () => {
                     this.finishSubmission();
-                    this.dialogMode = null;
-                    this.selectedAsset = null;
+
+                    this.dialogMode =
+                        null;
+
+                    this.selectedAsset =
+                        null;
+
+                    this.resetMarketSearchState();
+
                     this.successMessage =
-                        'Asset updated successfully.';
-                    this.changeDetectorRef.markForCheck();
-                    this.loadAssets(false);
+                        this.text()
+                            .assets
+                            .updatedSuccess;
+
+                    this.changeDetectorRef
+                        .markForCheck();
+
+                    this.loadAssets(
+                        false,
+                    );
                 },
-                error: (error: unknown) => {
+
+                error: (
+                    error: unknown,
+                ) => {
                     this.finishSubmission();
+
                     this.actionErrorMessage =
                         this.resolveActionError(
                             error,
                             'edit',
                         );
-                    this.changeDetectorRef.markForCheck();
+
+                    this.changeDetectorRef
+                        .markForCheck();
                 },
             });
     }
 
     protected submitDelete(): void {
-        const asset = this.selectedAsset;
+        const asset =
+            this.selectedAsset;
 
         if (
             !asset ||
@@ -282,26 +506,47 @@ export class AssetsPage implements OnInit {
             .subscribe({
                 next: () => {
                     this.finishSubmission();
-                    this.dialogMode = null;
-                    this.selectedAsset = null;
+
+                    this.dialogMode =
+                        null;
+
+                    this.selectedAsset =
+                        null;
+
+                    this.resetMarketSearchState();
+
                     this.successMessage =
-                        'Asset deleted successfully.';
-                    this.changeDetectorRef.markForCheck();
-                    this.loadAssets(false);
+                        this.text()
+                            .assets
+                            .deletedSuccess;
+
+                    this.changeDetectorRef
+                        .markForCheck();
+
+                    this.loadAssets(
+                        false,
+                    );
                 },
-                error: (error: unknown) => {
+
+                error: (
+                    error: unknown,
+                ) => {
                     this.finishSubmission();
+
                     this.actionErrorMessage =
                         this.resolveActionError(
                             error,
                             'delete',
                         );
-                    this.changeDetectorRef.markForCheck();
+
+                    this.changeDetectorRef
+                        .markForCheck();
                 },
             });
     }
 
-    protected dismissSuccessMessage(): void {
+    protected dismissSuccessMessage():
+        void {
         this.successMessage = '';
     }
 
@@ -312,22 +557,27 @@ export class AssetsPage implements OnInit {
                 (portfolio) =>
                     portfolio.id ===
                     this.selectedPortfolioId,
-            ) ?? null
+            ) ??
+            null
         );
     }
 
-    protected get uniqueCurrencies(): number {
+    protected get uniqueCurrencies():
+        number {
         return new Set(
             this.assets.map(
-                (asset) => asset.currency,
+                (asset) =>
+                    asset.currency,
             ),
         ).size;
     }
 
-    protected get uniqueAssetTypes(): number {
+    protected get uniqueAssetTypes():
+        number {
         return new Set(
             this.assets.map(
-                (asset) => asset.assetType,
+                (asset) =>
+                    asset.assetType,
             ),
         ).size;
     }
@@ -335,19 +585,249 @@ export class AssetsPage implements OnInit {
     protected getAssetTypeLabel(
         assetType: AssetType,
     ): string {
-        return (
-            this.assetTypeOptions.find(
-                (option) =>
-                    option.value === assetType,
-            )?.label ?? assetType
-        );
+        const translations =
+            this.text().assets;
+
+        switch (assetType) {
+            case 'STOCK':
+                return translations
+                    .assetTypeStock;
+
+            case 'ETF':
+                return translations
+                    .assetTypeEtf;
+
+            case 'BOND':
+                return translations
+                    .assetTypeBond;
+
+            case 'FUND':
+                return translations
+                    .assetTypeFund;
+
+            case 'CRYPTO':
+                return translations
+                    .assetTypeCrypto;
+
+            case 'COMMODITY':
+                return translations
+                    .assetTypeCommodity;
+
+            case 'FOREX':
+                return translations
+                    .assetTypeForex;
+
+            case 'CASH':
+                return translations
+                    .assetTypeCash;
+
+            case 'OTHER':
+                return translations
+                    .assetTypeOther;
+        }
+    }
+
+    private configureMarketSearch():
+        void {
+        this.marketSearchSubject
+            .pipe(
+                map(
+                    (value) =>
+                        value.trim(),
+                ),
+
+                debounceTime(
+                    350,
+                ),
+
+                distinctUntilChanged(),
+
+                tap((query) => {
+                    if (
+                        query.length < 2
+                    ) {
+                        this.isSearchingMarket =
+                            false;
+
+                        this.marketSearchResults =
+                            [];
+
+                        this.marketSearchMessage =
+                            query.length === 1
+                                ? this.text()
+                                    .assets
+                                    .enterAtLeastTwoCharacters
+                                : '';
+
+                        this.changeDetectorRef
+                            .markForCheck();
+                    }
+                }),
+
+                switchMap((query) => {
+                    if (
+                        query.length < 2
+                    ) {
+                        return of<
+                            MarketSymbolSearchResponse[]
+                        >([]);
+                    }
+
+                    this.isSearchingMarket =
+                        true;
+
+                    this.marketSearchResults =
+                        [];
+
+                    this.marketSearchMessage =
+                        '';
+
+                    this.changeDetectorRef
+                        .markForCheck();
+
+                    return this.marketDataService
+                        .searchSymbols({
+                            query,
+                            limit: 10,
+                        })
+                        .pipe(
+                            catchError(
+                                (
+                                    error:
+                                        unknown,
+                                ) => {
+                                    this.marketSearchMessage =
+                                        this.resolveMarketSearchError(
+                                            error,
+                                        );
+
+                                    return of<
+                                        MarketSymbolSearchResponse[]
+                                    >([]);
+                                },
+                            ),
+
+                            finalize(() => {
+                                this.isSearchingMarket =
+                                    false;
+
+                                this.changeDetectorRef
+                                    .markForCheck();
+                            }),
+                        );
+                }),
+
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe(
+                (results) => {
+                    this.marketSearchResults =
+                        results;
+
+                    if (
+                        this.marketSearchValue
+                            .trim()
+                            .length >= 2 &&
+                        results.length ===
+                        0 &&
+                        !this.marketSearchMessage
+                    ) {
+                        this.marketSearchMessage =
+                            this.text()
+                                .assets
+                                .noMarketMatches;
+                    }
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            );
+    }
+
+    private loadLatestMarketPrice(
+        result:
+            MarketSymbolSearchResponse,
+    ): void {
+        this.isLoadingMarketPrice =
+            true;
+
+        this.selectedMarketPrice =
+            null;
+
+        this.changeDetectorRef
+            .markForCheck();
+
+        this.marketDataService
+            .getLatestPrice({
+                symbol:
+                    result.symbol,
+                exchange:
+                    result.exchange,
+            })
+            .pipe(
+                finalize(() => {
+                    this.isLoadingMarketPrice =
+                        false;
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                }),
+
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: (
+                    response:
+                        MarketPriceResponse,
+                ) => {
+                    this.selectedMarketPrice =
+                        response;
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+
+                error: (
+                    error: unknown,
+                ) => {
+                    this.selectedMarketPrice =
+                        null;
+
+                    this.marketSearchMessage =
+                        this.resolveMarketPriceError(
+                            error,
+                        );
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            });
+    }
+
+    private resetMarketSearchState():
+        void {
+        this.marketSearchValue = '';
+        this.marketSearchResults = [];
+        this.selectedMarketResult = null;
+        this.selectedMarketPrice = null;
+        this.marketSearchMessage = '';
+        this.isSearchingMarket = false;
+        this.isLoadingMarketPrice = false;
     }
 
     private loadPortfolios(): void {
-        this.isLoadingPortfolios = true;
+        this.isLoadingPortfolios =
+            true;
+
         this.errorMessage = '';
         this.successMessage = '';
-        this.changeDetectorRef.markForCheck();
+
+        this.changeDetectorRef
+            .markForCheck();
 
         this.portfolioService
             .getPortfolios({
@@ -359,34 +839,65 @@ export class AssetsPage implements OnInit {
             .subscribe({
                 next: (
                     response:
-                        PagedResponse<PortfolioResponse>,
+                        PagedResponse<
+                            PortfolioResponse
+                        >,
                 ) => {
-                    this.portfolios = response.content;
-                    this.isLoadingPortfolios = false;
+                    this.portfolios =
+                        response.content;
 
-                    if (this.portfolios.length > 0) {
+                    this.isLoadingPortfolios =
+                        false;
+
+                    if (
+                        this.portfolios
+                            .length > 0
+                    ) {
                         this.selectedPortfolioId =
-                            this.portfolios[0].id;
+                            this.portfolios[0]
+                                .id;
+
                         this.loadAssets();
                     } else {
-                        this.selectedPortfolioId = '';
-                        this.assets = [];
-                        this.filteredAssets = [];
+                        this.selectedPortfolioId =
+                            '';
+
+                        this.assets =
+                            [];
+
+                        this.filteredAssets =
+                            [];
                     }
 
-                    this.changeDetectorRef.markForCheck();
+                    this.changeDetectorRef
+                        .markForCheck();
                 },
-                error: (error: unknown) => {
-                    this.isLoadingPortfolios = false;
-                    this.portfolios = [];
-                    this.assets = [];
-                    this.filteredAssets = [];
-                    this.selectedPortfolioId = '';
+
+                error: (
+                    error: unknown,
+                ) => {
+                    this.isLoadingPortfolios =
+                        false;
+
+                    this.portfolios =
+                        [];
+
+                    this.assets =
+                        [];
+
+                    this.filteredAssets =
+                        [];
+
+                    this.selectedPortfolioId =
+                        '';
+
                     this.errorMessage =
                         this.resolvePortfolioLoadError(
                             error,
                         );
-                    this.changeDetectorRef.markForCheck();
+
+                    this.changeDetectorRef
+                        .markForCheck();
                 },
             });
     }
@@ -394,18 +905,26 @@ export class AssetsPage implements OnInit {
     private loadAssets(
         clearMessages = true,
     ): void {
-        if (!this.selectedPortfolioId) {
+        if (
+            !this.selectedPortfolioId
+        ) {
             return;
         }
 
-        this.isLoadingAssets = true;
+        this.isLoadingAssets =
+            true;
+
         this.errorMessage = '';
 
-        if (clearMessages) {
-            this.successMessage = '';
+        if (
+            clearMessages
+        ) {
+            this.successMessage =
+                '';
         }
 
-        this.changeDetectorRef.markForCheck();
+        this.changeDetectorRef
+            .markForCheck();
 
         this.assetService
             .getAssets(
@@ -413,36 +932,58 @@ export class AssetsPage implements OnInit {
             )
             .subscribe({
                 next: (
-                    assets: AssetResponse[],
+                    assets:
+                        AssetResponse[],
                 ) => {
-                    this.assets = assets;
+                    this.assets =
+                        assets;
+
                     this.applySearchFilter();
-                    this.isLoadingAssets = false;
-                    this.changeDetectorRef.markForCheck();
+
+                    this.isLoadingAssets =
+                        false;
+
+                    this.changeDetectorRef
+                        .markForCheck();
                 },
-                error: (error: unknown) => {
-                    this.isLoadingAssets = false;
-                    this.assets = [];
-                    this.filteredAssets = [];
+
+                error: (
+                    error: unknown,
+                ) => {
+                    this.isLoadingAssets =
+                        false;
+
+                    this.assets =
+                        [];
+
+                    this.filteredAssets =
+                        [];
+
                     this.errorMessage =
                         this.resolveAssetLoadError(
                             error,
                         );
-                    this.changeDetectorRef.markForCheck();
+
+                    this.changeDetectorRef
+                        .markForCheck();
                 },
             });
     }
 
-    private applySearchFilter(): void {
+    private applySearchFilter():
+        void {
         const normalizedSearch =
             this.searchValue
                 .trim()
                 .toLowerCase();
 
-        if (!normalizedSearch) {
+        if (
+            !normalizedSearch
+        ) {
             this.filteredAssets = [
                 ...this.assets,
             ];
+
             return;
         }
 
@@ -451,34 +992,51 @@ export class AssetsPage implements OnInit {
                 (asset) =>
                     asset.symbol
                         .toLowerCase()
-                        .includes(normalizedSearch) ||
+                        .includes(
+                            normalizedSearch,
+                        ) ||
                     asset.displayName
                         .toLowerCase()
-                        .includes(normalizedSearch) ||
+                        .includes(
+                            normalizedSearch,
+                        ) ||
                     asset.currency
                         .toLowerCase()
-                        .includes(normalizedSearch) ||
+                        .includes(
+                            normalizedSearch,
+                        ) ||
                     asset.assetType
                         .toLowerCase()
-                        .includes(normalizedSearch) ||
+                        .includes(
+                            normalizedSearch,
+                        ) ||
                     (
                         asset.exchange
                             ?.toLowerCase()
-                            .includes(normalizedSearch) ??
+                            .includes(
+                                normalizedSearch,
+                            ) ??
                         false
                     ),
             );
     }
 
     private buildRequest():
-        AssetCreateRequest | AssetUpdateRequest | null {
+        AssetCreateRequest |
+        AssetUpdateRequest |
+        null {
+        const translations =
+            this.text().assets;
+
         const symbol =
             this.formValue.symbol
                 .trim()
                 .toUpperCase();
 
         const displayName =
-            this.formValue.displayName.trim();
+            this.formValue
+                .displayName
+                .trim();
 
         const currency =
             this.formValue.currency
@@ -503,42 +1061,69 @@ export class AssetsPage implements OnInit {
                 false,
             );
 
-        if (!symbol) {
+        if (
+            !symbol
+        ) {
             this.actionErrorMessage =
-                'Asset symbol is required.';
+                translations
+                    .symbolRequired;
+
             return null;
         }
 
-        if (symbol.length > 30) {
+        if (
+            symbol.length > 30
+        ) {
             this.actionErrorMessage =
-                'Asset symbol must not exceed 30 characters.';
+                translations
+                    .symbolTooLong;
+
             return null;
         }
 
-        if (!displayName) {
+        if (
+            !displayName
+        ) {
             this.actionErrorMessage =
-                'Asset display name is required.';
+                translations
+                    .displayNameRequired;
+
             return null;
         }
 
-        if (displayName.length > 160) {
+        if (
+            displayName.length >
+            160
+        ) {
             this.actionErrorMessage =
-                'Asset display name must not exceed 160 characters.';
+                translations
+                    .displayNameTooLong;
+
             return null;
         }
 
-        if (!/^[A-Z]{3}$/.test(currency)) {
+        if (
+            !/^[A-Z]{3}$/.test(
+                currency,
+            )
+        ) {
             this.actionErrorMessage =
-                'Currency must contain exactly 3 letters.';
+                translations
+                    .currencyInvalid;
+
             return null;
         }
 
         if (
             isin !== null &&
-            !/^[A-Z0-9]{12}$/.test(isin)
+            !/^[A-Z0-9]{12}$/.test(
+                isin,
+            )
         ) {
             this.actionErrorMessage =
-                'ISIN must contain exactly 12 letters or digits.';
+                translations
+                    .isinInvalid;
+
             return null;
         }
 
@@ -547,7 +1132,9 @@ export class AssetsPage implements OnInit {
             exchange.length > 40
         ) {
             this.actionErrorMessage =
-                'Exchange must not exceed 40 characters.';
+                translations
+                    .exchangeTooLong;
+
             return null;
         }
 
@@ -556,7 +1143,9 @@ export class AssetsPage implements OnInit {
             notes.length > 2000
         ) {
             this.actionErrorMessage =
-                'Notes must not exceed 2000 characters.';
+                translations
+                    .notesTooLong;
+
             return null;
         }
 
@@ -564,7 +1153,8 @@ export class AssetsPage implements OnInit {
             symbol,
             displayName,
             assetType:
-                this.formValue.assetType,
+                this.formValue
+                    .assetType,
             currency,
             isin,
             exchange,
@@ -576,14 +1166,18 @@ export class AssetsPage implements OnInit {
         value: string,
         uppercase: boolean,
     ): string | null {
-        const normalizedValue = value.trim();
+        const normalizedValue =
+            value.trim();
 
-        if (!normalizedValue) {
+        if (
+            !normalizedValue
+        ) {
             return null;
         }
 
         return uppercase
-            ? normalizedValue.toUpperCase()
+            ? normalizedValue
+                .toUpperCase()
             : normalizedValue;
     }
 
@@ -603,180 +1197,315 @@ export class AssetsPage implements OnInit {
     private startSubmission(): void {
         this.isSubmitting = true;
         this.actionErrorMessage = '';
-        this.changeDetectorRef.markForCheck();
+
+        this.changeDetectorRef
+            .markForCheck();
     }
 
     private finishSubmission(): void {
         this.isSubmitting = false;
-        this.changeDetectorRef.markForCheck();
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    private resolveMarketSearchError(
+        error: unknown,
+    ): string {
+        const translations =
+            this.text().assets;
+
+        if (
+            !(
+                error instanceof
+                HttpErrorResponse
+            )
+        ) {
+            return translations
+                .marketSearchError;
+        }
+
+        if (
+            error.status === 0
+        ) {
+            return translations
+                .marketServiceUnavailable;
+        }
+
+        if (
+            error.status === 401
+        ) {
+            return translations
+                .sessionExpired;
+        }
+
+        if (
+            error.status === 429
+        ) {
+            return translations
+                .marketRateLimit;
+        }
+
+        if (
+            error.status === 503
+        ) {
+            return translations
+                .marketNotConfigured;
+        }
+
+        return (
+            this.extractBackendMessage(
+                error,
+            ) ??
+            translations
+                .marketSearchError
+        );
+    }
+
+    private resolveMarketPriceError(
+        error: unknown,
+    ): string {
+        const translations =
+            this.text().assets;
+
+        if (
+            !(
+                error instanceof
+                HttpErrorResponse
+            )
+        ) {
+            return translations
+                .marketPriceError;
+        }
+
+        if (
+            error.status === 404
+        ) {
+            return translations
+                .marketPriceNotFound;
+        }
+
+        if (
+            error.status === 429
+        ) {
+            return translations
+                .marketPriceRateLimit;
+        }
+
+        return (
+            this.extractBackendMessage(
+                error,
+            ) ??
+            translations
+                .marketPriceError
+        );
     }
 
     private resolvePortfolioLoadError(
         error: unknown,
     ): string {
-        if (!(error instanceof HttpErrorResponse)) {
-            return (
-                'Portfolios could not be loaded. ' +
-                'Please try again.'
-            );
+        const translations =
+            this.text().assets;
+
+        if (
+            !(
+                error instanceof
+                HttpErrorResponse
+            )
+        ) {
+            return translations
+                .portfolioLoadError;
         }
 
-        if (error.status === 0) {
-            return (
-                'The server could not be reached. ' +
-                'Check that the backend is running.'
-            );
+        if (
+            error.status === 0
+        ) {
+            return translations
+                .serverUnavailable;
         }
 
-        if (error.status === 401) {
-            return (
-                'Your session has expired. ' +
-                'Please log in again.'
-            );
+        if (
+            error.status === 401
+        ) {
+            return translations
+                .sessionExpired;
         }
 
-        if (error.status === 403) {
-            return (
-                'You do not have permission ' +
-                'to view portfolios.'
-            );
+        if (
+            error.status === 403
+        ) {
+            return translations
+                .forbiddenViewPortfolios;
         }
 
-        return (
-            'Portfolios could not be loaded. ' +
-            'Please try again.'
-        );
+        return translations
+            .portfolioLoadError;
     }
 
     private resolveAssetLoadError(
         error: unknown,
     ): string {
-        if (!(error instanceof HttpErrorResponse)) {
-            return (
-                'Assets could not be loaded. ' +
-                'Please try again.'
-            );
+        const translations =
+            this.text().assets;
+
+        if (
+            !(
+                error instanceof
+                HttpErrorResponse
+            )
+        ) {
+            return translations
+                .assetsLoadError;
         }
 
-        if (error.status === 0) {
-            return (
-                'The server could not be reached. ' +
-                'Check that the backend is running.'
-            );
+        if (
+            error.status === 0
+        ) {
+            return translations
+                .serverUnavailable;
         }
 
-        if (error.status === 401) {
-            return (
-                'Your session has expired. ' +
-                'Please log in again.'
-            );
+        if (
+            error.status === 401
+        ) {
+            return translations
+                .sessionExpired;
         }
 
-        if (error.status === 403) {
-            return (
-                'You do not have permission ' +
-                'to view assets.'
-            );
+        if (
+            error.status === 403
+        ) {
+            return translations
+                .forbiddenViewAssets;
         }
 
-        if (error.status === 404) {
-            return (
-                'The selected portfolio ' +
-                'could not be found.'
-            );
+        if (
+            error.status === 404
+        ) {
+            return translations
+                .selectedPortfolioNotFound;
         }
 
-        return (
-            'Assets could not be loaded. ' +
-            'Please try again.'
-        );
+        return translations
+            .assetsLoadError;
     }
 
     private resolveActionError(
         error: unknown,
         action: AssetAction,
     ): string {
-        if (!(error instanceof HttpErrorResponse)) {
-            return this.defaultActionError(action);
+        const translations =
+            this.text().assets;
+
+        if (
+            !(
+                error instanceof
+                HttpErrorResponse
+            )
+        ) {
+            return this
+                .defaultActionError(
+                    action,
+                );
         }
 
-        if (error.status === 0) {
-            return (
-                'The server could not be reached. ' +
-                'Check that the backend is running.'
-            );
+        if (
+            error.status === 0
+        ) {
+            return translations
+                .serverUnavailable;
         }
 
-        if (error.status === 401) {
-            return (
-                'Your session has expired. ' +
-                'Please log in again.'
-            );
+        if (
+            error.status === 401
+        ) {
+            return translations
+                .sessionExpired;
         }
 
-        if (error.status === 403) {
-            return (
-                'You do not have permission ' +
-                'to perform this action.'
-            );
+        if (
+            error.status === 403
+        ) {
+            return translations
+                .forbiddenAction;
         }
 
-        if (error.status === 404) {
-            return (
-                'The asset or portfolio ' +
-                'could not be found.'
-            );
+        if (
+            error.status === 404
+        ) {
+            return translations
+                .assetOrPortfolioNotFound;
         }
 
-        if (error.status === 409) {
-            return (
-                'An asset with this symbol ' +
-                'already exists in the portfolio.'
-            );
+        if (
+            error.status === 409
+        ) {
+            return translations
+                .duplicateSymbol;
         }
 
-        if (error.status === 400) {
+        if (
+            error.status === 400
+        ) {
             return (
-                this.extractBackendMessage(error) ??
-                'The submitted asset information is invalid.'
+                this.extractBackendMessage(
+                    error,
+                ) ??
+                translations
+                    .invalidAsset
             );
         }
 
         return (
-            this.extractBackendMessage(error) ??
-            this.defaultActionError(action)
+            this.extractBackendMessage(
+                error,
+            ) ??
+            this.defaultActionError(
+                action,
+            )
         );
     }
 
     private extractBackendMessage(
-        error: HttpErrorResponse,
+        error:
+            HttpErrorResponse,
     ): string | null {
-        const responseBody = error.error;
+        const responseBody =
+            error.error;
 
         if (
             responseBody &&
-            typeof responseBody === 'object'
+            typeof responseBody ===
+            'object'
         ) {
             const candidate =
-                'message' in responseBody
-                    ? responseBody.message
-                    : 'detail' in responseBody
-                        ? responseBody.detail
+                'message' in
+                    responseBody
+                    ? responseBody
+                        .message
+                    : 'detail' in
+                        responseBody
+                        ? responseBody
+                            .detail
                         : null;
 
             if (
-                typeof candidate === 'string' &&
+                typeof candidate ===
+                'string' &&
                 candidate.trim()
             ) {
-                return candidate.trim();
+                return candidate
+                    .trim();
             }
         }
 
         if (
-            typeof responseBody === 'string' &&
+            typeof responseBody ===
+            'string' &&
             responseBody.trim()
         ) {
-            return responseBody.trim();
+            return responseBody
+                .trim();
         }
 
         return null;
@@ -785,21 +1514,23 @@ export class AssetsPage implements OnInit {
     private defaultActionError(
         action: AssetAction,
     ): string {
-        switch (action) {
+        const translations =
+            this.text().assets;
+
+        switch (
+        action
+        ) {
             case 'create':
-                return (
-                    'The asset could not be created.'
-                );
+                return translations
+                    .createError;
 
             case 'edit':
-                return (
-                    'The asset could not be updated.'
-                );
+                return translations
+                    .editError;
 
             case 'delete':
-                return (
-                    'The asset could not be deleted.'
-                );
+                return translations
+                    .deleteError;
         }
     }
 

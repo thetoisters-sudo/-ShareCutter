@@ -3,10 +3,12 @@ package com.sharecutter.backend.controller;
 import com.sharecutter.backend.domain.entity.PortfolioEntity;
 import com.sharecutter.backend.domain.entity.UserEntity;
 import com.sharecutter.backend.domain.enums.PortfolioCreationMethod;
+import com.sharecutter.backend.dto.marketdata.PortfolioMarketRefreshResponse;
 import com.sharecutter.backend.dto.portfolio.PortfolioResponse;
 import com.sharecutter.backend.exception.GlobalExceptionHandler;
 import com.sharecutter.backend.mapper.PortfolioMapper;
 import com.sharecutter.backend.security.JwtAuthenticationFilter;
+import com.sharecutter.backend.service.PortfolioMarketRefreshService;
 import com.sharecutter.backend.service.PortfolioService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -60,6 +62,10 @@ class PortfolioControllerTests {
 
     @MockitoBean
     private PortfolioMapper portfolioMapper;
+
+    @MockitoBean
+    private PortfolioMarketRefreshService
+            portfolioMarketRefreshService;
 
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -243,6 +249,151 @@ class PortfolioControllerTests {
                         jsonPath("$.path")
                                 .value(PORTFOLIOS_PATH)
                 );
+
+        verifyNoInteractions(
+                portfolioService,
+                portfolioMapper
+        );
+    }
+
+
+    @Test
+    void refreshMarketDataReturnsRefreshSummary()
+            throws Exception {
+
+        UUID userId = UUID.randomUUID();
+
+        UserEntity authenticatedUser =
+                mockAuthenticatedUser(userId);
+
+        OffsetDateTime refreshedAt =
+                OffsetDateTime.of(
+                        2026,
+                        8,
+                        7,
+                        16,
+                        30,
+                        0,
+                        0,
+                        ZoneOffset.UTC
+                );
+
+        PortfolioMarketRefreshResponse response =
+                new PortfolioMarketRefreshResponse(
+                        2,
+                        2,
+                        6,
+                        List.of(),
+                        refreshedAt
+                );
+
+        when(
+                portfolioMarketRefreshService
+                        .refreshUserPortfolios(
+                                userId
+                        )
+        ).thenReturn(response);
+
+        mockMvc.perform(
+                        post(
+                                PORTFOLIOS_PATH
+                                        + "/market-refresh"
+                        )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.portfolioCount")
+                                .value(2)
+                )
+                .andExpect(
+                        jsonPath("$.refreshedPortfolioCount")
+                                .value(2)
+                )
+                .andExpect(
+                        jsonPath("$.refreshedHoldingCount")
+                                .value(6)
+                )
+                .andExpect(
+                        jsonPath("$.failedSymbols")
+                                .isArray()
+                )
+                .andExpect(
+                        jsonPath("$.failedSymbols.length()")
+                                .value(0)
+                )
+                .andExpect(
+                        jsonPath("$.refreshedAt")
+                                .value(
+                                        "2026-08-07T16:30:00Z"
+                                )
+                );
+
+        verify(
+                portfolioMarketRefreshService
+        ).refreshUserPortfolios(
+                userId
+        );
+
+        verify(authenticatedUser).getId();
+
+        verifyNoInteractions(
+                portfolioService,
+                portfolioMapper
+        );
+    }
+
+    @Test
+    void refreshMarketDataReturnsInternalServerErrorForUnexpectedFailure()
+            throws Exception {
+
+        UUID userId = UUID.randomUUID();
+
+        mockAuthenticatedUser(userId);
+
+        when(
+                portfolioMarketRefreshService
+                        .refreshUserPortfolios(
+                                userId
+                        )
+        ).thenThrow(
+                new IllegalStateException(
+                        "Unexpected market refresh failure"
+                )
+        );
+
+        mockMvc.perform(
+                        post(
+                                PORTFOLIOS_PATH
+                                        + "/market-refresh"
+                        )
+                )
+                .andExpect(
+                        status()
+                                .isInternalServerError()
+                )
+                .andExpect(
+                        jsonPath("$.status")
+                                .value(500)
+                )
+                .andExpect(
+                        jsonPath("$.error")
+                                .value(
+                                        "Internal Server Error"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.path")
+                                .value(
+                                        PORTFOLIOS_PATH
+                                                + "/market-refresh"
+                                )
+                );
+
+        verify(
+                portfolioMarketRefreshService
+        ).refreshUserPortfolios(
+                userId
+        );
 
         verifyNoInteractions(
                 portfolioService,

@@ -2,19 +2,29 @@
     <header class="dashboard-header">
         <div>
             <span class="dashboard-header__eyebrow">
-                Portfolio overview
+                {{
+                text().dashboard
+                .portfolioOverview
+                }}
             </span>
 
-            <h1>Dashboard</h1>
+            <h1>
+                {{ text().dashboard.title }}
+            </h1>
 
             <p>
-                Review your calculated portfolio values,
-                overall performance and investment accounts.
+                {{
+                text().dashboard
+                .description
+                }}
             </p>
         </div>
 
         <a class="dashboard-header__action" routerLink="/portfolios">
-            Manage portfolios
+            {{
+            text().dashboard
+            .managePortfolios
+            }}
         </a>
     </header>
 
@@ -22,25 +32,44 @@
     <section class="dashboard-state" aria-live="polite">
         <span class="dashboard-state__spinner" aria-hidden="true"></span>
 
-        <h2>Loading portfolio analytics</h2>
+        <h2>
+            {{
+            text().dashboard
+            .loadingTitle
+            }}
+        </h2>
 
         <p>
-            Your latest transaction-based values
-            are being calculated.
+            {{
+            text().dashboard
+            .loadingDescription
+            }}
         </p>
     </section>
     } @else if (errorMessage) {
-    <section class="dashboard-state dashboard-state--error" role="alert">
+    <section class="
+                dashboard-state
+                dashboard-state--error
+            " role="alert">
         <span class="dashboard-state__icon" aria-hidden="true">
             !
         </span>
 
-        <h2>Dashboard unavailable</h2>
+        <h2>
+            {{
+            text().dashboard
+            .unavailableTitle
+            }}
+        </h2>
 
-        <p>{{ errorMessage }}</p>
+        <p>
+            {{ errorMessage }}
+        </p>
 
         <button type="button" class="dashboard-state__button" (click)="retry()">
-            Try again
+            {{
+            text().dashboard.retry
+            }}
         </button>
     </section>
     } @else if (portfolioCount === 0) {
@@ -49,22 +78,38 @@
             +
         </span>
 
-        <h2>No portfolios yet</h2>
+        <h2>
+            {{
+            text().dashboard
+            .emptyTitle
+            }}
+        </h2>
 
         <p>
-            Create your first portfolio to begin tracking
-            allocations, values and returns.
+            {{
+            text().dashboard
+            .emptyDescription
+            }}
         </p>
 
         <a class="dashboard-state__button" routerLink="/portfolios">
-            Create a portfolio
+            {{
+            text().dashboard
+            .createPortfolio
+            }}
         </a>
     </section>
     } @else {
-    <section class="summary-grid" aria-label="Portfolio summary">
+    <section class="summary-grid" [attr.aria-label]="
+                text().dashboard
+                    .summaryAriaLabel
+            ">
         <article class="summary-card">
             <span class="summary-card__label">
-                Portfolios
+                {{
+                text().dashboard
+                .portfolios
+                }}
             </span>
 
             <strong class="summary-card__value">
@@ -72,47 +117,133 @@
             </strong>
 
             <span class="summary-card__detail">
-                Active investment accounts
-            </span>
-        </article>
-
-        <article class="summary-card">
-            <span class="summary-card__label">
-                Initial value
-            </span>
-
-            <strong class="summary-card__value">
                 {{
-                totalInitialValue
-                | currency:'USD':'symbol':'1.2-2'
+                text().dashboard
+                .activeInvestmentAccounts
                 }}
-            </strong>
-
-            <span class="summary-card__detail">
-                Total starting capital
             </span>
         </article>
 
         <article class="summary-card">
             <span class="summary-card__label">
-                Current value
+                {{
+                text().dashboard
+                .currentValue
+                }}
             </span>
 
             <strong class="summary-card__value">
                 {{
                 totalCurrentValue
-                | currency:'USD':'symbol':'1.2-2'
+                | currency:
+                'USD':
+                'symbol':
+                '1.2-2'
                 }}
             </strong>
 
             <span class="summary-card__detail">
-                Calculated combined market value
+                {{
+                text().dashboard
+                .cashPlusHoldings
+                }}
             </span>
         </article>
 
         <article class="summary-card">
             <span class="summary-card__label">
-                Total return
+                {{
+                text().dashboard
+                .availableCash
+                }}
+            </span>
+
+            <strong class="summary-card__value">
+                {{
+                totalCashBalance
+                | currency:
+                'USD':
+                'symbol':
+                '1.2-2'
+                }}
+            </strong>
+
+            <span class="summary-card__detail">
+                {{
+                totalCashPercent
+                | number:'1.2-2'
+                }}%
+
+                {{
+                text().dashboard
+                .ofCurrentValue
+                }}
+            </span>
+        </article>
+
+        <article class="summary-card">
+            <span class="summary-card__label">
+                {{
+                text().dashboard
+                .holdingsValue
+                }}
+            </span>
+
+            <strong class="summary-card__value">
+                {{
+                totalHoldingsMarketValue
+                | currency:
+                'USD':
+                'symbol':
+                '1.2-2'
+                }}
+            </strong>
+
+            <span class="summary-card__detail">
+                {{
+                totalInvestedPercent
+                | number:'1.2-2'
+                }}%
+
+                {{
+                text().dashboard
+                .invested
+                }}
+            </span>
+        </article>
+
+        <article class="summary-card">
+            <span class="summary-card__label">
+                {{
+                text().dashboard
+                .initialValue
+                }}
+            </span>
+
+            <strong class="summary-card__value">
+                {{
+                totalInitialValue
+                | currency:
+                'USD':
+                'symbol':
+                '1.2-2'
+                }}
+            </strong>
+
+            <span class="summary-card__detail">
+                {{
+                text().dashboard
+                .totalStartingCapital
+                }}
+            </span>
+        </article>
+
+        <article class="summary-card">
+            <span class="summary-card__label">
+                {{
+                text().dashboard
+                .totalReturn
+                }}
             </span>
 
             <strong class="summary-card__value" [class.summary-card__value--positive]="
@@ -131,13 +262,20 @@
             </strong>
 
             <span class="summary-card__detail" [class.summary-card__detail--positive]="
-                        isPositiveOrZero(totalProfit)
+                        isPositiveOrZero(
+                            totalProfit
+                        )
                     " [class.summary-card__detail--negative]="
-                        !isPositiveOrZero(totalProfit)
+                        !isPositiveOrZero(
+                            totalProfit
+                        )
                     ">
                 {{
                 totalProfit
-                | currency:'USD':'symbol':'1.2-2'
+                | currency:
+                'USD':
+                'symbol':
+                '1.2-2'
                 }}
             </span>
         </article>
@@ -148,14 +286,25 @@
             <header class="panel-header">
                 <div>
                     <span class="panel-header__eyebrow">
-                        Calculated accounts
+                        {{
+                        text().dashboard
+                        .calculatedAccounts
+                        }}
                     </span>
 
-                    <h2>Your portfolios</h2>
+                    <h2>
+                        {{
+                        text().dashboard
+                        .yourPortfolios
+                        }}
+                    </h2>
                 </div>
 
                 <a routerLink="/portfolios">
-                    View all
+                    {{
+                    text().dashboard
+                    .viewAll
+                    }}
                 </a>
             </header>
 
@@ -164,23 +313,45 @@
                     <thead>
                         <tr>
                             <th scope="col">
-                                Portfolio
+                                {{
+                                text().dashboard
+                                .portfolio
+                                }}
                             </th>
 
                             <th scope="col">
-                                Initial value
+                                {{
+                                text().dashboard
+                                .cash
+                                }}
                             </th>
 
                             <th scope="col">
-                                Current value
+                                {{
+                                text().dashboard
+                                .holdings
+                                }}
                             </th>
 
                             <th scope="col">
-                                Return
+                                {{
+                                text().dashboard
+                                .currentValue
+                                }}
                             </th>
 
                             <th scope="col">
-                                Calculated
+                                {{
+                                text().dashboard
+                                .return
+                                }}
+                            </th>
+
+                            <th scope="col">
+                                {{
+                                text().dashboard
+                                .calculated
+                                }}
                             </th>
                         </tr>
                     </thead>
@@ -193,39 +364,84 @@
                         <tr>
                             <td>
                                 <strong>
-                                    {{ portfolio.name }}
+                                    {{
+                                    portfolio.name
+                                    }}
                                 </strong>
 
                                 <span>
                                     {{
-                                    portfolio.creationMethod ===
+                                    portfolio
+                                    .creationMethod ===
                                     'BY_AMOUNT'
-                                    ? 'Created by amount'
-                                    : 'Created by holdings'
+                                    ? text()
+                                    .dashboard
+                                    .createdByAmount
+                                    : text()
+                                    .dashboard
+                                    .createdByHoldings
                                     }}
 
                                     @if (
                                     !portfolio
-                                    .analyticsAvailable
+                                    .analyticsAvailable ||
+                                    !portfolio
+                                    .allocationAvailable
                                     ) {
-                                    · Cached value
+                                    ·
+                                    {{
+                                    text()
+                                    .dashboard
+                                    .partialCachedData
+                                    }}
                                     }
                                 </span>
                             </td>
 
                             <td>
                                 {{
-                                portfolio.initialValue
+                                portfolio
+                                .cashBalance
                                 | currency:
                                 'USD':
                                 'symbol':
                                 '1.2-2'
                                 }}
+
+                                <span>
+                                    {{
+                                    portfolio
+                                    .cashPercent
+                                    | number:
+                                    '1.2-2'
+                                    }}%
+                                </span>
                             </td>
 
                             <td>
                                 {{
-                                portfolio.currentValue
+                                portfolio
+                                .holdingsMarketValue
+                                | currency:
+                                'USD':
+                                'symbol':
+                                '1.2-2'
+                                }}
+
+                                <span>
+                                    {{
+                                    portfolio
+                                    .investedPercent
+                                    | number:
+                                    '1.2-2'
+                                    }}%
+                                </span>
+                            </td>
+
+                            <td>
+                                {{
+                                portfolio
+                                .currentValue
                                 | currency:
                                 'USD':
                                 'symbol':
@@ -248,15 +464,18 @@
                                     {{
                                     portfolio
                                     .totalReturnPercent
-                                    | number:'1.2-2'
+                                    | number:
+                                    '1.2-2'
                                     }}%
                                 </span>
                             </td>
 
                             <td>
                                 {{
-                                portfolio.calculatedAt
-                                | date:'mediumDate'
+                                portfolio
+                                .calculatedAt
+                                | date:
+                                'mediumDate'
                                 }}
                             </td>
                         </tr>
@@ -265,56 +484,69 @@
                 </table>
             </div>
 
-            @if (analyticsUnavailableCount > 0) {
+            @if (
+            analyticsUnavailableCount > 0 ||
+            allocationUnavailableCount > 0
+            ) {
             <p>
-                {{ analyticsUnavailableCount }}
-                portfolio analytics request
                 {{
-                analyticsUnavailableCount === 1
-                ? 'was'
-                : 'were'
+                text().dashboard
+                .unavailableDataNotice
                 }}
-                unavailable. Cached portfolio values
-                are shown temporarily.
             </p>
             }
         </article>
 
         <aside class="performance-panel">
             <span class="performance-panel__eyebrow">
-                Best performer
+                {{
+                text().dashboard
+                .bestPerformer
+                }}
             </span>
 
             <h2>
-                {{ bestPerformingPortfolio?.name }}
+                {{
+                bestPerformingPortfolio
+                ?.name
+                }}
             </h2>
 
             <strong class="performance-panel__return" [class.performance-panel__return--positive]="
                         isPositiveOrZero(
                             bestPerformingPortfolio
-                                ?.totalReturnPercent ?? 0
+                                ?.totalReturnPercent ??
+                            0
                         )
                     " [class.performance-panel__return--negative]="
                         !isPositiveOrZero(
                             bestPerformingPortfolio
-                                ?.totalReturnPercent ?? 0
+                                ?.totalReturnPercent ??
+                            0
                         )
                     ">
                 {{
                 bestPerformingPortfolio
-                ?.totalReturnPercent ?? 0
+                ?.totalReturnPercent ??
+                0
                 | number:'1.2-2'
                 }}%
             </strong>
 
             <dl class="performance-panel__details">
                 <div>
-                    <dt>Current value</dt>
+                    <dt>
+                        {{
+                        text().dashboard
+                        .currentValue
+                        }}
+                    </dt>
 
                     <dd>
                         {{
                         bestPerformingPortfolio
-                        ?.currentValue ?? 0
+                        ?.currentValue ??
+                        0
                         | currency:
                         'USD':
                         'symbol':
@@ -324,12 +556,18 @@
                 </div>
 
                 <div>
-                    <dt>Realized profit</dt>
+                    <dt>
+                        {{
+                        text().dashboard
+                        .availableCash
+                        }}
+                    </dt>
 
                     <dd>
                         {{
                         bestPerformingPortfolio
-                        ?.totalRealizedProfit ?? 0
+                        ?.cashBalance ??
+                        0
                         | currency:
                         'USD':
                         'symbol':
@@ -339,12 +577,60 @@
                 </div>
 
                 <div>
-                    <dt>Unrealized profit</dt>
+                    <dt>
+                        {{
+                        text().dashboard
+                        .holdingsValue
+                        }}
+                    </dt>
 
                     <dd>
                         {{
                         bestPerformingPortfolio
-                        ?.totalUnrealizedProfit ?? 0
+                        ?.holdingsMarketValue ??
+                        0
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().dashboard
+                        .realizedProfit
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        bestPerformingPortfolio
+                        ?.totalRealizedProfit ??
+                        0
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().dashboard
+                        .unrealizedProfit
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        bestPerformingPortfolio
+                        ?.totalUnrealizedProfit ??
+                        0
                         | currency:
                         'USD':
                         'symbol':

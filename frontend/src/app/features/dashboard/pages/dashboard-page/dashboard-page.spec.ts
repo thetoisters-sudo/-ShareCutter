@@ -7,12 +7,14 @@ import {
 } from '@angular/router';
 import {
     Observable,
+    Subject,
     of,
     throwError,
 } from 'rxjs';
 
 import {
     PagedResponse,
+    PortfolioAllocationResponse,
     PortfolioResponse,
     PortfolioSummaryResponse,
 } from '../../../../core/portfolio/models/portfolio.models';
@@ -24,6 +26,24 @@ import {
 } from './dashboard-page';
 
 class PortfolioServiceStub {
+    private readonly portfolioChangedSubject =
+        new Subject<{
+            portfolioId: string | null;
+            reason:
+            | 'created'
+            | 'renamed'
+            | 'deleted'
+            | 'value-updated'
+            | 'transaction-created'
+            | 'transaction-updated'
+            | 'transaction-deleted'
+            | 'target-weight-updated'
+            | 'rebuilt';
+        }>();
+
+    readonly portfolioChanged$ =
+        this.portfolioChangedSubject.asObservable();
+
     response$: Observable<
         PagedResponse<PortfolioResponse>
     > = of(createPagedResponse());
@@ -42,7 +62,22 @@ class PortfolioServiceStub {
         ],
     ]);
 
+    allocationResponses = new Map<
+        string,
+        Observable<PortfolioAllocationResponse>
+    >([
+        [
+            'portfolio-1',
+            of(createGrowthAllocation()),
+        ],
+        [
+            'portfolio-2',
+            of(createIncomeAllocation()),
+        ],
+    ]);
+
     summaryRequestIds: string[] = [];
+    allocationRequestIds: string[] = [];
 
     getPortfolios(): Observable<
         PagedResponse<PortfolioResponse>
@@ -60,6 +95,25 @@ class PortfolioServiceStub {
             throwError(
                 () => new Error(
                     'Summary not configured',
+                ),
+            )
+        );
+    }
+
+    getPortfolioAllocation(
+        portfolioId: string,
+    ): Observable<PortfolioAllocationResponse> {
+        this.allocationRequestIds.push(
+            portfolioId,
+        );
+
+        return (
+            this.allocationResponses.get(
+                portfolioId,
+            ) ??
+            throwError(
+                () => new Error(
+                    'Allocation not configured',
                 ),
             )
         );
@@ -108,6 +162,17 @@ describe('DashboardPage', () => {
         ]);
     });
 
+    it('should load allocations for every portfolio', () => {
+        createComponent();
+
+        expect(
+            portfolioService.allocationRequestIds,
+        ).toEqual([
+            'portfolio-1',
+            'portfolio-2',
+        ]);
+    });
+
     it('should load and display calculated portfolio data', () => {
         createComponent();
 
@@ -123,11 +188,15 @@ describe('DashboardPage', () => {
         );
 
         expect(textContent).toContain(
-            '2',
+            'Available cash',
+        );
+
+        expect(textContent).toContain(
+            'Holdings value',
         );
     });
 
-    it('should calculate combined values from portfolio summaries', () => {
+    it('should calculate combined values from summaries and allocations', () => {
         createComponent();
 
         expect(
@@ -147,6 +216,20 @@ describe('DashboardPage', () => {
         expect(
             getComponentValue<number>(
                 component,
+                'totalCashBalance',
+            ),
+        ).toBe(2800);
+
+        expect(
+            getComponentValue<number>(
+                component,
+                'totalHoldingsMarketValue',
+            ),
+        ).toBe(14000);
+
+        expect(
+            getComponentValue<number>(
+                component,
                 'totalProfit',
             ),
         ).toBe(1800);
@@ -157,6 +240,30 @@ describe('DashboardPage', () => {
                 'totalReturnPercent',
             ),
         ).toBe(12);
+    });
+
+    it('should calculate combined cash and invested percentages', () => {
+        createComponent();
+
+        expect(
+            getComponentValue<number>(
+                component,
+                'totalCashPercent',
+            ),
+        ).toBeCloseTo(
+            16.6666666667,
+            6,
+        );
+
+        expect(
+            getComponentValue<number>(
+                component,
+                'totalInvestedPercent',
+            ),
+        ).toBeCloseTo(
+            83.3333333333,
+            6,
+        );
     });
 
     it('should identify the best performing summary', () => {
@@ -192,6 +299,10 @@ describe('DashboardPage', () => {
         expect(
             portfolioService.summaryRequestIds,
         ).toEqual([]);
+
+        expect(
+            portfolioService.allocationRequestIds,
+        ).toEqual([]);
     });
 
     it('should use cached portfolio data when one summary fails', () => {
@@ -223,8 +334,42 @@ describe('DashboardPage', () => {
         expect(
             fixture.nativeElement.textContent,
         ).toContain(
-            'Cached portfolio values',
+            'Cached values',
         );
+    });
+
+    it('should use zero allocation values when one allocation fails', () => {
+        portfolioService.allocationResponses.set(
+            'portfolio-2',
+            throwError(
+                () => new Error(
+                    'Allocation request failed',
+                ),
+            ),
+        );
+
+        createComponent();
+
+        expect(
+            getComponentValue<number>(
+                component,
+                'totalCashBalance',
+            ),
+        ).toBe(2000);
+
+        expect(
+            getComponentValue<number>(
+                component,
+                'totalHoldingsMarketValue',
+            ),
+        ).toBe(10000);
+
+        expect(
+            getComponentValue<number>(
+                component,
+                'allocationUnavailableCount',
+            ),
+        ).toBe(1);
     });
 
     it('should display an error state when portfolio loading fails', () => {
@@ -256,7 +401,8 @@ describe('DashboardPage', () => {
                 DashboardPage,
             );
 
-        component = fixture.componentInstance;
+        component =
+            fixture.componentInstance;
 
         fixture.detectChanges();
     }
@@ -270,7 +416,9 @@ function createPagedResponse(
         page: 0,
         size: 100,
         totalElements: content.length,
-        totalPages: content.length > 0 ? 1 : 0,
+        totalPages: content.length > 0
+            ? 1
+            : 0,
         first: true,
         last: true,
         hasNext: false,
@@ -290,8 +438,10 @@ function createPortfolios(): PortfolioResponse[] {
             totalRealizedProfit: 500,
             totalUnrealizedProfit: 1000,
             totalReturnPercent: 15,
-            createdAt: '2026-07-01T10:00:00Z',
-            updatedAt: '2026-07-29T10:00:00Z',
+            createdAt:
+                '2026-07-01T10:00:00Z',
+            updatedAt:
+                '2026-07-29T10:00:00Z',
         },
         {
             id: 'portfolio-2',
@@ -303,8 +453,10 @@ function createPortfolios(): PortfolioResponse[] {
             totalRealizedProfit: 100,
             totalUnrealizedProfit: -100,
             totalReturnPercent: 0,
-            createdAt: '2026-07-02T10:00:00Z',
-            updatedAt: '2026-07-28T10:00:00Z',
+            createdAt:
+                '2026-07-02T10:00:00Z',
+            updatedAt:
+                '2026-07-28T10:00:00Z',
         },
     ];
 }
@@ -329,7 +481,8 @@ function createGrowthSummary():
         totalDepositAmount: 10000,
         totalWithdrawalAmount: 0,
         netCashFlow: 10000,
-        calculatedAt: '2026-07-30T20:00:00Z',
+        calculatedAt:
+            '2026-07-30T20:00:00Z',
     };
 }
 
@@ -353,7 +506,68 @@ function createIncomeSummary():
         totalDepositAmount: 5000,
         totalWithdrawalAmount: 0,
         netCashFlow: 5000,
-        calculatedAt: '2026-07-30T20:01:00Z',
+        calculatedAt:
+            '2026-07-30T20:01:00Z',
+    };
+}
+
+function createGrowthAllocation():
+    PortfolioAllocationResponse {
+    return {
+        portfolioId:
+            'portfolio-1',
+        portfolioName:
+            'Growth portfolio',
+        portfolioValue:
+            12000,
+        cashBalance:
+            2000,
+        totalMarketValue:
+            10000,
+        totalCost:
+            8600,
+        totalRealizedProfit:
+            600,
+        totalUnrealizedProfit:
+            1400,
+        totalTargetWeightPercent:
+            100,
+        allocatedAssetCount:
+            4,
+        assets:
+            [],
+        calculatedAt:
+            '2026-07-30T20:00:30Z',
+    };
+}
+
+function createIncomeAllocation():
+    PortfolioAllocationResponse {
+    return {
+        portfolioId:
+            'portfolio-2',
+        portfolioName:
+            'Income portfolio',
+        portfolioValue:
+            4800,
+        cashBalance:
+            800,
+        totalMarketValue:
+            4000,
+        totalCost:
+            4300,
+        totalRealizedProfit:
+            100,
+        totalUnrealizedProfit:
+            -300,
+        totalTargetWeightPercent:
+            100,
+        allocatedAssetCount:
+            2,
+        assets:
+            [],
+        calculatedAt:
+            '2026-07-30T20:01:30Z',
     };
 }
 

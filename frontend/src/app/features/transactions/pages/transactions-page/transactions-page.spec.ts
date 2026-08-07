@@ -462,6 +462,153 @@ describe('TransactionsPage', () => {
         );
     });
 
+
+    it('should calculate a fractional buy quantity from total amount', () => {
+        fixture.detectChanges();
+
+        const state =
+            getComponentState(component);
+
+        state.openCreateDialog();
+
+        state.formValue = {
+            assetId: 'asset-1',
+            transactionType: 'BUY',
+            quantity: null,
+            unitPrice: 217.35,
+            fee: 2,
+            totalAmount: 1000,
+            currency: 'USD',
+            executedAt:
+                '2026-07-30T14:00',
+            notes:
+                'Fractional purchase by amount',
+        };
+
+        state.setCalculationMode(
+            'BY_AMOUNT',
+        );
+
+        state.onTransactionTotalAmountChange();
+
+        expect(
+            state.formValue.quantity,
+        ).toBe(4.60087417);
+
+        state.submitCreate();
+
+        expect(
+            transactionService
+                .createTransaction,
+        ).toHaveBeenCalledWith(
+            'portfolio-1',
+            {
+                assetId: 'asset-1',
+                transactionType: 'BUY',
+                quantity: 4.60087417,
+                unitPrice: 217.35,
+                fee: 2,
+                totalAmount: 1000,
+                currency: 'USD',
+                executedAt:
+                    new Date(
+                        '2026-07-30T14:00',
+                    ).toISOString(),
+                notes:
+                    'Fractional purchase by amount',
+            },
+        );
+    });
+
+    it('should calculate a fractional sell quantity from total amount', () => {
+        fixture.detectChanges();
+
+        const state =
+            getComponentState(component);
+
+        state.openCreateDialog();
+
+        state.formValue = {
+            assetId: 'asset-1',
+            transactionType: 'SELL',
+            quantity: null,
+            unitPrice: 217.35,
+            fee: 1.5,
+            totalAmount: 1500,
+            currency: 'USD',
+            executedAt:
+                '2026-07-30T14:00',
+            notes:
+                'Fractional sale by amount',
+        };
+
+        state.setCalculationMode(
+            'BY_AMOUNT',
+        );
+
+        state.onTransactionTotalAmountChange();
+
+        expect(
+            state.formValue.quantity,
+        ).toBe(6.90131125);
+
+        state.submitCreate();
+
+        expect(
+            transactionService
+                .createTransaction,
+        ).toHaveBeenCalledWith(
+            'portfolio-1',
+            {
+                assetId: 'asset-1',
+                transactionType: 'SELL',
+                quantity: 6.90131125,
+                unitPrice: 217.35,
+                fee: 1.5,
+                totalAmount: 1500,
+                currency: 'USD',
+                executedAt:
+                    new Date(
+                        '2026-07-30T14:00',
+                    ).toISOString(),
+                notes:
+                    'Fractional sale by amount',
+            },
+        );
+    });
+
+    it('should keep fractional quantity limited to eight decimal places', () => {
+        fixture.detectChanges();
+
+        const state =
+            getComponentState(component);
+
+        state.openCreateDialog();
+
+        state.formValue = {
+            assetId: 'asset-1',
+            transactionType: 'BUY',
+            quantity: null,
+            unitPrice: 3,
+            fee: 0,
+            totalAmount: 1,
+            currency: 'USD',
+            executedAt:
+                '2026-07-30T14:00',
+            notes: '',
+        };
+
+        state.setCalculationMode(
+            'BY_AMOUNT',
+        );
+
+        state.onTransactionTotalAmountChange();
+
+        expect(
+            state.formValue.quantity,
+        ).toBe(0.33333333);
+    });
+
     it('should create a deposit without an asset', () => {
         fixture.detectChanges();
 
@@ -725,6 +872,10 @@ describe('TransactionsPage', () => {
 interface TransactionsPageTestState {
     filterAssetId: string;
 
+    calculationMode:
+    'BY_QUANTITY' |
+    'BY_AMOUNT';
+
     filterTransactionType:
     TransactionType | '';
 
@@ -753,6 +904,15 @@ interface TransactionsPageTestState {
     applyFilters(): void;
 
     openCreateDialog(): void;
+
+    setCalculationMode(
+        mode:
+            'BY_QUANTITY' |
+            'BY_AMOUNT',
+    ): void;
+
+    onTransactionTotalAmountChange():
+        void;
 
     submitCreate(): void;
 

@@ -694,8 +694,8 @@ class PortfolioHoldingCalculationServiceTests {
          *
          * Holdings:
          *
-         * 5 × 120 = 600
-         * 2 × 250 = 500
+         * 5 ֳ— 120 = 600
+         * 2 ֳ— 250 = 500
          *
          * Current value = 9,285 + 1,100 = 10,385
          */
@@ -719,6 +719,223 @@ class PortfolioHoldingCalculationServiceTests {
         )
                 .isEqualByComparingTo(
                         "200.00000000"
+                );
+    }
+
+
+    @Test
+    void shouldRejectBuyThatExceedsAvailableCash() {
+        TransactionEntity buy =
+                createTradeTransaction(
+                        TransactionType.BUY,
+                        "10.00000000",
+                        "100.00000000",
+                        "1.00000000",
+                        "1000.00000000",
+                        1
+                );
+
+        when(portfolio.getInitialValue())
+                .thenReturn(
+                        new BigDecimal(
+                                "1000.00000000"
+                        )
+                );
+
+        when(portfolioHoldingRepository
+                .findAllByPortfolioIdAndDeletedAtIsNullOrderByAssetSymbolAsc(
+                        PORTFOLIO_ID
+                ))
+                .thenReturn(List.of());
+
+        when(transactionRepository
+                .findAllByPortfolioIdAndDeletedAtIsNullOrderByExecutedAtDesc(
+                        PORTFOLIO_ID
+                ))
+                .thenReturn(
+                        List.of(buy)
+                );
+
+        assertThatThrownBy(
+                () ->
+                        calculationService
+                                .recalculatePortfolio(
+                                        USER_ID,
+                                        PORTFOLIO_ID
+                                )
+        )
+                .isInstanceOf(
+                        InvalidTransactionException.class
+                )
+                .hasMessageContaining(
+                        "cash balance must not be negative"
+                );
+
+        verify(portfolio, never())
+                .updateCurrentValue(
+                        any(BigDecimal.class)
+                );
+
+        verify(portfolio, never())
+                .updateTotalRealizedProfit(
+                        any(BigDecimal.class)
+                );
+
+        verify(portfolio, never())
+                .updateTotalUnrealizedProfit(
+                        any(BigDecimal.class)
+                );
+    }
+
+    @Test
+    void shouldRejectWithdrawalThatExceedsAvailableCash() {
+        TransactionEntity withdrawal =
+                createCashTransaction(
+                        TransactionType.WITHDRAWAL,
+                        "1000.00000001",
+                        "0.00000000",
+                        1
+                );
+
+        when(portfolio.getInitialValue())
+                .thenReturn(
+                        new BigDecimal(
+                                "1000.00000000"
+                        )
+                );
+
+        when(portfolioHoldingRepository
+                .findAllByPortfolioIdAndDeletedAtIsNullOrderByAssetSymbolAsc(
+                        PORTFOLIO_ID
+                ))
+                .thenReturn(List.of());
+
+        when(transactionRepository
+                .findAllByPortfolioIdAndDeletedAtIsNullOrderByExecutedAtDesc(
+                        PORTFOLIO_ID
+                ))
+                .thenReturn(
+                        List.of(withdrawal)
+                );
+
+        assertThatThrownBy(
+                () ->
+                        calculationService
+                                .recalculatePortfolio(
+                                        USER_ID,
+                                        PORTFOLIO_ID
+                                )
+        )
+                .isInstanceOf(
+                        InvalidTransactionException.class
+                )
+                .hasMessageContaining(
+                        "cash balance must not be negative"
+                );
+
+        verify(portfolio, never())
+                .updateCurrentValue(
+                        any(BigDecimal.class)
+                );
+    }
+
+    @Test
+    void shouldAddNetSellProceedsToAvailableCash() {
+        PortfolioHoldingEntity remainingHolding =
+                holdingWithState(
+                        "6.00000000",
+                        "100.00000000",
+                        "130.00000000",
+                        "118.00000000"
+                );
+
+        TransactionEntity buy =
+                createTradeTransaction(
+                        TransactionType.BUY,
+                        "10.00000000",
+                        "100.00000000",
+                        "0.00000000",
+                        "1000.00000000",
+                        5
+                );
+
+        TransactionEntity sell =
+                createTradeTransaction(
+                        TransactionType.SELL,
+                        "4.00000000",
+                        "130.00000000",
+                        "2.00000000",
+                        "520.00000000",
+                        1
+                );
+
+        when(portfolio.getInitialValue())
+                .thenReturn(
+                        new BigDecimal(
+                                "1000.00000000"
+                        )
+                );
+
+        when(portfolioHoldingRepository
+                .findAllByPortfolioIdAndDeletedAtIsNullOrderByAssetSymbolAsc(
+                        PORTFOLIO_ID
+                ))
+                .thenReturn(
+                        List.of(
+                                remainingHolding
+                        )
+                );
+
+        when(transactionRepository
+                .findAllByPortfolioIdAndDeletedAtIsNullOrderByExecutedAtDesc(
+                        PORTFOLIO_ID
+                ))
+                .thenReturn(
+                        List.of(
+                                sell,
+                                buy
+                        )
+                );
+
+        calculationService
+                .recalculatePortfolio(
+                        USER_ID,
+                        PORTFOLIO_ID
+                );
+
+        ArgumentCaptor<BigDecimal>
+                currentValueCaptor =
+                ArgumentCaptor.forClass(
+                        BigDecimal.class
+                );
+
+        verify(portfolio)
+                .updateCurrentValue(
+                        currentValueCaptor.capture()
+                );
+
+        /*
+         * Cash:
+         *
+         * 1,000
+         * - 1,000 BUY
+         * + 520 SELL proceeds
+         * - 2 SELL fee
+         *
+         * Cash = 518
+         *
+         * Remaining holding:
+         *
+         * 6 × 130 = 780
+         *
+         * Current value = 518 + 780 = 1,298
+         */
+
+        assertThat(
+                currentValueCaptor.getValue()
+        )
+                .isEqualByComparingTo(
+                        "1298.00000000"
                 );
     }
 

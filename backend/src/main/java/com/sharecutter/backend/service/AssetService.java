@@ -5,12 +5,15 @@ import com.sharecutter.backend.domain.entity.PortfolioEntity;
 import com.sharecutter.backend.domain.entity.PortfolioHoldingEntity;
 import com.sharecutter.backend.domain.enums.AssetType;
 import com.sharecutter.backend.exception.AssetAlreadyExistsException;
+import com.sharecutter.backend.exception.AssetInUseException;
 import com.sharecutter.backend.exception.AssetNotFoundException;
 import com.sharecutter.backend.repository.AssetRepository;
 import com.sharecutter.backend.repository.PortfolioHoldingRepository;
+import com.sharecutter.backend.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -19,10 +22,16 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class AssetService {
 
+    private static final BigDecimal ZERO =
+            BigDecimal.ZERO;
+
     private final AssetRepository assetRepository;
 
     private final PortfolioHoldingRepository
             portfolioHoldingRepository;
+
+    private final TransactionRepository
+            transactionRepository;
 
     private final PortfolioService portfolioService;
 
@@ -33,6 +42,8 @@ public class AssetService {
             AssetRepository assetRepository,
             PortfolioHoldingRepository
                     portfolioHoldingRepository,
+            TransactionRepository
+                    transactionRepository,
             PortfolioService portfolioService,
             PortfolioHoldingCalculationService
                     portfolioHoldingCalculationService
@@ -42,6 +53,9 @@ public class AssetService {
 
         this.portfolioHoldingRepository =
                 portfolioHoldingRepository;
+
+        this.transactionRepository =
+                transactionRepository;
 
         this.portfolioService =
                 portfolioService;
@@ -218,12 +232,45 @@ public class AssetService {
                         assetId
                 );
 
+        if (
+                transactionRepository
+                        .existsByAssetIdAndDeletedAtIsNull(
+                                assetId
+                        )
+        ) {
+            throw new AssetInUseException(
+                    assetId,
+                    "active transactions still exist"
+            );
+        }
+
         List<PortfolioHoldingEntity>
                 activeHoldings =
                 portfolioHoldingRepository
                         .findAllByAssetIdAndDeletedAtIsNull(
                                 assetId
                         );
+
+        boolean hasPositiveHolding =
+                activeHoldings
+                        .stream()
+                        .map(
+                                PortfolioHoldingEntity::getQuantity
+                        )
+                        .map(this::zeroIfNull)
+                        .anyMatch(
+                                quantity ->
+                                        quantity.compareTo(
+                                                ZERO
+                                        ) > 0
+                        );
+
+        if (hasPositiveHolding) {
+            throw new AssetInUseException(
+                    assetId,
+                    "the portfolio still holds a positive quantity"
+            );
+        }
 
         for (
                 PortfolioHoldingEntity holding
@@ -278,6 +325,14 @@ public class AssetService {
                             );
                         }
                 );
+    }
+
+    private BigDecimal zeroIfNull(
+            BigDecimal value
+    ) {
+        return value == null
+                ? ZERO
+                : value;
     }
 
     private String normalizeSymbol(

@@ -12,6 +12,9 @@ import {
     inject,
 } from '@angular/core';
 import {
+    takeUntilDestroyed,
+} from '@angular/core/rxjs-interop';
+import {
     RouterLink,
 } from '@angular/router';
 import {
@@ -22,11 +25,12 @@ import {
     of,
     switchMap,
 } from 'rxjs';
-import {
-    takeUntilDestroyed,
-} from '@angular/core/rxjs-interop';
 
 import {
+    TranslationService,
+} from '../../../../core/i18n/services/translation.service';
+import {
+    PortfolioAllocationResponse,
     PortfolioCreationMethod,
     PortfolioResponse,
     PortfolioSummaryResponse,
@@ -41,12 +45,17 @@ interface DashboardPortfolio {
     creationMethod: PortfolioCreationMethod;
     initialValue: number;
     currentValue: number;
+    cashBalance: number;
+    holdingsMarketValue: number;
+    cashPercent: number;
+    investedPercent: number;
     totalRealizedProfit: number;
     totalUnrealizedProfit: number;
     totalProfit: number;
     totalReturnPercent: number;
     calculatedAt: string;
     analyticsAvailable: boolean;
+    allocationAvailable: boolean;
 }
 
 @Component({
@@ -57,13 +66,21 @@ interface DashboardPortfolio {
         DecimalPipe,
         RouterLink,
     ],
-    templateUrl: './dashboard-page.html',
-    styleUrl: './dashboard-page.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl:
+        './dashboard-page.html',
+    styleUrl:
+        './dashboard-page.scss',
+    changeDetection:
+        ChangeDetectionStrategy.OnPush,
 })
-export class DashboardPage implements OnInit {
+export class DashboardPage
+    implements OnInit {
+
     private readonly portfolioService =
         inject(PortfolioService);
+
+    private readonly translationService =
+        inject(TranslationService);
 
     private readonly changeDetectorRef =
         inject(ChangeDetectorRef);
@@ -71,8 +88,14 @@ export class DashboardPage implements OnInit {
     private readonly destroyRef =
         inject(DestroyRef);
 
-    protected portfolios: DashboardPortfolio[] = [];
+    protected readonly text =
+        this.translationService.text;
+
+    protected portfolios:
+        DashboardPortfolio[] = [];
+
     protected isLoading = true;
+
     protected errorMessage = '';
 
     ngOnInit(): void {
@@ -102,12 +125,21 @@ export class DashboardPage implements OnInit {
         ).length;
     }
 
+    protected get allocationUnavailableCount(): number {
+        return this.portfolios.filter(
+            (portfolio) =>
+                !portfolio.allocationAvailable,
+        ).length;
+    }
+
     protected get totalInitialValue(): number {
         return this.portfolios.reduce(
             (
                 total,
                 portfolio,
-            ) => total + portfolio.initialValue,
+            ) =>
+                total +
+                portfolio.initialValue,
             0,
         );
     }
@@ -117,7 +149,33 @@ export class DashboardPage implements OnInit {
             (
                 total,
                 portfolio,
-            ) => total + portfolio.currentValue,
+            ) =>
+                total +
+                portfolio.currentValue,
+            0,
+        );
+    }
+
+    protected get totalCashBalance(): number {
+        return this.portfolios.reduce(
+            (
+                total,
+                portfolio,
+            ) =>
+                total +
+                portfolio.cashBalance,
+            0,
+        );
+    }
+
+    protected get totalHoldingsMarketValue(): number {
+        return this.portfolios.reduce(
+            (
+                total,
+                portfolio,
+            ) =>
+                total +
+                portfolio.holdingsMarketValue,
             0,
         );
     }
@@ -127,13 +185,17 @@ export class DashboardPage implements OnInit {
             (
                 total,
                 portfolio,
-            ) => total + portfolio.totalProfit,
+            ) =>
+                total +
+                portfolio.totalProfit,
             0,
         );
     }
 
     protected get totalReturnPercent(): number {
-        if (this.totalInitialValue === 0) {
+        if (
+            this.totalInitialValue === 0
+        ) {
             return 0;
         }
 
@@ -143,9 +205,25 @@ export class DashboardPage implements OnInit {
         ) * 100;
     }
 
+    protected get totalCashPercent(): number {
+        return this.calculatePercent(
+            this.totalCashBalance,
+            this.totalCurrentValue,
+        );
+    }
+
+    protected get totalInvestedPercent(): number {
+        return this.calculatePercent(
+            this.totalHoldingsMarketValue,
+            this.totalCurrentValue,
+        );
+    }
+
     protected get bestPerformingPortfolio():
         DashboardPortfolio | null {
-        if (this.portfolios.length === 0) {
+        if (
+            this.portfolios.length === 0
+        ) {
             return null;
         }
 
@@ -154,8 +232,12 @@ export class DashboardPage implements OnInit {
                 bestPortfolio,
                 currentPortfolio,
             ) =>
-                currentPortfolio.totalReturnPercent >
-                    bestPortfolio.totalReturnPercent
+                (
+                    currentPortfolio
+                        .totalReturnPercent >
+                    bestPortfolio
+                        .totalReturnPercent
+                )
                     ? currentPortfolio
                     : bestPortfolio,
         );
@@ -167,7 +249,8 @@ export class DashboardPage implements OnInit {
         return value >= 0;
     }
 
-    private subscribeToPortfolioChanges(): void {
+    private subscribeToPortfolioChanges():
+        void {
         this.portfolioService
             .portfolioChanged$
             .pipe(
@@ -183,7 +266,9 @@ export class DashboardPage implements OnInit {
     private loadPortfolios(): void {
         this.isLoading = true;
         this.errorMessage = '';
-        this.changeDetectorRef.markForCheck();
+
+        this.changeDetectorRef
+            .markForCheck();
 
         this.portfolioService
             .getPortfolios({
@@ -195,7 +280,8 @@ export class DashboardPage implements OnInit {
             .pipe(
                 switchMap((response) => {
                     if (
-                        response.content.length === 0
+                        response.content.length ===
+                        0
                     ) {
                         return of<
                             DashboardPortfolio[]
@@ -205,7 +291,7 @@ export class DashboardPage implements OnInit {
                     return forkJoin(
                         response.content.map(
                             (portfolio) =>
-                                this.loadPortfolioSummary(
+                                this.loadPortfolioData(
                                     portfolio,
                                 ),
                         ),
@@ -217,17 +303,24 @@ export class DashboardPage implements OnInit {
             )
             .subscribe({
                 next: (portfolios) => {
-                    this.portfolios = portfolios;
-                    this.isLoading = false;
+                    this.portfolios =
+                        portfolios;
+
+                    this.isLoading =
+                        false;
 
                     this.changeDetectorRef
                         .markForCheck();
                 },
+
                 error: () => {
                     this.portfolios = [];
                     this.isLoading = false;
+
                     this.errorMessage =
-                        'Portfolio data could not be loaded. Please try again.';
+                        this.text()
+                            .dashboard
+                            .loadError;
 
                     this.changeDetectorRef
                         .markForCheck();
@@ -235,81 +328,185 @@ export class DashboardPage implements OnInit {
             });
     }
 
-    private loadPortfolioSummary(
+    private loadPortfolioData(
         portfolio: PortfolioResponse,
     ): Observable<DashboardPortfolio> {
-        return this.portfolioService
-            .getPortfolioSummary(
-                portfolio.id,
-            )
-            .pipe(
-                map((summary) =>
-                    this.createDashboardPortfolio(
-                        portfolio,
-                        summary,
-                    ),
-                ),
-                catchError(() =>
-                    of(
-                        this.createFallbackPortfolio(
-                            portfolio,
+        return forkJoin({
+            summary:
+                this.portfolioService
+                    .getPortfolioSummary(
+                        portfolio.id,
+                    )
+                    .pipe(
+                        map((summary) => ({
+                            value:
+                                summary,
+
+                            available:
+                                true,
+                        })),
+
+                        catchError(() =>
+                            of({
+                                value:
+                                    null,
+
+                                available:
+                                    false,
+                            }),
                         ),
                     ),
-                ),
-            );
+
+            allocation:
+                this.portfolioService
+                    .getPortfolioAllocation(
+                        portfolio.id,
+                    )
+                    .pipe(
+                        map((allocation) => ({
+                            value:
+                                allocation,
+
+                            available:
+                                true,
+                        })),
+
+                        catchError(() =>
+                            of({
+                                value:
+                                    null,
+
+                                available:
+                                    false,
+                            }),
+                        ),
+                    ),
+        }).pipe(
+            map(
+                ({
+                    summary,
+                    allocation,
+                }) =>
+                    this.createDashboardPortfolio(
+                        portfolio,
+                        summary.value,
+                        summary.available,
+                        allocation.value,
+                        allocation.available,
+                    ),
+            ),
+        );
     }
 
     private createDashboardPortfolio(
         portfolio: PortfolioResponse,
-        summary: PortfolioSummaryResponse,
+        summary:
+            PortfolioSummaryResponse | null,
+        analyticsAvailable: boolean,
+        allocation:
+            PortfolioAllocationResponse | null,
+        allocationAvailable: boolean,
     ): DashboardPortfolio {
+        const currentValue =
+            summary?.currentValue ??
+            portfolio.currentValue;
+
+        const cashBalance =
+            allocation?.cashBalance ??
+            0;
+
+        const holdingsMarketValue =
+            allocation?.totalMarketValue ??
+            0;
+
         return {
-            id: portfolio.id,
-            name: summary.portfolioName,
+            id:
+                portfolio.id,
+
+            name:
+                summary?.portfolioName ??
+                portfolio.name,
+
             creationMethod:
                 portfolio.creationMethod,
+
             initialValue:
-                summary.initialValue,
-            currentValue:
-                summary.currentValue,
+                summary?.initialValue ??
+                portfolio.initialValue,
+
+            currentValue,
+
+            cashBalance,
+
+            holdingsMarketValue,
+
+            cashPercent:
+                this.calculatePercent(
+                    cashBalance,
+                    currentValue,
+                ),
+
+            investedPercent:
+                this.calculatePercent(
+                    holdingsMarketValue,
+                    currentValue,
+                ),
+
             totalRealizedProfit:
-                summary.totalRealizedProfit,
+                (
+                    summary
+                        ?.totalRealizedProfit ??
+                    portfolio
+                        .totalRealizedProfit
+                ),
+
             totalUnrealizedProfit:
-                summary.totalUnrealizedProfit,
+                (
+                    summary
+                        ?.totalUnrealizedProfit ??
+                    portfolio
+                        .totalUnrealizedProfit
+                ),
+
             totalProfit:
-                summary.totalProfit,
+                summary?.totalProfit ??
+                (
+                    portfolio.currentValue -
+                    portfolio.initialValue
+                ),
+
             totalReturnPercent:
-                summary.totalReturnPercent,
+                (
+                    summary
+                        ?.totalReturnPercent ??
+                    portfolio
+                        .totalReturnPercent
+                ),
+
             calculatedAt:
-                summary.calculatedAt,
-            analyticsAvailable: true,
+                allocation?.calculatedAt ??
+                summary?.calculatedAt ??
+                portfolio.updatedAt,
+
+            analyticsAvailable,
+
+            allocationAvailable,
         };
     }
 
-    private createFallbackPortfolio(
-        portfolio: PortfolioResponse,
-    ): DashboardPortfolio {
-        return {
-            id: portfolio.id,
-            name: portfolio.name,
-            creationMethod:
-                portfolio.creationMethod,
-            initialValue:
-                portfolio.initialValue,
-            currentValue:
-                portfolio.currentValue,
-            totalRealizedProfit:
-                portfolio.totalRealizedProfit,
-            totalUnrealizedProfit:
-                portfolio.totalUnrealizedProfit,
-            totalProfit:
-                portfolio.currentValue -
-                portfolio.initialValue,
-            totalReturnPercent:
-                portfolio.totalReturnPercent,
-            calculatedAt:
-                portfolio.updatedAt,
-            analyticsAvailable: false,
-        };
+    private calculatePercent(
+        value: number,
+        total: number,
+    ): number {
+        if (
+            total <= 0
+        ) {
+            return 0;
+        }
+
+        return (
+            value /
+            total
+        ) * 100;
     }
 }

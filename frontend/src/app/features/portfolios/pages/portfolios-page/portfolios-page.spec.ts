@@ -10,6 +10,7 @@ import {
 } from '@angular/platform-browser';
 import {
     Observable,
+    Subject,
     of,
     throwError,
 } from 'rxjs';
@@ -33,6 +34,46 @@ import {
 } from './portfolios-page';
 
 class PortfolioServiceStub {
+    private readonly portfolioChangedSubject =
+        new Subject<{
+            portfolioId: string | null;
+            reason:
+            | 'created'
+            | 'renamed'
+            | 'deleted'
+            | 'value-updated'
+            | 'transaction-created'
+            | 'transaction-updated'
+            | 'transaction-deleted'
+            | 'target-weight-updated'
+            | 'rebuilt';
+        }>();
+
+    readonly portfolioChanged$ =
+        this.portfolioChangedSubject.asObservable();
+
+    notifyPortfolioChanged = vi.fn(
+        (
+            event: {
+                portfolioId: string | null;
+                reason:
+                | 'created'
+                | 'renamed'
+                | 'deleted'
+                | 'value-updated'
+                | 'transaction-created'
+                | 'transaction-updated'
+                | 'transaction-deleted'
+                | 'target-weight-updated'
+                | 'rebuilt';
+            },
+        ): void => {
+            this.portfolioChangedSubject.next(
+                event,
+            );
+        },
+    );
+
     response: PagedResponse<PortfolioResponse> =
         createPagedResponse();
 

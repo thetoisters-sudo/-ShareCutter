@@ -1,0 +1,540 @@
+<section class="allocation-purchase-page">
+    <header class="allocation-purchase-header">
+        <div>
+            <span class="allocation-purchase-header__eyebrow">
+                {{ text().allocationPurchase.eyebrow }}
+            </span>
+
+            <h1>{{ text().allocationPurchase.title }}</h1>
+
+            <p>
+                {{ text().allocationPurchase.description }}
+            </p>
+        </div>
+
+        <button type="button" class="secondary-button" [disabled]="
+                isPreviewing ||
+                isExecuting
+            " (click)="clearResult()">
+            Reset
+        </button>
+    </header>
+
+    @if (successMessage) {
+    <section class="message-banner" role="status">
+        <span>
+            {{ successMessage }}
+        </span>
+
+        <button type="button" [attr.aria-label]="text().allocationPurchase.dismissSuccessMessage"
+            (click)="dismissSuccessMessage()">
+            ×
+        </button>
+    </section>
+    }
+
+    @if (isLoadingPortfolios) {
+    <section class="page-state" aria-live="polite">
+        <span class="page-state__spinner" aria-hidden="true"></span>
+
+        <h2>{{ text().allocationPurchase.loadingPortfoliosTitle }}</h2>
+
+        <p>
+            {{ text().allocationPurchase.loadingPortfoliosDescription }}
+        </p>
+    </section>
+    } @else if (
+    errorMessage &&
+    portfolios.length === 0
+    ) {
+    <section class="page-state page-state--error" role="alert">
+        <span class="page-state__icon" aria-hidden="true">
+            !
+        </span>
+
+        <h2>{{ text().allocationPurchase.unavailableTitle }}</h2>
+
+        <p>
+            {{ errorMessage }}
+        </p>
+
+        <button type="button" class="primary-button" (click)="retry()">
+            Try again
+        </button>
+    </section>
+    } @else if (portfolios.length === 0) {
+    <section class="page-state">
+        <span class="page-state__icon" aria-hidden="true">
+            %
+        </span>
+
+        <h2>{{ text().allocationPurchase.noEligiblePortfoliosTitle }}</h2>
+
+        <p>
+            {{ text().allocationPurchase.noEligiblePortfoliosDescription }}
+        </p>
+    </section>
+    } @else {
+    <section class="allocation-workspace">
+        <article class="allocation-form-card">
+            <header class="card-header">
+                <div>
+                    <span class="card-header__eyebrow">
+                        {{ text().allocationPurchase.purchaseSetup }}
+                    </span>
+
+                    <h2>{{ text().allocationPurchase.setTargetAllocation }}</h2>
+                </div>
+            </header>
+
+            @if (
+            errorMessage &&
+            portfolios.length > 0
+            ) {
+            <p class="form-error" role="alert">
+                {{ errorMessage }}
+            </p>
+            }
+
+            <form class="allocation-form" (ngSubmit)="requestPreview()">
+                <label>
+                    <span>{{ text().allocationPurchase.portfolio }}</span>
+
+                    <select name="selectedPortfolioId" [ngModel]="selectedPortfolioId" [disabled]="
+                                isLoadingAssets ||
+                                isPreviewing ||
+                                isExecuting
+                            " (ngModelChange)="
+                                selectPortfolio($event)
+                            ">
+                        @for (
+                        portfolio of portfolios;
+                        track portfolio.id
+                        ) {
+                        <option [value]="portfolio.id">
+                            {{ portfolio.name }}
+                        </option>
+                        }
+                    </select>
+                </label>
+
+                <label>
+                    <span>{{ text().allocationPurchase.asset }}</span>
+
+                    <select name="selectedAssetId" [ngModel]="selectedAssetId" [disabled]="
+                                isLoadingAssets ||
+                                assets.length === 0 ||
+                                isPreviewing ||
+                                isExecuting
+                            " (ngModelChange)="
+                                selectAsset($event)
+                            ">
+                        @if (isLoadingAssets) {
+                        <option value="">
+                            {{ text().allocationPurchase.loadingAssets }}
+                        </option>
+                        } @else if (
+                        assets.length === 0
+                        ) {
+                        <option value="">
+                            {{ text().allocationPurchase.noUsdAssetsAvailable }}
+                        </option>
+                        }
+
+                        @for (
+                        asset of assets;
+                        track asset.id
+                        ) {
+                        <option [value]="asset.id">
+                            {{ asset.symbol }}
+                            ·
+                            {{ asset.displayName }}
+                        </option>
+                        }
+                    </select>
+                </label>
+
+                <div class="allocation-form__grid">
+                    <label>
+                        <span>{{ text().allocationPurchase.targetWeight }}</span>
+
+                        <input type="number" name="targetWeightPercent" min="0.000001" max="100" step="0.000001"
+                            placeholder="12.5" [(ngModel)]="
+                                    targetWeightPercent
+                                " [disabled]="
+                                    isPreviewing ||
+                                    isExecuting
+                                " />
+                    </label>
+
+                    <label>
+                        <span>{{ text().allocationPurchase.purchaseFee }}</span>
+
+                        <input type="number" name="fee" min="0" step="0.00000001" placeholder="0" [(ngModel)]="fee"
+                            [disabled]="
+                                    isPreviewing ||
+                                    isExecuting
+                                " />
+                    </label>
+                </div>
+
+                @if (selectedPortfolio) {
+                <section class="selection-summary">
+                    <div>
+                        <span>{{ text().allocationPurchase.portfolioValue }}</span>
+
+                        <strong>
+                            {{
+                            selectedPortfolio.currentValue
+                            | currency:'USD'
+                            }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>{{ text().allocationPurchase.creationMethod }}</span>
+
+                        <strong>
+                            {{
+                            text()
+                            .allocationPurchase
+                            .creationMethodByAmount
+                            }}
+                        </strong>
+                    </div>
+                </section>
+                }
+
+                @if (selectedAsset) {
+                <section class="asset-summary">
+                    <div>
+                        <span class="asset-summary__symbol">
+                            {{ selectedAsset.symbol }}
+                        </span>
+
+                        <div>
+                            <strong>
+                                {{
+                                selectedAsset.displayName
+                                }}
+                            </strong>
+
+                            <small>
+                                {{
+                                selectedAsset.exchange ||
+                                text().allocationPurchase.exchangeNotSpecified
+                                }}
+                                ·
+                                {{ selectedAsset.currency }}
+                            </small>
+                        </div>
+                    </div>
+                </section>
+                }
+
+                <button type="submit" class="primary-button" [disabled]="!canPreview">
+                    {{
+                    isPreviewing
+                    ? text().allocationPurchase.calculating
+                    : text().allocationPurchase.calculatePreview
+                    }}
+                </button>
+            </form>
+        </article>
+
+        <article class="allocation-result-card">
+            @if (isPreviewing) {
+            <section class="result-state" aria-live="polite">
+                <span class="page-state__spinner" aria-hidden="true"></span>
+
+                <h2>{{ text().allocationPurchase.calculatingAllocationTitle }}</h2>
+
+                <p>
+                    {{ text().allocationPurchase.calculatingAllocationDescription }}
+                </p>
+            </section>
+            } @else if (preview) {
+            <header class="card-header">
+                <div>
+                    <span class="card-header__eyebrow">
+                        {{ text().allocationPurchase.purchasePreview }}
+                    </span>
+
+                    <h2>
+                        {{ preview.symbol }}
+                        {{ text().allocationPurchase.allocation }}
+                    </h2>
+                </div>
+
+                <span class="action-badge" [class.action-badge--buy]="
+                                preview.suggestedAction ===
+                                'BUY'
+                            " [class.action-badge--warning]="
+                                preview.suggestedAction !==
+                                'BUY'
+                            ">
+                    @switch (preview.suggestedAction) {
+                    @case ('BUY') {
+                    {{ text().allocationPurchase.actionBuy }}
+                    }
+                    @case ('SELL_REQUIRED') {
+                    {{ text().allocationPurchase.actionSellRequired }}
+                    }
+                    @default {
+                    {{ text().allocationPurchase.actionNone }}
+                    }
+                    }
+                </span>
+            </header>
+
+            <dl class="preview-details">
+                <div>
+                    <dt>{{ text().allocationPurchase.currentMarketPrice }}</dt>
+
+                    <dd>
+                        {{
+                        preview.currentPrice
+                        | currency:preview.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.targetWeightLabel }}</dt>
+
+                    <dd>
+                        {{
+                        preview.targetWeightPercent
+                        | number:'1.0-6'
+                        }}%
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.targetMarketValue }}</dt>
+
+                    <dd>
+                        {{
+                        preview.targetMarketValue
+                        | currency:preview.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.existingQuantity }}</dt>
+
+                    <dd>
+                        {{
+                        preview.existingQuantity
+                        | number:'1.0-8'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.targetQuantity }}</dt>
+
+                    <dd>
+                        {{
+                        preview.targetQuantity
+                        | number:'1.0-8'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.quantityToBuy }}</dt>
+
+                    <dd>
+                        {{
+                        preview.quantityToBuy
+                        | number:'1.0-8'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.estimatedPurchase }}</dt>
+
+                    <dd>
+                        {{
+                        preview.estimatedPurchaseAmount
+                        | currency:preview.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.remainingAssignableWeight }}</dt>
+
+                    <dd>
+                        {{
+                        preview.remainingAssignableWeightPercent
+                        | number:'1.0-6'
+                        }}%
+                    </dd>
+                </div>
+            </dl>
+
+            <p class="calculated-at">
+                {{ text().allocationPurchase.calculated }}
+                {{
+                preview.calculatedAt
+                | date:'medium'
+                }}
+            </p>
+
+            @if (
+            preview.suggestedAction ===
+            'BUY'
+            ) {
+            <footer class="result-actions">
+                <button type="button" class="secondary-button" [disabled]="isExecuting" (click)="requestPreview()">
+                    Recalculate
+                </button>
+
+                <button type="button" class="primary-button" [disabled]="!canExecute" (click)="executePurchase()">
+                    {{
+                    isExecuting
+                    ? text().allocationPurchase.executing
+                    : text().allocationPurchase.executePurchase
+                    }}
+                </button>
+            </footer>
+            } @else {
+            <p class="action-message">
+                @if (
+                preview.suggestedAction ===
+                'SELL_REQUIRED'
+                ) {
+                {{ text().allocationPurchase.sellRequiredMessage }}
+                } @else {
+                {{ text().allocationPurchase.alreadyAtTargetMessage }}
+                }
+            </p>
+            }
+            } @else if (execution) {
+            <header class="card-header">
+                <div>
+                    <span class="card-header__eyebrow">
+                        {{ text().allocationPurchase.purchaseCompleted }}
+                    </span>
+
+                    <h2>
+                        {{ execution.symbol }}
+                        {{ text().allocationPurchase.purchased }}
+                    </h2>
+                </div>
+
+                <span class="action-badge action-badge--buy">
+                    Complete
+                </span>
+            </header>
+
+            <dl class="preview-details">
+                <div>
+                    <dt>{{ text().allocationPurchase.purchasedQuantity }}</dt>
+
+                    <dd>
+                        {{
+                        execution.purchasedQuantity
+                        | number:'1.0-8'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.unitPrice }}</dt>
+
+                    <dd>
+                        {{
+                        execution.unitPrice
+                        | currency:execution.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.purchaseAmount }}</dt>
+
+                    <dd>
+                        {{
+                        execution.purchaseAmount
+                        | currency:execution.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.fee }}</dt>
+
+                    <dd>
+                        {{
+                        execution.fee
+                        | currency:execution.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.totalCashUsed }}</dt>
+
+                    <dd>
+                        {{
+                        execution.totalCashUsed
+                        | currency:execution.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>{{ text().allocationPurchase.availableCashAfter }}</dt>
+
+                    <dd>
+                        {{
+                        execution.availableCashAfter
+                        | currency:execution.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div class="preview-details__wide">
+                    <dt>{{ text().allocationPurchase.transactionId }}</dt>
+
+                    <dd>
+                        {{ execution.transactionId }}
+                    </dd>
+                </div>
+            </dl>
+
+            <p class="calculated-at">
+                {{ text().allocationPurchase.executed }}
+                {{
+                execution.executedAt
+                | date:'medium'
+                }}
+            </p>
+
+            <footer class="result-actions">
+                <button type="button" class="primary-button" (click)="clearResult()">
+                    Start another allocation
+                </button>
+            </footer>
+            } @else {
+            <section class="result-state">
+                <span class="page-state__icon" aria-hidden="true">
+                    %
+                </span>
+
+                <h2>{{ text().allocationPurchase.noPreviewTitle }}</h2>
+
+                <p>
+                    {{ text().allocationPurchase.noPreviewDescription }}
+                </p>
+            </section>
+            }
+        </article>
+    </section>
+    }
+</section>
