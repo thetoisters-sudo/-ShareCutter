@@ -28,63 +28,41 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class PortfolioAllocationPurchaseService {
 
-    private static final BigDecimal ZERO =
-            BigDecimal.ZERO;
-
-    private static final BigDecimal ONE_HUNDRED =
-            BigDecimal.valueOf(100);
+    private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
 
     private static final int QUANTITY_SCALE = 8;
-
     private static final int MONEY_SCALE = 8;
-
     private static final int WEIGHT_SCALE = 6;
 
     private final PortfolioService portfolioService;
-
     private final AssetService assetService;
-
-    private final PortfolioHoldingRepository
-            portfolioHoldingRepository;
-
+    private final PortfolioHoldingRepository portfolioHoldingRepository;
     private final MarketDataService marketDataService;
-
     private final TransactionService transactionService;
 
     public PortfolioAllocationPurchaseService(
             PortfolioService portfolioService,
             AssetService assetService,
-            PortfolioHoldingRepository
-                    portfolioHoldingRepository,
+            PortfolioHoldingRepository portfolioHoldingRepository,
             MarketDataService marketDataService,
             TransactionService transactionService
     ) {
-        this.portfolioService =
-                portfolioService;
-
-        this.assetService =
-                assetService;
-
-        this.portfolioHoldingRepository =
-                portfolioHoldingRepository;
-
-        this.marketDataService =
-                marketDataService;
-
-        this.transactionService =
-                transactionService;
+        this.portfolioService = portfolioService;
+        this.assetService = assetService;
+        this.portfolioHoldingRepository = portfolioHoldingRepository;
+        this.marketDataService = marketDataService;
+        this.transactionService = transactionService;
     }
 
-    public AllocationPurchasePreviewResponse
-    previewPurchase(
+    public AllocationPurchasePreviewResponse previewPurchase(
             UUID userId,
             UUID portfolioId,
             AllocationPurchasePreviewRequest request
     ) {
         if (request == null) {
             throw new IllegalArgumentException(
-                    "Allocation purchase preview request "
-                            + "must not be null"
+                    "Allocation preview request must not be null"
             );
         }
 
@@ -97,16 +75,14 @@ public class PortfolioAllocationPurchaseService {
     }
 
     @Transactional
-    public AllocationPurchaseExecutionResponse
-    executePurchase(
+    public AllocationPurchaseExecutionResponse executePurchase(
             UUID userId,
             UUID portfolioId,
             AllocationPurchaseExecuteRequest request
     ) {
         if (request == null) {
             throw new IllegalArgumentException(
-                    "Allocation purchase execution request "
-                            + "must not be null"
+                    "Allocation execution request must not be null"
             );
         }
 
@@ -118,9 +94,7 @@ public class PortfolioAllocationPurchaseService {
                         request.targetWeightPercent()
                 );
 
-        validateExecutablePreview(
-                preview
-        );
+        validateExecutablePreview(preview);
 
         PortfolioEntity portfolio =
                 portfolioService.getPortfolio(
@@ -136,30 +110,50 @@ public class PortfolioAllocationPurchaseService {
                 );
 
         BigDecimal normalizedFee =
-                normalizeFee(
-                        request.fee()
-                );
+                normalizeFee(request.fee());
 
         BigDecimal availableCashBefore =
-                calculateAvailableCash(
-                        portfolio
+                calculateAvailableCash(portfolio);
+
+        TransactionType transactionType =
+                resolveTransactionType(
+                        preview.suggestedAction()
                 );
 
-        BigDecimal totalCashRequired =
-                preview
-                        .estimatedPurchaseAmount()
-                        .add(
-                                normalizedFee
-                        )
+        BigDecimal tradedQuantity =
+                resolveTradedQuantity(preview);
+
+        BigDecimal tradeAmount =
+                preview.estimatedTradeAmount()
                         .setScale(
                                 MONEY_SCALE,
                                 RoundingMode.HALF_UP
                         );
 
-        validateAvailableCash(
-                availableCashBefore,
-                totalCashRequired
-        );
+        BigDecimal cashImpact =
+                calculateCashImpact(
+                        transactionType,
+                        tradeAmount,
+                        normalizedFee
+                );
+
+        BigDecimal availableCashAfter =
+                availableCashBefore
+                        .add(cashImpact)
+                        .setScale(
+                                MONEY_SCALE,
+                                RoundingMode.HALF_UP
+                        );
+
+        if (availableCashAfter.compareTo(ZERO) < 0) {
+            throw new InvalidTransactionException(
+                    "Insufficient portfolio cash. "
+                            + "Available cash: "
+                            + availableCashBefore
+                            + ", trade cash impact: "
+                            + cashImpact
+            );
+        }
 
         OffsetDateTime executionTime =
                 OffsetDateTime.now(
@@ -171,16 +165,14 @@ public class PortfolioAllocationPurchaseService {
                         userId,
                         portfolioId,
                         asset.getId(),
-                        TransactionType.BUY,
-                        preview.quantityToBuy(),
+                        transactionType,
+                        tradedQuantity,
                         preview.currentPrice(),
                         normalizedFee,
-                        preview.estimatedPurchaseAmount(),
+                        tradeAmount,
                         asset.getCurrency(),
                         executionTime,
-                        createTransactionNotes(
-                                preview
-                        )
+                        createTransactionNotes(preview)
                 );
 
         PortfolioHoldingEntity holding =
@@ -193,8 +185,8 @@ public class PortfolioAllocationPurchaseService {
                                 () ->
                                         new InvalidTransactionException(
                                                 "Portfolio holding was not "
-                                                        + "created after the "
-                                                        + "purchase transaction"
+                                                        + "available after the "
+                                                        + "allocation trade"
                                         )
                         );
 
@@ -202,19 +194,7 @@ public class PortfolioAllocationPurchaseService {
                 preview.targetWeightPercent()
         );
 
-        portfolioHoldingRepository.save(
-                holding
-        );
-
-        BigDecimal availableCashAfter =
-                availableCashBefore
-                        .subtract(
-                                totalCashRequired
-                        )
-                        .setScale(
-                                MONEY_SCALE,
-                                RoundingMode.HALF_UP
-                        );
+        portfolioHoldingRepository.save(holding);
 
         return new AllocationPurchaseExecutionResponse(
                 portfolio.getId(),
@@ -223,22 +203,23 @@ public class PortfolioAllocationPurchaseService {
                 asset.getSymbol(),
                 asset.getDisplayName(),
                 transaction.getId(),
+                preview.suggestedAction(),
                 preview.targetWeightPercent(),
                 preview.currentPrice(),
-                preview.quantityToBuy(),
-                preview.estimatedPurchaseAmount(),
+                tradedQuantity,
+                tradeAmount,
                 normalizedFee,
-                totalCashRequired,
+                cashImpact,
                 availableCashBefore,
                 availableCashAfter,
-                preview.remainingAssignableWeightPercent(),
+                preview.totalTargetWeightPercent(),
+                preview.allocationDifferencePercent(),
                 asset.getCurrency(),
                 executionTime
         );
     }
 
-    private AllocationPurchasePreviewResponse
-    calculatePreview(
+    private AllocationPurchasePreviewResponse calculatePreview(
             UUID userId,
             UUID portfolioId,
             UUID assetId,
@@ -250,9 +231,7 @@ public class PortfolioAllocationPurchaseService {
                         portfolioId
                 );
 
-        validatePortfolioCreationMethod(
-                portfolio
-        );
+        validatePortfolioCreationMethod(portfolio);
 
         AssetEntity asset =
                 assetService.getAsset(
@@ -278,11 +257,6 @@ public class PortfolioAllocationPurchaseService {
                         asset.getId()
                 );
 
-        validateTotalTargetWeight(
-                weightAssignedToOtherAssets,
-                normalizedTargetWeight
-        );
-
         PortfolioHoldingEntity existingHolding =
                 findExistingHolding(
                         holdings,
@@ -293,8 +267,7 @@ public class PortfolioAllocationPurchaseService {
                 existingHolding == null
                         ? ZERO
                         : zeroIfNull(
-                                existingHolding
-                                        .getQuantity()
+                                existingHolding.getQuantity()
                         );
 
         MarketPriceResponse marketPrice =
@@ -308,13 +281,21 @@ public class PortfolioAllocationPurchaseService {
                         marketPrice.price()
                 );
 
-        BigDecimal initialValue =
+        BigDecimal portfolioCurrentValue =
                 requirePositivePortfolioValue(
-                        portfolio.getInitialValue()
+                        portfolio.getCurrentValue()
                 );
 
+        BigDecimal currentMarketValue =
+                existingQuantity
+                        .multiply(currentPrice)
+                        .setScale(
+                                MONEY_SCALE,
+                                RoundingMode.HALF_UP
+                        );
+
         BigDecimal targetMarketValue =
-                initialValue
+                portfolioCurrentValue
                         .multiply(
                                 normalizedTargetWeight
                         )
@@ -332,13 +313,26 @@ public class PortfolioAllocationPurchaseService {
                 );
 
         BigDecimal quantityDifference =
-                targetQuantity.subtract(
-                        existingQuantity
-                );
+                targetQuantity
+                        .subtract(existingQuantity)
+                        .setScale(
+                                QUANTITY_SCALE,
+                                RoundingMode.DOWN
+                        );
 
         BigDecimal quantityToBuy =
                 quantityDifference.signum() > 0
-                        ? quantityDifference.setScale(
+                        ? quantityDifference
+                        : ZERO.setScale(
+                                QUANTITY_SCALE,
+                                RoundingMode.DOWN
+                        );
+
+        BigDecimal quantityToSell =
+                quantityDifference.signum() < 0
+                        ? quantityDifference
+                        .abs()
+                        .setScale(
                                 QUANTITY_SCALE,
                                 RoundingMode.DOWN
                         )
@@ -347,26 +341,26 @@ public class PortfolioAllocationPurchaseService {
                                 RoundingMode.DOWN
                         );
 
-        BigDecimal estimatedPurchaseAmount =
-                quantityToBuy
-                        .multiply(
-                                currentPrice
-                        )
+        BigDecimal estimatedTradeAmount =
+                quantityDifference
+                        .abs()
+                        .multiply(currentPrice)
                         .setScale(
                                 MONEY_SCALE,
                                 RoundingMode.HALF_UP
                         );
 
-        BigDecimal totalAssignedWeight =
-                weightAssignedToOtherAssets.add(
-                        normalizedTargetWeight
-                );
+        BigDecimal totalTargetWeight =
+                weightAssignedToOtherAssets
+                        .add(normalizedTargetWeight)
+                        .setScale(
+                                WEIGHT_SCALE,
+                                RoundingMode.HALF_UP
+                        );
 
-        BigDecimal remainingAssignableWeight =
+        BigDecimal allocationDifference =
                 ONE_HUNDRED
-                        .subtract(
-                                totalAssignedWeight
-                        )
+                        .subtract(totalTargetWeight)
                         .setScale(
                                 WEIGHT_SCALE,
                                 RoundingMode.HALF_UP
@@ -385,7 +379,7 @@ public class PortfolioAllocationPurchaseService {
                 asset.getDisplayName(),
                 asset.getExchange(),
                 asset.getCurrency(),
-                initialValue.setScale(
+                portfolioCurrentValue.setScale(
                         MONEY_SCALE,
                         RoundingMode.HALF_UP
                 ),
@@ -395,15 +389,19 @@ public class PortfolioAllocationPurchaseService {
                 ),
                 normalizedTargetWeight,
                 weightAssignedToOtherAssets,
-                remainingAssignableWeight,
+                totalTargetWeight,
+                allocationDifference,
+                currentMarketValue,
                 targetMarketValue,
                 existingQuantity.setScale(
                         QUANTITY_SCALE,
                         RoundingMode.HALF_UP
                 ),
                 targetQuantity,
+                quantityDifference,
                 quantityToBuy,
-                estimatedPurchaseAmount,
+                quantityToSell,
+                estimatedTradeAmount,
                 suggestedAction,
                 OffsetDateTime.now(
                         ZoneOffset.UTC
@@ -434,8 +432,7 @@ public class PortfolioAllocationPurchaseService {
 
         if (availableCash.signum() < 0) {
             throw new InvalidTransactionException(
-                    "Portfolio available cash "
-                            + "must not be negative"
+                    "Portfolio available cash must not be negative"
             );
         }
 
@@ -448,59 +445,107 @@ public class PortfolioAllocationPurchaseService {
     private void validateExecutablePreview(
             AllocationPurchasePreviewResponse preview
     ) {
-        if (
-                !"BUY".equals(
-                        preview.suggestedAction()
-                )
-        ) {
+        if ("HOLD".equals(preview.suggestedAction())) {
             throw new InvalidTransactionException(
-                    "The selected target weight does not "
-                            + "require an additional purchase. "
-                            + "Suggested action: "
-                            + preview.suggestedAction()
+                    "The selected asset is already at "
+                            + "its requested target allocation"
+            );
+        }
+
+        BigDecimal tradedQuantity =
+                resolveTradedQuantity(preview);
+
+        if (tradedQuantity.compareTo(ZERO) <= 0) {
+            throw new InvalidTransactionException(
+                    "Trade quantity must be greater than zero"
             );
         }
 
         if (
-                preview.quantityToBuy()
-                        .compareTo(
-                                ZERO
-                        ) <= 0
+                preview.estimatedTradeAmount()
+                        .compareTo(ZERO) <= 0
         ) {
             throw new InvalidTransactionException(
-                    "Purchase quantity must be greater than zero"
+                    "Trade amount must be greater than zero"
             );
         }
 
         if (
-                preview.estimatedPurchaseAmount()
+                "SELL".equals(preview.suggestedAction())
+                        && preview.quantityToSell()
                         .compareTo(
-                                ZERO
-                        ) <= 0
+                                preview.existingQuantity()
+                        ) > 0
         ) {
             throw new InvalidTransactionException(
-                    "Purchase amount must be greater than zero"
+                    "Sell quantity exceeds "
+                            + "the available asset quantity"
             );
         }
     }
 
-    private void validateAvailableCash(
-            BigDecimal availableCash,
-            BigDecimal requiredCash
+    private TransactionType resolveTransactionType(
+            String suggestedAction
     ) {
-        if (
-                requiredCash.compareTo(
-                        availableCash
-                ) > 0
-        ) {
-            throw new InvalidTransactionException(
-                    "Insufficient portfolio cash. "
-                            + "Available cash: "
-                            + availableCash
-                            + ", required cash: "
-                            + requiredCash
-            );
+        if ("BUY".equals(suggestedAction)) {
+            return TransactionType.BUY;
         }
+
+        if ("SELL".equals(suggestedAction)) {
+            return TransactionType.SELL;
+        }
+
+        throw new InvalidTransactionException(
+                "Unsupported allocation action: "
+                        + suggestedAction
+        );
+    }
+
+    private BigDecimal resolveTradedQuantity(
+            AllocationPurchasePreviewResponse preview
+    ) {
+        if ("BUY".equals(preview.suggestedAction())) {
+            return preview.quantityToBuy();
+        }
+
+        if ("SELL".equals(preview.suggestedAction())) {
+            return preview.quantityToSell();
+        }
+
+        return ZERO.setScale(
+                QUANTITY_SCALE,
+                RoundingMode.DOWN
+        );
+    }
+
+    private BigDecimal calculateCashImpact(
+            TransactionType transactionType,
+            BigDecimal tradeAmount,
+            BigDecimal fee
+    ) {
+        if (transactionType == TransactionType.BUY) {
+            return tradeAmount
+                    .add(fee)
+                    .negate()
+                    .setScale(
+                            MONEY_SCALE,
+                            RoundingMode.HALF_UP
+                    );
+        }
+
+        if (transactionType == TransactionType.SELL) {
+            return tradeAmount
+                    .subtract(fee)
+                    .setScale(
+                            MONEY_SCALE,
+                            RoundingMode.HALF_UP
+                    );
+        }
+
+        throw new InvalidTransactionException(
+                "Unsupported allocation transaction type: "
+                        + transactionType
+        );
     }
 
     private BigDecimal normalizeFee(
@@ -515,7 +560,7 @@ public class PortfolioAllocationPurchaseService {
 
         if (fee.signum() < 0) {
             throw new InvalidTransactionException(
-                    "Purchase fee must not be negative"
+                    "Trade fee must not be negative"
             );
         }
 
@@ -529,7 +574,9 @@ public class PortfolioAllocationPurchaseService {
             AllocationPurchasePreviewResponse preview
     ) {
         return (
-                "Automatic allocation purchase for "
+                "Automatic allocation "
+                        + preview.suggestedAction()
+                        + " for "
                         + preview.targetWeightPercent()
                         + "% target portfolio weight"
         );
@@ -543,7 +590,7 @@ public class PortfolioAllocationPurchaseService {
                         != PortfolioCreationMethod.BY_AMOUNT
         ) {
             throw new InvalidTransactionException(
-                    "Percentage-based allocation purchases "
+                    "Percentage-based allocation trades "
                             + "are available only for portfolios "
                             + "created by amount"
             );
@@ -594,47 +641,11 @@ public class PortfolioAllocationPurchaseService {
                         holding ->
                                 holding.getAsset() != null
                                         && assetId.equals(
-                                        holding.getAsset()
-                                                .getId()
+                                        holding.getAsset().getId()
                                 )
                 )
                 .findFirst()
                 .orElse(null);
-    }
-
-    private void validateTotalTargetWeight(
-            BigDecimal weightAssignedToOtherAssets,
-            BigDecimal requestedTargetWeight
-    ) {
-        BigDecimal totalTargetWeight =
-                weightAssignedToOtherAssets.add(
-                        requestedTargetWeight
-                );
-
-        if (
-                totalTargetWeight.compareTo(
-                        ONE_HUNDRED
-                ) > 0
-        ) {
-            BigDecimal remainingWeight =
-                    ONE_HUNDRED
-                            .subtract(
-                                    weightAssignedToOtherAssets
-                            )
-                            .max(ZERO)
-                            .setScale(
-                                    WEIGHT_SCALE,
-                                    RoundingMode.HALF_UP
-                            );
-
-            throw new InvalidTransactionException(
-                    "Requested target weight exceeds "
-                            + "the remaining portfolio allocation. "
-                            + "Remaining weight: "
-                            + remainingWeight
-                            + "%"
-            );
-        }
     }
 
     private BigDecimal normalizeTargetWeight(
@@ -642,13 +653,10 @@ public class PortfolioAllocationPurchaseService {
     ) {
         if (
                 targetWeight == null
-                        || targetWeight.compareTo(
-                        ZERO
-                ) <= 0
+                        || targetWeight.compareTo(ZERO) < 0
         ) {
             throw new InvalidTransactionException(
-                    "Target weight percent "
-                            + "must be greater than zero"
+                    "Target weight percent must not be negative"
             );
         }
 
@@ -658,8 +666,7 @@ public class PortfolioAllocationPurchaseService {
                 ) > 0
         ) {
             throw new InvalidTransactionException(
-                    "Target weight percent "
-                            + "must not exceed 100"
+                    "Target weight percent must not exceed 100"
             );
         }
 
@@ -674,14 +681,12 @@ public class PortfolioAllocationPurchaseService {
     ) {
         if (
                 price == null
-                        || price.compareTo(
-                        ZERO
-                ) <= 0
+                        || price.compareTo(ZERO) <= 0
         ) {
             throw new InvalidTransactionException(
                     "A positive current market price "
                             + "is required to calculate "
-                            + "the purchase quantity"
+                            + "the allocation trade"
             );
         }
 
@@ -693,12 +698,10 @@ public class PortfolioAllocationPurchaseService {
     ) {
         if (
                 value == null
-                        || value.compareTo(
-                        ZERO
-                ) <= 0
+                        || value.compareTo(ZERO) <= 0
         ) {
             throw new InvalidTransactionException(
-                    "Portfolio initial value "
+                    "Portfolio current value "
                             + "must be greater than zero"
             );
         }
@@ -714,7 +717,7 @@ public class PortfolioAllocationPurchaseService {
         }
 
         if (quantityDifference.signum() < 0) {
-            return "SELL_REQUIRED";
+            return "SELL";
         }
 
         return "HOLD";

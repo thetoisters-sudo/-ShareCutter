@@ -706,7 +706,11 @@ public class TransactionService {
                             asset
                     );
 
-            case FEE, DEPOSIT, WITHDRAWAL ->
+            case FEE,
+                 DEPOSIT,
+                 WITHDRAWAL,
+                 TRANSFER_IN,
+                 TRANSFER_OUT ->
                     validateCashTransaction(
                             transactionType,
                             asset

@@ -287,9 +287,33 @@ export class TransactionsPage implements OnInit {
         };
 
         this.resetMarketPriceState();
-        this.isManualPrice = true;
-        this.calculationMode =
-            'BY_QUANTITY';
+
+        if (
+            transaction.transactionType ===
+            'DIVIDEND'
+        ) {
+            this.calculationMode =
+                transaction.quantity !== null &&
+                    transaction.unitPrice !== null
+                    ? 'BY_QUANTITY'
+                    : 'BY_AMOUNT';
+        } else if (
+            this.transactionUsesTradePricing(
+                transaction.transactionType,
+            )
+        ) {
+            this.calculationMode =
+                'BY_QUANTITY';
+        } else {
+            this.calculationMode =
+                'BY_AMOUNT';
+        }
+
+        this.isManualPrice =
+            this.transactionUsesTradePricing(
+                transaction.transactionType,
+            );
+
         this.dialogMode = 'edit';
     }
 
@@ -458,34 +482,52 @@ export class TransactionsPage implements OnInit {
         this.actionErrorMessage = '';
         this.resetMarketPriceState();
 
+        const type =
+            this.formValue.transactionType;
+
         if (
             !this.transactionRequiresAsset(
-                this.formValue.transactionType,
+                type,
             )
         ) {
             this.formValue.assetId = '';
         }
 
-        if (
-            !this.transactionUsesQuantity(
-                this.formValue.transactionType,
-            )
-        ) {
-            this.formValue.quantity = null;
-            this.formValue.unitPrice = null;
-            this.formValue.totalAmount = null;
-            this.isManualPrice = false;
-            this.calculationMode =
-                'BY_QUANTITY';
-            this.changeDetectorRef.markForCheck();
-            return;
-        }
-
         this.formValue.quantity = null;
         this.formValue.unitPrice = null;
         this.formValue.totalAmount = null;
+
+        if (type === 'DIVIDEND') {
+            this.isManualPrice = false;
+            this.calculationMode =
+                'BY_AMOUNT';
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        if (
+            !this.transactionUsesTradePricing(
+                type,
+            )
+        ) {
+            this.isManualPrice = false;
+            this.calculationMode =
+                'BY_AMOUNT';
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
         this.isManualPrice =
             this.dialogMode === 'edit';
+
+        this.calculationMode =
+            'BY_QUANTITY';
 
         if (
             this.formValue.assetId &&
@@ -494,7 +536,8 @@ export class TransactionsPage implements OnInit {
             this.refreshMarketPrice();
         }
 
-        this.changeDetectorRef.markForCheck();
+        this.changeDetectorRef
+            .markForCheck();
     }
 
     protected onTransactionAssetChange(
@@ -525,7 +568,19 @@ export class TransactionsPage implements OnInit {
 
         if (
             asset &&
-            this.transactionUsesQuantity(
+            this.formValue.transactionType ===
+            'DIVIDEND' &&
+            this.calculationMode ===
+            'BY_QUANTITY'
+        ) {
+            this.loadDividendEligibleShares(
+                asset.id,
+            );
+        }
+
+        if (
+            asset &&
+            this.transactionUsesTradePricing(
                 this.formValue.transactionType,
             ) &&
             !this.isManualPrice
@@ -549,6 +604,33 @@ export class TransactionsPage implements OnInit {
 
         this.calculationMode = mode;
         this.actionErrorMessage = '';
+
+        if (
+            this.formValue.transactionType ===
+            'DIVIDEND'
+        ) {
+            if (mode === 'BY_AMOUNT') {
+                this.formValue.quantity = null;
+                this.formValue.unitPrice = null;
+            } else {
+                this.formValue.quantity = null;
+                this.formValue.unitPrice = null;
+                this.formValue.totalAmount = null;
+
+                if (
+                    this.formValue.assetId
+                ) {
+                    this.loadDividendEligibleShares(
+                        this.formValue.assetId,
+                    );
+                }
+            }
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
 
         if (
             mode === 'BY_AMOUNT'
@@ -575,9 +657,23 @@ export class TransactionsPage implements OnInit {
         }
     }
 
+    protected onDividendPerShareChange(): void {
+        if (
+            this.formValue.transactionType ===
+            'DIVIDEND' &&
+            this.calculationMode ===
+            'BY_QUANTITY'
+        ) {
+            this.recalculateTotalAmount();
+        }
+    }
+
     protected onTransactionTotalAmountChange():
         void {
         if (
+            this.transactionUsesTradePricing(
+                this.formValue.transactionType,
+            ) &&
             this.calculationMode ===
             'BY_AMOUNT'
         ) {
@@ -587,6 +683,9 @@ export class TransactionsPage implements OnInit {
 
     protected onTransactionFeeChange(): void {
         if (
+            this.transactionUsesTradePricing(
+                this.formValue.transactionType,
+            ) &&
             this.calculationMode ===
             'BY_QUANTITY'
         ) {
@@ -620,7 +719,7 @@ export class TransactionsPage implements OnInit {
 
     protected refreshMarketPrice(): void {
         if (
-            !this.transactionUsesQuantity(
+            !this.transactionUsesTradePricing(
                 this.formValue.transactionType,
             )
         ) {
@@ -656,12 +755,51 @@ export class TransactionsPage implements OnInit {
         );
     }
 
-    protected transactionUsesQuantity(
+    protected transactionSupportsCalculationMode(
+        type: TransactionType,
+    ): boolean {
+        return (
+            type === 'BUY' ||
+            type === 'SELL' ||
+            type === 'DIVIDEND'
+        );
+    }
+
+    protected transactionUsesTradePricing(
         type: TransactionType,
     ): boolean {
         return (
             type === 'BUY' ||
             type === 'SELL'
+        );
+    }
+
+    protected transactionUsesQuantity(
+        type: TransactionType,
+    ): boolean {
+        return (
+            this.transactionUsesTradePricing(
+                type,
+            ) ||
+            (
+                type === 'DIVIDEND' &&
+                this.calculationMode ===
+                'BY_QUANTITY'
+            )
+        );
+    }
+
+    protected totalAmountIsCalculated(): boolean {
+        return (
+            this.calculationMode ===
+            'BY_QUANTITY' &&
+            (
+                this.transactionUsesTradePricing(
+                    this.formValue.transactionType,
+                ) ||
+                this.formValue.transactionType ===
+                'DIVIDEND'
+            )
         );
     }
 
@@ -730,6 +868,12 @@ export class TransactionsPage implements OnInit {
 
             case 'FEE':
                 return translations.typeFee;
+
+            case 'TRANSFER_IN':
+                return translations.typeTransferIn;
+
+            case 'TRANSFER_OUT':
+                return translations.typeTransferOut;
         }
     }
 
@@ -754,6 +898,75 @@ export class TransactionsPage implements OnInit {
             `${asset.symbol} · ` +
             asset.displayName
         );
+    }
+
+    private loadDividendEligibleShares(
+        assetId: string,
+    ): void {
+        if (
+            !this.selectedPortfolioId ||
+            !assetId
+        ) {
+            this.formValue.quantity = null;
+            return;
+        }
+
+        this.portfolioService
+            .getPortfolioAllocation(
+                this.selectedPortfolioId,
+            )
+            .subscribe({
+                next: (allocation) => {
+                    if (
+                        this.formValue.transactionType !==
+                        'DIVIDEND' ||
+                        this.calculationMode !==
+                        'BY_QUANTITY' ||
+                        this.formValue.assetId !==
+                        assetId
+                    ) {
+                        return;
+                    }
+
+                    const holding =
+                        allocation.assets.find(
+                            (item) =>
+                                item.assetId ===
+                                assetId,
+                        );
+
+                    this.formValue.quantity =
+                        holding &&
+                            holding.quantity > 0
+                            ? this.roundToEightDecimals(
+                                holding.quantity,
+                            )
+                            : null;
+
+                    this.recalculateTotalAmount();
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+
+                error: () => {
+                    if (
+                        this.formValue.transactionType !==
+                        'DIVIDEND' ||
+                        this.calculationMode !==
+                        'BY_QUANTITY' ||
+                        this.formValue.assetId !==
+                        assetId
+                    ) {
+                        return;
+                    }
+
+                    this.formValue.quantity = null;
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            });
     }
 
     private loadLatestMarketPrice(
@@ -814,6 +1027,28 @@ export class TransactionsPage implements OnInit {
 
     private recalculateByCurrentMode(): void {
         if (
+            this.formValue.transactionType ===
+            'DIVIDEND'
+        ) {
+            if (
+                this.calculationMode ===
+                'BY_QUANTITY'
+            ) {
+                this.recalculateTotalAmount();
+            }
+
+            return;
+        }
+
+        if (
+            !this.transactionUsesTradePricing(
+                this.formValue.transactionType,
+            )
+        ) {
+            return;
+        }
+
+        if (
             this.calculationMode ===
             'BY_AMOUNT'
         ) {
@@ -826,7 +1061,7 @@ export class TransactionsPage implements OnInit {
 
     private recalculateQuantityFromTotal(): void {
         if (
-            !this.transactionUsesQuantity(
+            !this.transactionUsesTradePricing(
                 this.formValue.transactionType,
             )
         ) {
@@ -865,14 +1100,6 @@ export class TransactionsPage implements OnInit {
     }
 
     private recalculateTotalAmount(): void {
-        if (
-            !this.transactionUsesQuantity(
-                this.formValue.transactionType,
-            )
-        ) {
-            return;
-        }
-
         const quantity =
             this.formValue.quantity;
 
@@ -890,11 +1117,34 @@ export class TransactionsPage implements OnInit {
             return;
         }
 
-        const fee =
-            this.formValue.fee ?? 0;
-
         const grossAmount =
             quantity * unitPrice;
+
+        if (
+            this.formValue.transactionType ===
+            'DIVIDEND'
+        ) {
+            this.formValue.totalAmount =
+                this.roundToEightDecimals(
+                    grossAmount,
+                );
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        if (
+            !this.transactionUsesTradePricing(
+                this.formValue.transactionType,
+            )
+        ) {
+            return;
+        }
+
+        const fee =
+            this.formValue.fee ?? 0;
 
         const totalAmount =
             this.formValue.transactionType ===

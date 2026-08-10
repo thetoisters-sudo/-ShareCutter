@@ -496,7 +496,7 @@
                 </div>
 
                 @if (
-                transactionUsesQuantity(
+                transactionSupportsCalculationMode(
                 formValue.transactionType
                 )
                 ) {
@@ -510,6 +510,17 @@
                             (ngModelChange)="
                                 setCalculationMode($event)
                             ">
+                            @if (
+                            formValue.transactionType === 'DIVIDEND'
+                            ) {
+                            <option value="BY_AMOUNT">
+                                {{ text().transactions.calculateByAmount }}
+                            </option>
+
+                            <option value="BY_QUANTITY">
+                                {{ text().transactions.calculateDividendByShares }}
+                            </option>
+                            } @else {
                             <option value="BY_QUANTITY">
                                 {{ text().transactions.calculateByQuantity }}
                             </option>
@@ -517,20 +528,36 @@
                             <option value="BY_AMOUNT">
                                 {{ text().transactions.calculateByAmount }}
                             </option>
+                            }
                         </select>
                     </label>
 
                     <div>
                         <span>
+                            @if (
+                            formValue.transactionType === 'DIVIDEND'
+                            ) {
+                            {{
+                            calculationMode === 'BY_AMOUNT'
+                            ? text().transactions.dividendAmountModeDescription
+                            : text().transactions.dividendShareModeDescription
+                            }}
+                            } @else {
                             {{
                             calculationMode === 'BY_AMOUNT'
                             ? text().transactions.amountModeDescription
                             : text().transactions.quantityModeDescription
                             }}
+                            }
                         </span>
                     </div>
                 </div>
 
+                @if (
+                transactionUsesTradePricing(
+                formValue.transactionType
+                )
+                ) {
                 <div class="transaction-form__grid">
                     <label>
                         <span>{{ text().transactions.quantity }}</span>
@@ -617,6 +644,30 @@
                     {{ marketPriceErrorMessage }}
                 </p>
                 }
+                } @else if (
+                formValue.transactionType === 'DIVIDEND' &&
+                calculationMode === 'BY_QUANTITY'
+                ) {
+                <div class="transaction-form__grid">
+                    <label>
+                        <span>{{ text().transactions.dividendShares }}</span>
+
+                        <input type="number" name="quantity" min="0.00000001" step="0.00000001"
+                            [(ngModel)]="formValue.quantity" (ngModelChange)="
+                                onTransactionQuantityChange()
+                            " />
+                    </label>
+
+                    <label>
+                        <span>{{ text().transactions.dividendPerShare }}</span>
+
+                        <input type="number" name="unitPrice" min="0" step="0.00000001"
+                            [(ngModel)]="formValue.unitPrice" (ngModelChange)="
+                                onDividendPerShareChange()
+                            " />
+                    </label>
+                </div>
+                }
                 }
 
                 <div class="transaction-form__grid">
@@ -625,10 +676,7 @@
 
                         <input type="number" name="totalAmount" min="0" step="0.00000001"
                             [(ngModel)]="formValue.totalAmount" [readonly]="
-                                transactionUsesQuantity(
-                                    formValue.transactionType
-                                ) &&
-                                calculationMode === 'BY_QUANTITY'
+                                totalAmountIsCalculated()
                             " (ngModelChange)="
                                 onTransactionTotalAmountChange()
                             " />

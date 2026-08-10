@@ -1,6 +1,6 @@
 export type AllocationPurchaseSuggestedAction =
     | 'BUY'
-    | 'SELL_REQUIRED'
+    | 'SELL'
     | 'HOLD';
 
 export interface AllocationPurchasePreviewRequest {
@@ -22,16 +22,20 @@ export interface AllocationPurchasePreviewResponse {
     displayName: string;
     exchange: string | null;
     currency: string;
-    portfolioInitialValue: number;
+    portfolioCurrentValue: number;
     currentPrice: number;
     targetWeightPercent: number;
-    currentlyAssignedWeightPercent: number;
-    remainingAssignableWeightPercent: number;
+    weightAssignedToOtherAssetsPercent: number;
+    totalTargetWeightPercent: number;
+    allocationDifferencePercent: number;
+    currentMarketValue: number;
     targetMarketValue: number;
     existingQuantity: number;
     targetQuantity: number;
+    quantityDifference: number;
     quantityToBuy: number;
-    estimatedPurchaseAmount: number;
+    quantityToSell: number;
+    estimatedTradeAmount: number;
     suggestedAction:
     AllocationPurchaseSuggestedAction;
     calculatedAt: string;
@@ -44,15 +48,18 @@ export interface AllocationPurchaseExecutionResponse {
     symbol: string;
     displayName: string;
     transactionId: string;
+    action:
+    AllocationPurchaseSuggestedAction;
     targetWeightPercent: number;
     unitPrice: number;
-    purchasedQuantity: number;
-    purchaseAmount: number;
+    tradedQuantity: number;
+    tradeAmount: number;
     fee: number;
-    totalCashUsed: number;
+    cashImpact: number;
     availableCashBefore: number;
     availableCashAfter: number;
-    remainingAssignableWeightPercent: number;
+    totalTargetWeightPercent: number;
+    allocationDifferencePercent: number;
     currency: string;
     executedAt: string;
 }

@@ -1,3 +1,7 @@
+import {
+    AssetType,
+} from '../../asset/models/asset.models';
+
 export type PortfolioCreationMethod =
     | 'BY_AMOUNT'
     | 'BY_HOLDINGS';
@@ -10,6 +14,21 @@ export interface PortfolioCreateRequest {
     name: string;
     creationMethod: PortfolioCreationMethod;
     initialValue: number;
+}
+
+export interface PortfolioHoldingCreateItemRequest {
+    symbol: string;
+    displayName: string;
+    assetType: AssetType;
+    currency: string;
+    exchange: string | null;
+    quantity: number;
+}
+
+export interface PortfolioCreateFromHoldingsRequest {
+    name: string;
+    holdings: PortfolioHoldingCreateItemRequest[];
+    initialCash: number;
 }
 
 export interface PortfolioRenameRequest {
@@ -72,6 +91,15 @@ export interface PortfolioSummaryResponse {
     totalWithdrawalAmount: number;
     netCashFlow: number;
     calculatedAt: string;
+}
+
+export interface PortfolioHistoryPointResponse {
+    currentValue: number;
+    cashBalance: number;
+    holdingsMarketValue: number;
+    totalProfit: number;
+    totalReturnPercent: number;
+    capturedAt: string;
 }
 
 export interface AssetAllocationItemResponse {

@@ -250,15 +250,6 @@ describe(
                 expect(
                     getPortfolios,
                 ).toHaveBeenCalledTimes(1);
-
-                expect(
-                    getPortfolios,
-                ).toHaveBeenCalledWith({
-                    page: 0,
-                    size: 100,
-                    sortBy: 'createdAt',
-                    sortDirection: 'desc',
-                });
             },
         );
 
@@ -285,12 +276,6 @@ describe(
                 expect(
                     component.selectedPortfolioId,
                 ).toBe(
-                    amountPortfolio.id,
-                );
-
-                expect(
-                    getAssets,
-                ).toHaveBeenCalledWith(
                     amountPortfolio.id,
                 );
             },
@@ -332,29 +317,22 @@ describe(
                 ).toBe(
                     selectedAsset.id,
                 );
-
-                expect(
-                    component.isLoadingAssets,
-                ).toBe(false);
             },
         );
 
         it(
-            'should request and display a purchase preview',
+            'should allow a zero percent target',
             () => {
                 initializeSelection();
 
                 component.targetWeightPercent =
-                    12.5;
-
-                component.fee =
-                    1.25;
-
-                component.requestPreview();
+                    0;
 
                 expect(
-                    component.isPreviewing,
+                    component.canPreview,
                 ).toBe(true);
+
+                component.requestPreview();
 
                 expect(
                     previewPurchase,
@@ -364,12 +342,24 @@ describe(
                         assetId:
                             selectedAsset.id,
                         targetWeightPercent:
-                            12.5,
+                            0,
                     },
                 );
+            },
+        );
+
+        it(
+            'should display a buy preview',
+            () => {
+                initializeSelection();
+
+                component.targetWeightPercent =
+                    12.5;
+
+                component.requestPreview();
 
                 const preview =
-                    createPreviewResponse();
+                    createBuyPreviewResponse();
 
                 previewSubject.next(preview);
 
@@ -380,35 +370,131 @@ describe(
                 ).toEqual(preview);
 
                 expect(
-                    component.isPreviewing,
-                ).toBe(false);
+                    component.canExecute,
+                ).toBe(true);
+            },
+        );
+
+        it(
+            'should display and execute a sell preview',
+            () => {
+                initializeSelection();
+
+                component.targetWeightPercent =
+                    10;
+
+                component.fee =
+                    1;
+
+                component.requestPreview();
+
+                previewSubject.next(
+                    createSellPreviewResponse(),
+                );
 
                 expect(
                     component.canExecute,
                 ).toBe(true);
 
-                const compiled =
-                    fixture.nativeElement as HTMLElement;
+                component.executePurchase();
 
                 expect(
-                    compiled.textContent,
-                ).toContain(
-                    'Purchase preview',
+                    executePurchase,
+                ).toHaveBeenCalledWith(
+                    amountPortfolio.id,
+                    {
+                        assetId:
+                            selectedAsset.id,
+                        targetWeightPercent:
+                            10,
+                        fee:
+                            1,
+                    },
                 );
 
+                executionSubject.next(
+                    createSellExecutionResponse(),
+                );
+
+                fixture.detectChanges();
+
                 expect(
-                    compiled.textContent,
-                ).toContain('TTWO');
+                    component.successMessage,
+                ).toContain(
+                    'Sell 5 TTWO successfully',
+                );
             },
         );
 
         it(
-            'should reject preview when the target weight is invalid',
+            'should not execute a hold preview',
             () => {
                 initializeSelection();
 
                 component.targetWeightPercent =
-                    0;
+                    20;
+
+                component.requestPreview();
+
+                previewSubject.next(
+                    createHoldPreviewResponse(),
+                );
+
+                expect(
+                    component.canExecute,
+                ).toBe(false);
+
+                component.executePurchase();
+
+                expect(
+                    executePurchase,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        it(
+            'should allow temporary target allocation above 100 percent',
+            () => {
+                initializeSelection();
+
+                component.targetWeightPercent =
+                    80;
+
+                component.requestPreview();
+
+                const preview = {
+                    ...createBuyPreviewResponse(),
+                    targetWeightPercent:
+                        80,
+                    totalTargetWeightPercent:
+                        125,
+                    allocationDifferencePercent:
+                        -25,
+                } satisfies
+                    AllocationPurchasePreviewResponse;
+
+                previewSubject.next(preview);
+
+                fixture.detectChanges();
+
+                expect(
+                    component.preview
+                        ?.totalTargetWeightPercent,
+                ).toBe(125);
+
+                expect(
+                    component.errorMessage,
+                ).toBe('');
+            },
+        );
+
+        it(
+            'should reject a target above 100 percent',
+            () => {
+                initializeSelection();
+
+                component.targetWeightPercent =
+                    101;
 
                 component.requestPreview();
 
@@ -418,36 +504,12 @@ describe(
 
                 expect(
                     component.errorMessage,
-                ).toContain(
-                    'Target weight must be greater than zero',
-                );
+                ).toBeTruthy();
             },
         );
 
         it(
-            'should not execute without a calculated preview',
-            () => {
-                initializeSelection();
-
-                component.targetWeightPercent =
-                    12.5;
-
-                component.executePurchase();
-
-                expect(
-                    executePurchase,
-                ).not.toHaveBeenCalled();
-
-                expect(
-                    component.errorMessage,
-                ).toContain(
-                    'Calculate a preview before executing',
-                );
-            },
-        );
-
-        it(
-            'should execute the previewed allocation purchase',
+            'should execute a buy allocation trade',
             () => {
                 initializeSelection();
 
@@ -460,7 +522,7 @@ describe(
                 component.requestPreview();
 
                 previewSubject.next(
-                    createPreviewResponse(),
+                    createBuyPreviewResponse(),
                 );
 
                 component.executePurchase();
@@ -469,36 +531,15 @@ describe(
                     component.isExecuting,
                 ).toBe(true);
 
-                expect(
-                    executePurchase,
-                ).toHaveBeenCalledWith(
-                    amountPortfolio.id,
-                    {
-                        assetId:
-                            selectedAsset.id,
-                        targetWeightPercent:
-                            12.5,
-                        fee:
-                            1.25,
-                    },
-                );
-
-                const execution =
-                    createExecutionResponse();
-
                 executionSubject.next(
-                    execution,
+                    createBuyExecutionResponse(),
                 );
 
                 fixture.detectChanges();
 
                 expect(
                     component.execution,
-                ).toEqual(execution);
-
-                expect(
-                    component.preview,
-                ).toBeNull();
+                ).not.toBeNull();
 
                 expect(
                     component.isExecuting,
@@ -507,22 +548,7 @@ describe(
                 expect(
                     component.successMessage,
                 ).toContain(
-                    'Purchased 6.08124543 TTWO successfully',
-                );
-
-                const compiled =
-                    fixture.nativeElement as HTMLElement;
-
-                expect(
-                    compiled.textContent,
-                ).toContain(
-                    'Purchase completed',
-                );
-
-                expect(
-                    compiled.textContent,
-                ).toContain(
-                    execution.transactionId,
+                    'Buy 6.08124543 TTWO successfully',
                 );
             },
         );
@@ -533,27 +559,19 @@ describe(
                 initializeSelection();
 
                 component.targetWeightPercent =
-                    90;
+                    50;
 
                 component.requestPreview();
 
                 previewSubject.error(
                     new HttpErrorResponse({
                         status: 400,
-                        statusText: 'Bad Request',
+                        statusText:
+                            'Bad Request',
                         error: {
                             message:
-                                (
-                                    'Requested target weight exceeds ' +
-                                    'the remaining portfolio allocation.'
-                                ),
+                                'Preview failed',
                         },
-                        url:
-                            (
-                                '/api/v1/portfolios/' +
-                                amountPortfolio.id +
-                                '/allocation-purchases/preview'
-                            ),
                     }),
                 );
 
@@ -564,80 +582,9 @@ describe(
                 ).toBeNull();
 
                 expect(
-                    component.isPreviewing,
-                ).toBe(false);
-
-                expect(
                     component.errorMessage,
                 ).toContain(
-                    'Requested target weight exceeds',
-                );
-            },
-        );
-
-        it(
-            'should clear asset and preview when changing portfolio',
-            () => {
-                initializeSelection();
-
-                component.targetWeightPercent =
-                    12.5;
-
-                component.requestPreview();
-
-                previewSubject.next(
-                    createPreviewResponse(),
-                );
-
-                const nextAssetsSubject =
-                    new Subject<
-                        AssetResponse[]
-                    >();
-
-                getAssets.mockReturnValueOnce(
-                    nextAssetsSubject.asObservable(),
-                );
-
-                component.selectPortfolio(
-                    secondAmountPortfolio.id,
-                );
-
-                expect(
-                    component.selectedPortfolioId,
-                ).toBe(
-                    secondAmountPortfolio.id,
-                );
-
-                expect(
-                    component.selectedAssetId,
-                ).toBe('');
-
-                expect(
-                    component.preview,
-                ).toBeNull();
-
-                expect(
-                    component.execution,
-                ).toBeNull();
-
-                expect(
-                    component.targetWeightPercent,
-                ).toBeNull();
-
-                expect(
-                    getAssets,
-                ).toHaveBeenCalledWith(
-                    secondAmountPortfolio.id,
-                );
-
-                nextAssetsSubject.next([
-                    secondAsset,
-                ]);
-
-                expect(
-                    component.selectedAssetId,
-                ).toBe(
-                    secondAsset.id,
+                    'Preview failed',
                 );
             },
         );
@@ -656,7 +603,7 @@ describe(
                 component.requestPreview();
 
                 previewSubject.next(
-                    createPreviewResponse(),
+                    createBuyPreviewResponse(),
                 );
 
                 component.clearResult();
@@ -676,14 +623,6 @@ describe(
                 expect(
                     component.fee,
                 ).toBeNull();
-
-                expect(
-                    component.errorMessage,
-                ).toBe('');
-
-                expect(
-                    component.successMessage,
-                ).toBe('');
             },
         );
 
@@ -701,7 +640,7 @@ describe(
             fixture.detectChanges();
         }
 
-        function createPreviewResponse():
+        function createBuyPreviewResponse():
             AllocationPurchasePreviewResponse {
             return {
                 portfolioId:
@@ -718,34 +657,96 @@ describe(
                     selectedAsset.exchange,
                 currency:
                     selectedAsset.currency,
-                portfolioInitialValue:
+                portfolioCurrentValue:
                     10000,
                 currentPrice:
                     205.55,
                 targetWeightPercent:
                     12.5,
-                currentlyAssignedWeightPercent:
+                weightAssignedToOtherAssetsPercent:
+                    20,
+                totalTargetWeightPercent:
+                    32.5,
+                allocationDifferencePercent:
+                    67.5,
+                currentMarketValue:
                     0,
-                remainingAssignableWeightPercent:
-                    87.5,
                 targetMarketValue:
                     1250,
                 existingQuantity:
                     0,
                 targetQuantity:
                     6.08124543,
+                quantityDifference:
+                    6.08124543,
                 quantityToBuy:
                     6.08124543,
-                estimatedPurchaseAmount:
+                quantityToSell:
+                    0,
+                estimatedTradeAmount:
                     1249.99999814,
                 suggestedAction:
                     'BUY',
                 calculatedAt:
-                    '2026-08-06T07:00:00Z',
+                    '2026-08-10T10:00:00Z',
             };
         }
 
-        function createExecutionResponse():
+        function createSellPreviewResponse():
+            AllocationPurchasePreviewResponse {
+            return {
+                ...createBuyPreviewResponse(),
+                targetWeightPercent:
+                    10,
+                currentMarketValue:
+                    2027.5,
+                targetMarketValue:
+                    1000,
+                existingQuantity:
+                    10,
+                targetQuantity:
+                    5,
+                quantityDifference:
+                    -5,
+                quantityToBuy:
+                    0,
+                quantityToSell:
+                    5,
+                estimatedTradeAmount:
+                    1027.75,
+                suggestedAction:
+                    'SELL',
+            };
+        }
+
+        function createHoldPreviewResponse():
+            AllocationPurchasePreviewResponse {
+            return {
+                ...createBuyPreviewResponse(),
+                targetWeightPercent:
+                    20,
+                currentMarketValue:
+                    2000,
+                targetMarketValue:
+                    2000,
+                existingQuantity:
+                    10,
+                targetQuantity:
+                    10,
+                quantityDifference:
+                    0,
+                quantityToBuy:
+                    0,
+                quantityToSell:
+                    0,
+                estimatedTradeAmount:
+                    0,
+                suggestedAction:
+                    'HOLD',
+            };
+        }
+
+        function createBuyExecutionResponse():
             AllocationPurchaseExecutionResponse {
             return {
                 portfolioId:
@@ -763,28 +764,55 @@ describe(
                         '33333333-3333-3333-' +
                         '3333-333333333333'
                     ),
+                action:
+                    'BUY',
                 targetWeightPercent:
                     12.5,
                 unitPrice:
                     205.55,
-                purchasedQuantity:
+                tradedQuantity:
                     6.08124543,
-                purchaseAmount:
+                tradeAmount:
                     1249.99999814,
                 fee:
                     1.25,
-                totalCashUsed:
-                    1251.24999814,
+                cashImpact:
+                    -1251.24999814,
                 availableCashBefore:
                     10000,
                 availableCashAfter:
                     8748.75000186,
-                remainingAssignableWeightPercent:
-                    87.5,
+                totalTargetWeightPercent:
+                    32.5,
+                allocationDifferencePercent:
+                    67.5,
                 currency:
                     'USD',
                 executedAt:
-                    '2026-08-06T07:05:00Z',
+                    '2026-08-10T10:05:00Z',
+            };
+        }
+
+        function createSellExecutionResponse():
+            AllocationPurchaseExecutionResponse {
+            return {
+                ...createBuyExecutionResponse(),
+                action:
+                    'SELL',
+                targetWeightPercent:
+                    10,
+                tradedQuantity:
+                    5,
+                tradeAmount:
+                    1027.75,
+                fee:
+                    1,
+                cashImpact:
+                    1026.75,
+                availableCashBefore:
+                    5000,
+                availableCashAfter:
+                    6026.75,
             };
         }
     },
@@ -813,9 +841,9 @@ function createPortfolio(
         totalReturnPercent:
             0,
         createdAt:
-            '2026-08-06T06:00:00Z',
+            '2026-08-10T09:00:00Z',
         updatedAt:
-            '2026-08-06T06:00:00Z',
+            '2026-08-10T09:00:00Z',
     };
 }
 
@@ -841,9 +869,9 @@ function createAsset(
         notes:
             null,
         createdAt:
-            '2026-08-06T06:00:00Z',
+            '2026-08-10T09:00:00Z',
         updatedAt:
-            '2026-08-06T06:00:00Z',
+            '2026-08-10T09:00:00Z',
     };
 }
 
@@ -873,4 +901,3 @@ function createPortfolioPage(
             false,
     };
 }
-

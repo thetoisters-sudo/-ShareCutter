@@ -15,6 +15,7 @@ import {
 import {
     PagedResponse,
     PortfolioAllocationResponse,
+    PortfolioHistoryPointResponse,
     PortfolioResponse,
     PortfolioSummaryResponse,
 } from '../../../../core/portfolio/models/portfolio.models';
@@ -114,8 +115,23 @@ class PortfolioServiceStub {
         ],
     ]);
 
+    historyResponses = new Map<
+        string,
+        Observable<PortfolioHistoryPointResponse[]>
+    >([
+        [
+            'portfolio-1',
+            of(createGrowthHistory()),
+        ],
+        [
+            'portfolio-2',
+            of(createIncomeHistory()),
+        ],
+    ]);
+
     summaryRequestIds: string[] = [];
     allocationRequestIds: string[] = [];
+    historyRequestIds: string[] = [];
 
     refreshMarketData(): Observable<
         PortfolioMarketRefreshResponse
@@ -190,6 +206,27 @@ class PortfolioServiceStub {
             )
         );
     }
+
+    getPortfolioHistory(
+        portfolioId: string,
+    ): Observable<
+        PortfolioHistoryPointResponse[]
+    > {
+        this.historyRequestIds.push(
+            portfolioId,
+        );
+
+        return (
+            this.historyResponses.get(
+                portfolioId,
+            ) ??
+            throwError(
+                () => new Error(
+                    'History not configured',
+                ),
+            )
+        );
+    }
 }
 
 describe('DashboardPage', () => {
@@ -239,6 +276,17 @@ describe('DashboardPage', () => {
 
         expect(
             portfolioService.allocationRequestIds,
+        ).toEqual([
+            'portfolio-1',
+            'portfolio-2',
+        ]);
+    });
+
+    it('should load history for every portfolio', () => {
+        createComponent();
+
+        expect(
+            portfolioService.historyRequestIds,
         ).toEqual([
             'portfolio-1',
             'portfolio-2',
@@ -375,6 +423,10 @@ describe('DashboardPage', () => {
         expect(
             portfolioService.allocationRequestIds,
         ).toEqual([]);
+
+        expect(
+            portfolioService.historyRequestIds,
+        ).toEqual([]);
     });
 
     it('should use cached portfolio data when one summary fails', () => {
@@ -450,6 +502,7 @@ describe('DashboardPage', () => {
 
         portfolioService.summaryRequestIds = [];
         portfolioService.allocationRequestIds = [];
+        portfolioService.historyRequestIds = [];
 
         const access =
             component as unknown as {
@@ -499,6 +552,13 @@ describe('DashboardPage', () => {
 
         expect(
             portfolioService.allocationRequestIds,
+        ).toEqual([
+            'portfolio-1',
+            'portfolio-2',
+        ]);
+
+        expect(
+            portfolioService.historyRequestIds,
         ).toEqual([
             'portfolio-1',
             'portfolio-2',
@@ -776,6 +836,72 @@ function createIncomeAllocation():
         calculatedAt:
             '2026-07-30T20:01:30Z',
     };
+}
+
+function createGrowthHistory():
+    PortfolioHistoryPointResponse[] {
+    return [
+        {
+            currentValue: 10000,
+            cashBalance: 10000,
+            holdingsMarketValue: 0,
+            totalProfit: 0,
+            totalReturnPercent: 0,
+            capturedAt:
+                '2026-07-01T10:00:00Z',
+        },
+        {
+            currentValue: 11000,
+            cashBalance: 2500,
+            holdingsMarketValue: 8500,
+            totalProfit: 1000,
+            totalReturnPercent: 10,
+            capturedAt:
+                '2026-07-20T10:00:00Z',
+        },
+        {
+            currentValue: 12000,
+            cashBalance: 2000,
+            holdingsMarketValue: 10000,
+            totalProfit: 2000,
+            totalReturnPercent: 20,
+            capturedAt:
+                '2026-07-30T20:00:00Z',
+        },
+    ];
+}
+
+function createIncomeHistory():
+    PortfolioHistoryPointResponse[] {
+    return [
+        {
+            currentValue: 5000,
+            cashBalance: 5000,
+            holdingsMarketValue: 0,
+            totalProfit: 0,
+            totalReturnPercent: 0,
+            capturedAt:
+                '2026-07-02T10:00:00Z',
+        },
+        {
+            currentValue: 4900,
+            cashBalance: 900,
+            holdingsMarketValue: 4000,
+            totalProfit: -100,
+            totalReturnPercent: -2,
+            capturedAt:
+                '2026-07-20T10:00:00Z',
+        },
+        {
+            currentValue: 4800,
+            cashBalance: 800,
+            holdingsMarketValue: 4000,
+            totalProfit: -200,
+            totalReturnPercent: -4,
+            capturedAt:
+                '2026-07-30T20:01:00Z',
+        },
+    ];
 }
 
 function getComponentValue<T>(

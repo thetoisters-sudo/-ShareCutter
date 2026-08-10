@@ -6,5 +6,7 @@ public enum TransactionType {
     DIVIDEND,
     FEE,
     DEPOSIT,
-    WITHDRAWAL
+    WITHDRAWAL,
+    TRANSFER_IN,
+    TRANSFER_OUT
 }

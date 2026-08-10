@@ -347,6 +347,226 @@
         </article>
     </section>
 
+    <section class="dashboard-allocation-section" [attr.aria-label]="
+            text().dashboard
+                .portfolioAllocations
+        ">
+        <header class="dashboard-allocation-section__header">
+            <div>
+                <span class="panel-header__eyebrow">
+                    {{
+                    text().dashboard
+                    .allocation
+                    }}
+                </span>
+
+                <h2>
+                    {{
+                    text().dashboard
+                    .portfolioAllocations
+                    }}
+                </h2>
+            </div>
+        </header>
+
+        <div class="dashboard-chart-grid">
+            @for (
+            portfolio of portfolios;
+            track portfolio.id
+            ) {
+            <article class="dashboard-chart-panel">
+                <header class="dashboard-chart-panel__header">
+                    <div>
+                        <span class="dashboard-chart-panel__eyebrow">
+                            {{
+                            text().dashboard
+                            .portfolioAllocation
+                            }}
+                        </span>
+
+                        <h3>
+                            {{ portfolio.name }}
+                        </h3>
+                    </div>
+
+                    <strong>
+                        {{
+                        portfolio.currentValue
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </strong>
+                </header>
+
+                @if (
+                hasPortfolioAllocationData(
+                portfolio
+                )
+                ) {
+                <div class="dashboard-chart-panel__body">
+                    <canvas baseChart [type]="'doughnut'" [data]="
+                            getPortfolioAllocationChartData(
+                                portfolio
+                            )
+                        " [options]="allocationChartOptions">
+                    </canvas>
+                </div>
+
+                <footer class="dashboard-chart-panel__footer">
+                    <span>
+                        {{
+                        text().dashboard.cash
+                        }}:
+                        {{
+                        portfolio.cashBalance
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </span>
+
+                    <span>
+                        {{
+                        text().dashboard.holdings
+                        }}:
+                        {{
+                        portfolio.holdingsMarketValue
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </span>
+                </footer>
+                } @else {
+                <div class="dashboard-chart-panel__empty">
+                    {{
+                    text().dashboard
+                    .noAllocationData
+                    }}
+                </div>
+                }
+            </article>
+            }
+        </div>
+    </section>
+
+    <section class="dashboard-comparison-section" [attr.aria-label]="
+            text().dashboard
+                .cashVsInvested
+        ">
+        <header class="dashboard-allocation-section__header">
+            <div>
+                <span class="panel-header__eyebrow">
+                    {{
+                    text().dashboard
+                    .portfolioComparison
+                    }}
+                </span>
+
+                <h2>
+                    {{
+                    text().dashboard
+                    .cashVsInvested
+                    }}
+                </h2>
+            </div>
+        </header>
+
+        <article class="dashboard-chart-panel">
+            <div class="dashboard-chart-panel__body dashboard-chart-panel__body--bar">
+                <canvas baseChart [type]="'bar'" [data]="cashVsInvestedChartData"
+                    [options]="cashVsInvestedChartOptions">
+                </canvas>
+            </div>
+        </article>
+    </section>
+
+    <section class="dashboard-growth-section" [attr.aria-label]="
+            text().dashboard
+                .portfolioGrowth
+        ">
+        <header class="dashboard-allocation-section__header">
+            <div>
+                <span class="panel-header__eyebrow">
+                    {{
+                    text().dashboard
+                    .historicalPerformance
+                    }}
+                </span>
+
+                <h2>
+                    {{
+                    text().dashboard
+                    .portfolioGrowth
+                    }}
+                </h2>
+            </div>
+        </header>
+
+        <div class="dashboard-chart-grid">
+            @for (
+            portfolio of portfolios;
+            track portfolio.id
+            ) {
+            <article class="dashboard-chart-panel">
+                <header class="dashboard-chart-panel__header">
+                    <div>
+                        <span class="dashboard-chart-panel__eyebrow">
+                            {{
+                            text().dashboard
+                            .growthHistory
+                            }}
+                        </span>
+
+                        <h3>
+                            {{ portfolio.name }}
+                        </h3>
+                    </div>
+
+                    <strong>
+                        {{
+                        portfolio.currentValue
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </strong>
+                </header>
+
+                @if (
+                hasPortfolioGrowthData(
+                portfolio
+                )
+                ) {
+                <div class="dashboard-chart-panel__body dashboard-chart-panel__body--line">
+                    <canvas baseChart [type]="'line'" [data]="
+                            getPortfolioGrowthChartData(
+                                portfolio
+                            )
+                        " [options]="portfolioGrowthChartOptions">
+                    </canvas>
+                </div>
+                } @else {
+                <div class="dashboard-chart-panel__empty">
+                    {{
+                    portfolio.historyAvailable
+                    ? text().dashboard
+                    .notEnoughHistory
+                    : text().dashboard
+                    .historyUnavailable
+                    }}
+                </div>
+                }
+            </article>
+            }
+        </div>
+    </section>
+
     <section class="dashboard-content-grid">
         <article class="portfolio-panel">
             <header class="panel-header">

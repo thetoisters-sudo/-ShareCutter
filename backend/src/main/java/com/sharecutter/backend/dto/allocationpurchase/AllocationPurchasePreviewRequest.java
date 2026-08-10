@@ -9,37 +9,25 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record AllocationPurchasePreviewRequest(
-
-        @NotNull(
-                message = "Asset id must not be null"
-        )
+        @NotNull(message = "Asset id must not be null")
         UUID assetId,
 
-        @NotNull(
-                message =
-                        "Target weight percent must not be null"
-        )
+        @NotNull(message = "Target weight percent must not be null")
         @DecimalMin(
-                value = "0.000001",
+                value = "0",
                 inclusive = true,
-                message =
-                        "Target weight percent must be greater than zero"
+                message = "Target weight percent must not be negative"
         )
         @DecimalMax(
                 value = "100",
                 inclusive = true,
-                message =
-                        "Target weight percent must not exceed 100"
+                message = "Target weight percent must not exceed 100"
         )
         @Digits(
                 integer = 3,
                 fraction = 6,
-                message =
-                        "Target weight percent must contain "
-                                + "up to 3 integer digits "
-                                + "and 6 decimal digits"
+                message = "Target weight percent must contain up to 3 integer digits and 6 decimal digits"
         )
         BigDecimal targetWeightPercent
-
 ) {
 }

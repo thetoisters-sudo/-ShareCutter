@@ -30,13 +30,24 @@ import {
 } from 'rxjs';
 
 import {
+    AssetType,
+} from '../../../../core/asset/models/asset.models';
+import {
     TranslationService,
 } from '../../../../core/i18n/services/translation.service';
 import {
+    MarketSymbolSearchResponse,
+} from '../../../../core/market-data/models/market-data.models';
+import {
+    MarketDataService,
+} from '../../../../core/market-data/services/market-data.service';
+import {
     PagedResponse,
     PortfolioAllocationResponse,
+    PortfolioCreateFromHoldingsRequest,
     PortfolioCreateRequest,
     PortfolioCreationMethod,
+    PortfolioHoldingCreateItemRequest,
     PortfolioResponse,
     PortfolioSummaryResponse,
 } from '../../../../core/portfolio/models/portfolio.models';
@@ -82,6 +93,15 @@ interface PortfolioPageResult {
     PortfolioListItem[];
 }
 
+interface HoldingDraft {
+    symbol: string;
+    displayName: string;
+    assetType: AssetType;
+    currency: string;
+    exchange: string | null;
+    quantity: number;
+}
+
 @Component({
     selector: 'app-portfolios-page',
     imports: [
@@ -102,6 +122,9 @@ export class PortfoliosPage
 
     private readonly portfolioService =
         inject(PortfolioService);
+
+    private readonly marketDataService =
+        inject(MarketDataService);
 
     private readonly translationService =
         inject(TranslationService);
@@ -145,6 +168,28 @@ export class PortfoliosPage
 
     protected createInitialValue:
         number | null = null;
+
+    protected createInitialCash:
+        number | string | null = 0;
+
+    protected holdingSearchQuery = '';
+
+    protected holdingSearchResults:
+        MarketSymbolSearchResponse[] = [];
+
+    protected isSearchingHoldings = false;
+
+    protected holdingSearchError = '';
+
+    protected selectedMarketAsset:
+        MarketSymbolSearchResponse | null =
+        null;
+
+    protected holdingQuantity:
+        number | string | null = null;
+
+    protected holdingDrafts:
+        HoldingDraft[] = [];
 
     protected renameValue = '';
 
@@ -288,21 +333,294 @@ export class PortfoliosPage
 
     protected openCreateDialog(): void {
         this.clearMessages();
+
         this.selectedPortfolio = null;
         this.createName = '';
         this.createMethod = 'BY_AMOUNT';
         this.createInitialValue = null;
+        this.createInitialCash = 0;
+
+        this.resetHoldingCreationState();
+
         this.dialogMode = 'create';
+    }
+
+    protected onCreateMethodChange(): void {
+        this.actionErrorMessage = '';
+
+        if (
+            this.createMethod ===
+            'BY_AMOUNT'
+        ) {
+            this.resetHoldingCreationState();
+            this.createInitialCash = 0;
+        } else {
+            this.createInitialValue = null;
+            this.createInitialCash = 0;
+        }
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected onHoldingSearchQueryChange():
+        void {
+        this.holdingSearchError = '';
+        this.actionErrorMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected onHoldingQuantityChange():
+        void {
+        this.holdingSearchError = '';
+        this.actionErrorMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected onInitialCashChange():
+        void {
+        this.actionErrorMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected searchHoldingAssets(): void {
+        const query =
+            this.holdingSearchQuery.trim();
+
+        this.holdingSearchError = '';
+        this.actionErrorMessage = '';
+
+        this.selectedMarketAsset = null;
+
+        if (query.length < 2) {
+            this.holdingSearchResults = [];
+
+            this.holdingSearchError =
+                this.text()
+                    .assets
+                    .enterAtLeastTwoCharacters;
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        this.isSearchingHoldings = true;
+        this.holdingSearchResults = [];
+
+        this.changeDetectorRef
+            .markForCheck();
+
+        this.marketDataService
+            .searchSymbols({
+                query,
+                limit: 15,
+            })
+            .pipe(
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: (
+                    results,
+                ) => {
+                    this.holdingSearchResults =
+                        results;
+
+                    this.isSearchingHoldings =
+                        false;
+
+                    if (
+                        results.length === 0
+                    ) {
+                        this.holdingSearchError =
+                            this.text()
+                                .assets
+                                .noMarketMatches;
+                    }
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+
+                error: (
+                    error: unknown,
+                ) => {
+                    this.isSearchingHoldings =
+                        false;
+
+                    this.holdingSearchResults = [];
+
+                    this.holdingSearchError =
+                        this.resolveMarketSearchError(
+                            error,
+                        );
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            });
+    }
+
+    protected selectHoldingAsset(
+        asset:
+            MarketSymbolSearchResponse,
+    ): void {
+        this.selectedMarketAsset =
+            asset;
+
+        this.holdingQuantity = null;
+
+        this.holdingSearchError = '';
+        this.actionErrorMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected clearSelectedHoldingAsset():
+        void {
+        this.selectedMarketAsset = null;
+        this.holdingQuantity = null;
+        this.holdingSearchError = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected addHoldingDraft(): void {
+        const asset =
+            this.selectedMarketAsset;
+
+        if (!asset) {
+            this.holdingSearchError =
+                this.text()
+                    .transactions
+                    .selectAssetRequired;
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        const normalizedQuantity =
+            Number(
+                this.holdingQuantity,
+            );
+
+        if (
+            !Number.isFinite(
+                normalizedQuantity,
+            ) ||
+            normalizedQuantity <= 0
+        ) {
+            this.holdingSearchError =
+                this.text()
+                    .transactions
+                    .quantityInvalid;
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        const duplicate =
+            this.holdingDrafts.some(
+                (holding) =>
+                    this.isSameMarketAsset(
+                        holding,
+                        asset,
+                    ),
+            );
+
+        if (duplicate) {
+            this.holdingSearchError =
+                this.text()
+                    .assets
+                    .duplicateSymbol;
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        this.holdingDrafts = [
+            ...this.holdingDrafts,
+            {
+                symbol:
+                    asset.symbol,
+
+                displayName:
+                    asset.displayName,
+
+                assetType:
+                    asset.assetType,
+
+                currency:
+                    asset.currency,
+
+                exchange:
+                    asset.exchange,
+
+                quantity:
+                    normalizedQuantity,
+            },
+        ];
+
+        this.selectedMarketAsset = null;
+        this.holdingQuantity = null;
+        this.holdingSearchQuery = '';
+        this.holdingSearchResults = [];
+
+        this.holdingSearchError = '';
+        this.actionErrorMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected removeHoldingDraft(
+        index: number,
+    ): void {
+        this.holdingDrafts =
+            this.holdingDrafts.filter(
+                (
+                    _holding,
+                    holdingIndex,
+                ) =>
+                    holdingIndex !==
+                    index,
+            );
+
+        this.actionErrorMessage = '';
+        this.holdingSearchError = '';
+
+        this.changeDetectorRef
+            .markForCheck();
     }
 
     protected openRenameDialog(
         portfolio: PortfolioListItem,
     ): void {
         this.clearMessages();
+
         this.selectedPortfolio =
             portfolio;
+
         this.renameValue =
             portfolio.name;
+
         this.dialogMode =
             'rename';
     }
@@ -311,8 +629,10 @@ export class PortfoliosPage
         portfolio: PortfolioListItem,
     ): void {
         this.clearMessages();
+
         this.selectedPortfolio =
             portfolio;
+
         this.dialogMode =
             'delete';
     }
@@ -325,6 +645,8 @@ export class PortfoliosPage
         this.dialogMode = null;
         this.selectedPortfolio = null;
         this.actionErrorMessage = '';
+
+        this.resetHoldingCreationState();
     }
 
     protected submitCreate(): void {
@@ -341,9 +663,23 @@ export class PortfoliosPage
         }
 
         if (
+            this.createMethod ===
+            'BY_HOLDINGS'
+        ) {
+            this.submitCreateFromHoldings(
+                normalizedName,
+            );
+
+            return;
+        }
+
+        if (
             this.createInitialValue ===
             null ||
-            this.createInitialValue < 0
+            !Number.isFinite(
+                this.createInitialValue,
+            ) ||
+            this.createInitialValue <= 0
         ) {
             this.actionErrorMessage =
                 this.text()
@@ -358,7 +694,7 @@ export class PortfoliosPage
             name:
                 normalizedName,
             creationMethod:
-                this.createMethod,
+                'BY_AMOUNT',
             initialValue:
                 this.createInitialValue,
         };
@@ -371,24 +707,8 @@ export class PortfoliosPage
                 next: (
                     createdPortfolio,
                 ) => {
-                    this.portfolioService
-                        .notifyPortfolioChanged({
-                            portfolioId:
-                                createdPortfolio.id,
-                            reason:
-                                'created',
-                        });
-
-                    this.finishSuccessfulSubmission(
-                        this.text()
-                            .portfolios
-                            .createdSuccess,
-                    );
-
-                    this.currentPage = 0;
-
-                    this.loadPortfolios(
-                        false,
+                    this.handleCreatedPortfolio(
+                        createdPortfolio,
                     );
                 },
 
@@ -587,6 +907,212 @@ export class PortfoliosPage
                 total +
                 portfolio.totalProfit,
             0,
+        );
+    }
+
+    private submitCreateFromHoldings(
+        normalizedName: string,
+    ): void {
+        const normalizedInitialCash =
+            Number(
+                this.createInitialCash ?? 0,
+            );
+
+        if (
+            !Number.isFinite(
+                normalizedInitialCash,
+            ) ||
+            normalizedInitialCash < 0
+        ) {
+            this.actionErrorMessage =
+                this.text()
+                    .portfolios
+                    .initialValueInvalid;
+
+            return;
+        }
+
+        if (
+            this.holdingDrafts.length ===
+            0 &&
+            normalizedInitialCash <= 0
+        ) {
+            this.actionErrorMessage =
+                this.text()
+                    .assets
+                    .addFirstAsset;
+
+            return;
+        }
+
+        const holdings:
+            PortfolioHoldingCreateItemRequest[] =
+            this.holdingDrafts.map(
+                (holding) => ({
+                    symbol:
+                        holding.symbol,
+
+                    displayName:
+                        holding.displayName,
+
+                    assetType:
+                        holding.assetType,
+
+                    currency:
+                        holding.currency,
+
+                    exchange:
+                        holding.exchange,
+
+                    quantity:
+                        holding.quantity,
+                }),
+            );
+
+        const request:
+            PortfolioCreateFromHoldingsRequest =
+        {
+            name:
+                normalizedName,
+            holdings,
+            initialCash:
+                normalizedInitialCash,
+        };
+
+        this.startSubmission();
+
+        this.portfolioService
+            .createPortfolioFromHoldings(
+                request,
+            )
+            .subscribe({
+                next: (
+                    createdPortfolio,
+                ) => {
+                    this.handleCreatedPortfolio(
+                        createdPortfolio,
+                    );
+                },
+
+                error: (
+                    error: unknown,
+                ) => {
+                    this.finishFailedSubmission(
+                        this.resolveActionError(
+                            error,
+                            'create',
+                        ),
+                    );
+                },
+            });
+    }
+
+    private handleCreatedPortfolio(
+        createdPortfolio:
+            PortfolioResponse,
+    ): void {
+        this.portfolioService
+            .notifyPortfolioChanged({
+                portfolioId:
+                    createdPortfolio.id,
+                reason:
+                    'created',
+            });
+
+        this.finishSuccessfulSubmission(
+            this.text()
+                .portfolios
+                .createdSuccess,
+        );
+
+        this.resetHoldingCreationState();
+
+        this.currentPage = 0;
+
+        this.loadPortfolios(
+            false,
+        );
+    }
+
+    private resetHoldingCreationState():
+        void {
+        this.holdingSearchQuery = '';
+        this.holdingSearchResults = [];
+        this.isSearchingHoldings = false;
+        this.holdingSearchError = '';
+        this.selectedMarketAsset = null;
+        this.holdingQuantity = null;
+        this.holdingDrafts = [];
+        this.createInitialCash = 0;
+    }
+
+    private isSameMarketAsset(
+        holding: HoldingDraft,
+        asset:
+            MarketSymbolSearchResponse,
+    ): boolean {
+        const holdingExchange =
+            holding.exchange
+                ?.trim()
+                .toUpperCase() ??
+            '';
+
+        const assetExchange =
+            asset.exchange
+                ?.trim()
+                .toUpperCase() ??
+            '';
+
+        return (
+            holding.symbol
+                .trim()
+                .toUpperCase() ===
+            asset.symbol
+                .trim()
+                .toUpperCase() &&
+            holdingExchange ===
+            assetExchange
+        );
+    }
+
+    private resolveMarketSearchError(
+        error: unknown,
+    ): string {
+        const portfolioTranslations =
+            this.text().portfolios;
+
+        const assetTranslations =
+            this.text().assets;
+
+        if (
+            !(error instanceof
+                HttpErrorResponse)
+        ) {
+            return assetTranslations
+                .marketSearchError;
+        }
+
+        if (error.status === 0) {
+            return portfolioTranslations
+                .serverUnavailable;
+        }
+
+        if (error.status === 401) {
+            return portfolioTranslations
+                .sessionExpired;
+        }
+
+        if (error.status === 429) {
+            return assetTranslations
+                .marketRateLimit;
+        }
+
+        return (
+            this.extractBackendMessage(
+                error,
+            ) ??
+            assetTranslations
+                .marketSearchError
         );
     }
 

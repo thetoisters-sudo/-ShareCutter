@@ -42,7 +42,10 @@
         </h2>
 
         <p>
-            {{ text().portfolios.loadingDescription }}
+            {{
+            text().portfolios
+            .loadingDescription
+            }}
         </p>
     </section>
     } @else if (errorMessage) {
@@ -52,7 +55,10 @@
         </span>
 
         <h2>
-            {{ text().portfolios.unavailableTitle }}
+            {{
+            text().portfolios
+            .unavailableTitle
+            }}
         </h2>
 
         <p>
@@ -74,11 +80,17 @@
         </h2>
 
         <p>
-            {{ text().portfolios.emptyDescription }}
+            {{
+            text().portfolios
+            .emptyDescription
+            }}
         </p>
 
         <button type="button" class="primary-button" (click)="openCreateDialog()">
-            {{ text().portfolios.createFirstPortfolio }}
+            {{
+            text().portfolios
+            .createFirstPortfolio
+            }}
         </button>
     </section>
     } @else {
@@ -87,7 +99,10 @@
             ">
         <article class="summary-card">
             <span>
-                {{ text().portfolios.allPortfolios }}
+                {{
+                text().portfolios
+                .allPortfolios
+                }}
             </span>
 
             <strong>
@@ -95,13 +110,19 @@
             </strong>
 
             <small>
-                {{ text().portfolios.acrossAllPages }}
+                {{
+                text().portfolios
+                .acrossAllPages
+                }}
             </small>
         </article>
 
         <article class="summary-card">
             <span>
-                {{ text().portfolios.displayedValue }}
+                {{
+                text().portfolios
+                .displayedValue
+                }}
             </span>
 
             <strong>
@@ -124,13 +145,20 @@
 
         <article class="summary-card">
             <span>
-                {{ text().portfolios.displayedProfit }}
+                {{
+                text().portfolios
+                .displayedProfit
+                }}
             </span>
 
             <strong [class.summary-card__positive]="
-                        isPositiveOrZero(displayedProfit)
+                        isPositiveOrZero(
+                            displayedProfit
+                        )
                     " [class.summary-card__negative]="
-                        !isPositiveOrZero(displayedProfit)
+                        !isPositiveOrZero(
+                            displayedProfit
+                        )
                     ">
                 {{
                 displayedProfit
@@ -151,7 +179,10 @@
     </section>
 
     @if (analyticsUnavailableCount > 0) {
-    <section class="message-banner message-banner--warning" role="status">
+    <section class="
+                    message-banner
+                    message-banner--warning
+                " role="status">
         <span>
             {{ analyticsUnavailableCount }}
 
@@ -179,13 +210,17 @@
         <article class="portfolio-card">
             <header class="portfolio-card__header">
                 <div>
-                    <span class="portfolio-card__method">
+                    <span class="
+                                    portfolio-card__method
+                                ">
                         {{
                         portfolio.creationMethod ===
                         'BY_AMOUNT'
-                        ? text().portfolios
+                        ? text()
+                        .portfolios
                         .createdByAmount
-                        : text().portfolios
+                        : text()
+                        .portfolios
                         .createdByHoldings
                         }}
                     </span>
@@ -196,40 +231,53 @@
 
                     <small>
                         {{
-                        portfolio.analyticsAvailable
-                        ? text().portfolios
+                        portfolio
+                        .analyticsAvailable
+                        ? text()
+                        .portfolios
                         .calculated
-                        : text().portfolios
+                        : text()
+                        .portfolios
                         .cached
                         }}
 
                         {{
                         portfolio.calculatedAt
-                        | date:'mediumDate'
+                        | date:
+                        'mediumDate'
                         }}
                     </small>
                 </div>
 
                 <span class="return-badge" [class.return-badge--positive]="
                                 isPositiveOrZero(
-                                    portfolio.totalReturnPercent
+                                    portfolio
+                                        .totalReturnPercent
                                 )
                             " [class.return-badge--negative]="
                                 !isPositiveOrZero(
-                                    portfolio.totalReturnPercent
+                                    portfolio
+                                        .totalReturnPercent
                                 )
                             ">
                     {{
-                    portfolio.totalReturnPercent
-                    | number:'1.2-2'
+                    portfolio
+                    .totalReturnPercent
+                    | number:
+                    '1.2-2'
                     }}%
                 </span>
             </header>
 
-            <dl class="portfolio-card__values">
+            <dl class="
+                            portfolio-card__values
+                        ">
                 <div>
                     <dt>
-                        {{ text().portfolios.initialValue }}
+                        {{
+                        text().portfolios
+                        .initialValue
+                        }}
                     </dt>
 
                     <dd>
@@ -245,7 +293,10 @@
 
                 <div>
                     <dt>
-                        {{ text().portfolios.currentValue }}
+                        {{
+                        text().portfolios
+                        .currentValue
+                        }}
                     </dt>
 
                     <dd>
@@ -261,16 +312,21 @@
 
                 <div>
                     <dt>
-                        {{ text().portfolios.totalProfit }}
+                        {{
+                        text().portfolios
+                        .totalProfit
+                        }}
                     </dt>
 
                     <dd [class.summary-card__positive]="
                                     isPositiveOrZero(
-                                        portfolio.totalProfit
+                                        portfolio
+                                            .totalProfit
                                     )
                                 " [class.summary-card__negative]="
                                     !isPositiveOrZero(
-                                        portfolio.totalProfit
+                                        portfolio
+                                            .totalProfit
                                     )
                                 ">
                         {{
@@ -293,7 +349,8 @@
 
                     <dd>
                         {{
-                        portfolio.totalRealizedProfit
+                        portfolio
+                        .totalRealizedProfit
                         | currency:
                         'USD':
                         'symbol':
@@ -312,7 +369,8 @@
 
                     <dd>
                         {{
-                        portfolio.totalUnrealizedProfit
+                        portfolio
+                        .totalUnrealizedProfit
                         | currency:
                         'USD':
                         'symbol':
@@ -323,44 +381,68 @@
 
                 <div>
                     <dt>
-                        {{ text().portfolios.activeAssets }}
-                    </dt>
-
-                    <dd>
-                        {{ portfolio.activeAssetCount }}
-                    </dd>
-                </div>
-
-                <div>
-                    <dt>
-                        {{ text().portfolios.transactions }}
-                    </dt>
-
-                    <dd>
-                        {{ portfolio.transactionCount }}
-                    </dd>
-                </div>
-
-                <div>
-                    <dt>
-                        {{ text().portfolios.dataSource }}
+                        {{
+                        text().portfolios
+                        .activeAssets
+                        }}
                     </dt>
 
                     <dd>
                         {{
-                        portfolio.analyticsAvailable
-                        ? text().portfolios
+                        portfolio
+                        .activeAssetCount
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().portfolios
+                        .transactions
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        portfolio
+                        .transactionCount
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().portfolios
+                        .dataSource
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        portfolio
+                        .analyticsAvailable
+                        ? text()
+                        .portfolios
                         .liveAnalytics
-                        : text().portfolios
+                        : text()
+                        .portfolios
                         .cachedPortfolio
                         }}
                     </dd>
                 </div>
             </dl>
 
-            <footer class="portfolio-card__actions">
-                <button type="button" class="portfolio-details-button" [attr.aria-expanded]="
-                                isPortfolioExpanded(portfolio.id)
+            <footer class="
+                            portfolio-card__actions
+                        ">
+                <button type="button" class="
+                                portfolio-details-button
+                            " [attr.aria-expanded]="
+                                isPortfolioExpanded(
+                                    portfolio.id
+                                )
                             " [attr.aria-controls]="
                                 'portfolio-allocation-' +
                                 portfolio.id
@@ -370,10 +452,14 @@
                                 )
                             ">
                     {{
-                    isPortfolioExpanded(portfolio.id)
-                    ? text().portfolios
+                    isPortfolioExpanded(
+                    portfolio.id
+                    )
+                    ? text()
+                    .portfolios
                     .hideAllocation
-                    : text().portfolios
+                    : text()
+                    .portfolios
                     .showAllocation
                     }}
                 </button>
@@ -383,7 +469,10 @@
                                     portfolio
                                 )
                             ">
-                    {{ text().portfolios.rename }}
+                    {{
+                    text().portfolios
+                    .rename
+                    }}
                 </button>
 
                 <button type="button" class="danger-button" (click)="
@@ -391,7 +480,10 @@
                                     portfolio
                                 )
                             ">
-                    {{ text().portfolios.delete }}
+                    {{
+                    text().portfolios
+                    .delete
+                    }}
                 </button>
             </footer>
 
@@ -400,22 +492,28 @@
             portfolio.id
             )
             ) {
-            <section class="portfolio-allocation" [id]="
+            <section class="
+                                portfolio-allocation
+                            " [id]="
                                 'portfolio-allocation-' +
                                 portfolio.id
                             ">
-                <header class="portfolio-allocation__header">
+                <header class="
+                                    portfolio-allocation__header
+                                ">
                     <div>
                         <span>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .currentAllocation
                             }}
                         </span>
 
                         <h3>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .holdingsAndWeights
                             }}
                         </h3>
@@ -429,13 +527,16 @@
                     ) {
                     <small>
                         {{
-                        text().portfolios
+                        text()
+                        .portfolios
                         .calculated
                         }}
 
                         {{
-                        allocation.calculatedAt
-                        | date:'medium'
+                        allocation
+                        .calculatedAt
+                        | date:
+                        'medium'
                         }}
                     </small>
                     }
@@ -450,11 +551,14 @@
                                         allocation-state
                                         allocation-state--loading
                                     " aria-live="polite">
-                    <span class="page-state__spinner" aria-hidden="true"></span>
+                    <span class="
+                                            page-state__spinner
+                                        " aria-hidden="true"></span>
 
                     <p>
                         {{
-                        text().portfolios
+                        text()
+                        .portfolios
                         .loadingAllocation
                         }}
                     </p>
@@ -469,30 +573,38 @@
                                         allocation-state
                                         allocation-state--error
                                     " role="alert">
-                    <span class="allocation-state__icon" aria-hidden="true">
+                    <span class="
+                                            allocation-state__icon
+                                        " aria-hidden="true">
                         !
                     </span>
 
                     <div>
                         <h4>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .allocationUnavailable
                             }}
                         </h4>
 
                         <p>
-                            {{ allocationError }}
+                            {{
+                            allocationError
+                            }}
                         </p>
                     </div>
 
-                    <button type="button" class="primary-button" (click)="
+                    <button type="button" class="
+                                            primary-button
+                                        " (click)="
                                             retryPortfolioAllocation(
                                                 portfolio.id
                                             )
                                         ">
                         {{
-                        text().portfolios
+                        text()
+                        .portfolios
                         .retry
                         }}
                     </button>
@@ -503,14 +615,14 @@
                 );
                 as allocation
                 ) {
-                <section class="allocation-summary" [attr.aria-label]="
-                                        text().portfolios
-                                            .allocationSummary
+                <section class="
+                                        allocation-summary
                                     ">
                     <article>
                         <span>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .portfolioValue
                             }}
                         </span>
@@ -534,7 +646,8 @@
                     <article>
                         <span>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .availableCash
                             }}
                         </span>
@@ -557,7 +670,8 @@
                     <article>
                         <span>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .holdingsMarketValue
                             }}
                         </span>
@@ -577,14 +691,16 @@
                     <article>
                         <span>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .totalCost
                             }}
                         </span>
 
                         <strong>
                             {{
-                            allocation.totalCost
+                            allocation
+                            .totalCost
                             | currency:
                             'USD':
                             'symbol':
@@ -596,7 +712,8 @@
                     <article>
                         <span>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .realizedProfit
                             }}
                         </span>
@@ -626,7 +743,8 @@
                     <article>
                         <span>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .unrealizedProfit
                             }}
                         </span>
@@ -656,7 +774,8 @@
                     <article>
                         <span>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .targetAllocation
                             }}
                         </span>
@@ -668,7 +787,8 @@
                             .totalTargetWeightPercent ??
                             0
                             )
-                            | number:'1.2-2'
+                            | number:
+                            '1.2-2'
                             }}%
                         </strong>
                     </article>
@@ -676,7 +796,8 @@
                     <article>
                         <span>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .allocatedAssets
                             }}
                         </span>
@@ -691,39 +812,47 @@
                 </section>
 
                 @if (
-                allocation.assets.length ===
-                0
+                allocation.assets
+                .length === 0
                 ) {
                 <div class="
                                             allocation-state
                                             allocation-state--empty
                                         ">
-                    <span class="allocation-state__icon" aria-hidden="true">
+                    <span class="
+                                                allocation-state__icon
+                                            " aria-hidden="true">
                         +
                     </span>
 
                     <div>
                         <h4>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .noAllocatedAssets
                             }}
                         </h4>
 
                         <p>
                             {{
-                            text().portfolios
+                            text()
+                            .portfolios
                             .noAllocatedAssetsDescription
                             }}
                         </p>
                     </div>
                 </div>
                 } @else {
-                <div class="allocation-table-wrapper">
-                    <table class="allocation-table">
+                <div class="
+                                            allocation-table-wrapper
+                                        ">
+                    <table class="
+                                                allocation-table
+                                            ">
                         <thead>
                             <tr>
-                                <th scope="col">
+                                <th>
                                     {{
                                     text()
                                     .portfolios
@@ -731,7 +860,7 @@
                                     }}
                                 </th>
 
-                                <th scope="col">
+                                <th>
                                     {{
                                     text()
                                     .portfolios
@@ -739,7 +868,7 @@
                                     }}
                                 </th>
 
-                                <th scope="col">
+                                <th>
                                     {{
                                     text()
                                     .portfolios
@@ -747,7 +876,7 @@
                                     }}
                                 </th>
 
-                                <th scope="col">
+                                <th>
                                     {{
                                     text()
                                     .portfolios
@@ -755,7 +884,7 @@
                                     }}
                                 </th>
 
-                                <th scope="col">
+                                <th>
                                     {{
                                     text()
                                     .portfolios
@@ -763,7 +892,7 @@
                                     }}
                                 </th>
 
-                                <th scope="col">
+                                <th>
                                     {{
                                     text()
                                     .portfolios
@@ -771,7 +900,7 @@
                                     }}
                                 </th>
 
-                                <th scope="col">
+                                <th>
                                     {{
                                     text()
                                     .portfolios
@@ -779,7 +908,7 @@
                                     }}
                                 </th>
 
-                                <th scope="col">
+                                <th>
                                     {{
                                     text()
                                     .portfolios
@@ -787,7 +916,7 @@
                                     }}
                                 </th>
 
-                                <th scope="col">
+                                <th>
                                     {{
                                     text()
                                     .portfolios
@@ -806,7 +935,9 @@
                             ) {
                             <tr>
                                 <td>
-                                    <div class="asset-identity">
+                                    <div class="
+                                                                    asset-identity
+                                                                ">
                                         <strong>
                                             {{
                                             asset
@@ -837,7 +968,8 @@
 
                                 <td>
                                     {{
-                                    asset.quantity
+                                    asset
+                                    .quantity
                                     | number:
                                     '1.0-8'
                                     }}
@@ -845,9 +977,11 @@
 
                                 <td>
                                     {{
-                                    asset.averageCost
+                                    asset
+                                    .averageCost
                                     | currency:
-                                    asset.currency:
+                                    asset
+                                    .currency:
                                     'symbol':
                                     '1.2-8'
                                     }}
@@ -855,9 +989,11 @@
 
                                 <td>
                                     {{
-                                    asset.currentPrice
+                                    asset
+                                    .currentPrice
                                     | currency:
-                                    asset.currency:
+                                    asset
+                                    .currency:
                                     'symbol':
                                     '1.2-8'
                                     }}
@@ -865,9 +1001,11 @@
 
                                 <td>
                                     {{
-                                    asset.totalCost
+                                    asset
+                                    .totalCost
                                     | currency:
-                                    asset.currency:
+                                    asset
+                                    .currency:
                                     'symbol':
                                     '1.2-2'
                                     }}
@@ -875,16 +1013,20 @@
 
                                 <td>
                                     {{
-                                    asset.marketValue
+                                    asset
+                                    .marketValue
                                     | currency:
-                                    asset.currency:
+                                    asset
+                                    .currency:
                                     'symbol':
                                     '1.2-2'
                                     }}
                                 </td>
 
                                 <td>
-                                    <div class="allocation-weight">
+                                    <div class="
+                                                                    allocation-weight
+                                                                ">
                                         <strong>
                                             {{
                                             asset
@@ -894,8 +1036,12 @@
                                             }}%
                                         </strong>
 
-                                        <span class="allocation-weight__track" aria-hidden="true">
-                                            <span class="allocation-weight__fill" [style.width.%]="
+                                        <span class="
+                                                                        allocation-weight__track
+                                                                    ">
+                                            <span class="
+                                                                            allocation-weight__fill
+                                                                        " [style.width.%]="
                                                                             asset
                                                                                 .allocationPercent
                                                                         "></span>
@@ -918,7 +1064,8 @@
                                     asset
                                     .realizedProfit
                                     | currency:
-                                    asset.currency:
+                                    asset
+                                    .currency:
                                     'symbol':
                                     '1.2-2'
                                     }}
@@ -939,7 +1086,8 @@
                                     asset
                                     .unrealizedProfit
                                     | currency:
-                                    asset.currency:
+                                    asset
+                                    .currency:
                                     'symbol':
                                     '1.2-2'
                                     }}
@@ -957,9 +1105,7 @@
         }
     </section>
 
-    <nav class="pagination" [attr.aria-label]="
-                text().portfolios.portfolioPages
-            ">
+    <nav class="pagination">
         <button type="button" [disabled]="isFirstPage" (click)="goToPreviousPage()">
             {{ text().portfolios.previous }}
         </button>
@@ -979,8 +1125,12 @@
 
     @if (dialogMode) {
     <div class="dialog-backdrop" role="presentation">
-        <section class="portfolio-dialog" role="dialog" aria-modal="true" aria-labelledby="portfolio-dialog-title">
-            <header class="portfolio-dialog__header">
+        <section class="portfolio-dialog" role="dialog" aria-modal="true" aria-labelledby="
+                    portfolio-dialog-title
+                ">
+            <header class="
+                        portfolio-dialog__header
+                    ">
                 <div>
                     <span>
                         {{
@@ -989,25 +1139,30 @@
                         }}
                     </span>
 
-                    <h2 id="portfolio-dialog-title">
+                    <h2 id="
+                                portfolio-dialog-title
+                            ">
                         @switch (dialogMode) {
                         @case ('create') {
                         {{
-                        text().portfolios
+                        text()
+                        .portfolios
                         .createDialogTitle
                         }}
                         }
 
                         @case ('rename') {
                         {{
-                        text().portfolios
+                        text()
+                        .portfolios
                         .renameDialogTitle
                         }}
                         }
 
                         @case ('delete') {
                         {{
-                        text().portfolios
+                        text()
+                        .portfolios
                         .deleteDialogTitle
                         }}
                         }
@@ -1015,10 +1170,7 @@
                     </h2>
                 </div>
 
-                <button type="button" class="dialog-close" [attr.aria-label]="
-                            text().portfolios
-                                .closeDialog
-                        " [disabled]="isSubmitting" (click)="closeDialog()">
+                <button type="button" class="dialog-close" [disabled]="isSubmitting" (click)="closeDialog()">
                     ×
                 </button>
             </header>
@@ -1035,7 +1187,8 @@
                 <label>
                     <span>
                         {{
-                        text().portfolios
+                        text()
+                        .portfolios
                         .portfolioName
                         }}
                     </span>
@@ -1048,13 +1201,16 @@
                 <label>
                     <span>
                         {{
-                        text().portfolios
+                        text()
+                        .portfolios
                         .creationMethod
                         }}
                     </span>
 
                     <select name="createMethod" [(ngModel)]="
                                         createMethod
+                                    " (ngModelChange)="
+                                        onCreateMethodChange()
                                     ">
                         <option value="BY_AMOUNT">
                             {{
@@ -1074,39 +1230,531 @@
                     </select>
                 </label>
 
+                @if (
+                createMethod ===
+                'BY_AMOUNT'
+                ) {
                 <label>
                     <span>
                         {{
-                        text().portfolios
+                        text()
+                        .portfolios
                         .initialValueField
                         }}
                     </span>
 
-                    <input type="number" name="createInitialValue" min="0" step="0.01" [(ngModel)]="
-                                        createInitialValue
-                                    " />
+                    <input type="number" name="
+                                            createInitialValue
+                                        " min="0.01" step="0.01" [(ngModel)]="
+                                            createInitialValue
+                                        " />
                 </label>
 
                 <p>
                     {{
-                    text().portfolios
+                    text()
+                    .portfolios
                     .automaticCurrentValueNote
                     }}
                 </p>
+                } @else {
+                <section class="
+                                        holdings-creation
+                                    ">
+                    <header class="
+                                            holdings-creation__header
+                                        ">
+                        <div>
+                            <span class="
+                                                    holdings-creation__eyebrow
+                                                ">
+                                {{
+                                text()
+                                .assets
+                                .liveMarketSearch
+                                }}
+                            </span>
 
-                <footer class="dialog-actions">
+                            <h3>
+                                {{
+                                text()
+                                .portfolios
+                                .enterExistingHoldings
+                                }}
+                            </h3>
+                        </div>
+
+                        <strong>
+                            {{
+                            holdingDrafts
+                            .length
+                            }}
+                        </strong>
+                    </header>
+
+                    <p>
+                        {{
+                        text()
+                        .assets
+                        .marketSearchDescription
+                        }}
+                    </p>
+
+                    <label>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .availableCash
+                            }}
+                        </span>
+
+                        <input type="number" name="createInitialCash" min="0" step="0.01"
+                            [(ngModel)]="createInitialCash" (ngModelChange)="onInitialCashChange()" />
+                    </label>
+
+                    <div class="
+                                            holding-search
+                                        ">
+                        <label>
+                            <span>
+                                {{
+                                text()
+                                .assets
+                                .symbolOrCompanyName
+                                }}
+                            </span>
+
+                            <div class="
+                                                    holding-search__controls
+                                                ">
+                                <input type="search" name="
+                                                        holdingSearchQuery
+                                                    " autocomplete="
+                                                        off
+                                                    " [placeholder]="
+                                                        text()
+                                                            .assets
+                                                            .marketSearchPlaceholder
+                                                    " [(ngModel)]="
+                                                        holdingSearchQuery
+                                                    " (ngModelChange)="
+                                                        onHoldingSearchQueryChange()
+                                                    " (keydown.enter)="
+                                                        $event
+                                                            .preventDefault();
+                                                        searchHoldingAssets()
+                                                    " />
+
+                                <button type="button" class="
+                                                        secondary-button
+                                                    " [disabled]="
+                                                        isSearchingHoldings
+                                                    " (click)="
+                                                        searchHoldingAssets()
+                                                    ">
+                                    {{
+                                    isSearchingHoldings
+                                    ? text()
+                                    .assets
+                                    .searchingMarket
+                                    : text()
+                                    .assets
+                                    .searchAssets
+                                    }}
+                                </button>
+                            </div>
+                        </label>
+
+                        @if (
+                        holdingSearchError
+                        ) {
+                        <p class="
+                                                    holdings-inline-error
+                                                " role="alert">
+                            {{
+                            holdingSearchError
+                            }}
+                        </p>
+                        }
+
+                        @if (
+                        isSearchingHoldings
+                        ) {
+                        <div class="
+                                                    holding-search-state
+                                                ">
+                            <span class="
+                                                        holding-search-state__spinner
+                                                    " aria-hidden="
+                                                        true
+                                                    "></span>
+
+                            <span>
+                                {{
+                                text()
+                                .assets
+                                .searchingMarket
+                                }}
+                            </span>
+                        </div>
+                        }
+
+                        @if (
+                        !isSearchingHoldings &&
+                        holdingSearchResults
+                        .length >
+                        0 &&
+                        !selectedMarketAsset
+                        ) {
+                        <div class="
+                                                    holding-search-results
+                                                ">
+                            @for (
+                            result of
+                            holdingSearchResults;
+                            track
+                            result.symbol +
+                            '-' +
+                            (
+                            result.exchange ??
+                            ''
+                            )
+                            ) {
+                            <button type="button" class="
+                                                            holding-search-result
+                                                        " (click)="
+                                                            selectHoldingAsset(
+                                                                result
+                                                            )
+                                                        ">
+                                <span class="
+                                                                holding-search-result__symbol
+                                                            ">
+                                    {{
+                                    result.symbol
+                                    }}
+                                </span>
+
+                                <span class="
+                                                                holding-search-result__details
+                                                            ">
+                                    <strong>
+                                        {{
+                                        result
+                                        .displayName
+                                        }}
+                                    </strong>
+
+                                    <small>
+                                        {{
+                                        result
+                                        .exchange ??
+                                        text()
+                                        .assets
+                                        .unknownExchange
+                                        }}
+                                        ·
+                                        {{
+                                        result
+                                        .assetType
+                                        }}
+                                        ·
+                                        {{
+                                        result
+                                        .currency
+                                        }}
+                                    </small>
+                                </span>
+                            </button>
+                            }
+                        </div>
+                        }
+                    </div>
+
+                    @if (
+                    selectedMarketAsset
+                    ) {
+                    <section class="
+                                                selected-holding
+                                            ">
+                        <header class="
+                                                    selected-holding__header
+                                                ">
+                            <div>
+                                <span>
+                                    {{
+                                    text()
+                                    .assets
+                                    .selectedInstrument
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    selectedMarketAsset
+                                    .symbol
+                                    }}
+                                </strong>
+
+                                <small>
+                                    {{
+                                    selectedMarketAsset
+                                    .displayName
+                                    }}
+                                </small>
+                            </div>
+
+                            <button type="button" class="
+                                                        selected-holding__clear
+                                                    " (click)="
+                                                        clearSelectedHoldingAsset()
+                                                    ">
+                                {{
+                                text()
+                                .assets
+                                .clearSelection
+                                }}
+                            </button>
+                        </header>
+
+                        <dl class="
+                                                    selected-holding__details
+                                                ">
+                            <div>
+                                <dt>
+                                    {{
+                                    text()
+                                    .assets
+                                    .assetType
+                                    }}
+                                </dt>
+
+                                <dd>
+                                    {{
+                                    selectedMarketAsset
+                                    .assetType
+                                    }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt>
+                                    {{
+                                    text()
+                                    .assets
+                                    .exchange
+                                    }}
+                                </dt>
+
+                                <dd>
+                                    {{
+                                    selectedMarketAsset
+                                    .exchange ??
+                                    text()
+                                    .assets
+                                    .notSpecified
+                                    }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt>
+                                    {{
+                                    text()
+                                    .assets
+                                    .currency
+                                    }}
+                                </dt>
+
+                                <dd>
+                                    {{
+                                    selectedMarketAsset
+                                    .currency
+                                    }}
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <label>
+                            <span>
+                                {{
+                                text()
+                                .portfolios
+                                .quantity
+                                }}
+                            </span>
+
+                            <input type="number" name="
+                                                        holdingQuantity
+                                                    " min="
+                                                        0.00000001
+                                                    " step="
+                                                        0.00000001
+                                                    " [(ngModel)]="
+                                                        holdingQuantity
+                                                    " (ngModelChange)="
+                                                        onHoldingQuantityChange()
+                                                    " />
+                        </label>
+
+                        <button type="button" class="
+                                                    primary-button
+                                                " (click)="
+                                                    addHoldingDraft()
+                                                ">
+                            {{
+                            text()
+                            .assets
+                            .addAsset
+                            }}
+                        </button>
+                    </section>
+                    }
+
+                    @if (
+                    holdingDrafts
+                    .length > 0
+                    ) {
+                    <section class="
+                                                holding-draft-list
+                                            ">
+                        <header class="
+                                                    holding-draft-list__header
+                                                ">
+                            <strong>
+                                {{
+                                text()
+                                .portfolios
+                                .holdingsAndWeights
+                                }}
+                            </strong>
+
+                            <span>
+                                {{
+                                holdingDrafts
+                                .length
+                                }}
+                            </span>
+                        </header>
+
+                        @for (
+                        holding of
+                        holdingDrafts;
+                        track
+                        holding.symbol +
+                        '-' +
+                        (
+                        holding.exchange ??
+                        ''
+                        );
+                        let index =
+                        $index
+                        ) {
+                        <article class="
+                                                        holding-draft
+                                                    ">
+                            <div class="
+                                                            holding-draft__identity
+                                                        ">
+                                <strong>
+                                    {{
+                                    holding
+                                    .symbol
+                                    }}
+                                </strong>
+
+                                <span>
+                                    {{
+                                    holding
+                                    .displayName
+                                    }}
+                                </span>
+
+                                <small>
+                                    {{
+                                    holding
+                                    .assetType
+                                    }}
+                                    ·
+                                    {{
+                                    holding
+                                    .currency
+                                    }}
+
+                                    @if (
+                                    holding
+                                    .exchange
+                                    ) {
+                                    ·
+                                    {{
+                                    holding
+                                    .exchange
+                                    }}
+                                    }
+                                </small>
+                            </div>
+
+                            <div class="
+                                                            holding-draft__quantity
+                                                        ">
+                                <span>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .quantity
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    holding
+                                    .quantity
+                                    | number:
+                                    '1.0-8'
+                                    }}
+                                </strong>
+                            </div>
+
+                            <button type="button" class="
+                                                            danger-button
+                                                            holding-draft__remove
+                                                        " (click)="
+                                                            removeHoldingDraft(
+                                                                index
+                                                            )
+                                                        ">
+                                {{
+                                text()
+                                .portfolios
+                                .delete
+                                }}
+                            </button>
+                        </article>
+                        }
+                    </section>
+                    }
+                </section>
+                }
+
+                <footer class="
+                                    dialog-actions
+                                ">
                     <button type="button" [disabled]="
                                         isSubmitting
                                     " (click)="
                                         closeDialog()
                                     ">
                         {{
-                        text().portfolios
+                        text()
+                        .portfolios
                         .cancel
                         }}
                     </button>
 
-                    <button type="submit" class="primary-button" [disabled]="
+                    <button type="submit" class="
+                                        primary-button
+                                    " [disabled]="
                                         isSubmitting
                                     ">
                         {{
@@ -1136,7 +1784,7 @@
                         selectedPortfolio
                         ?.name
                         }}
-                    </strong>.
+                    </strong>
                 </p>
 
                 <label>
@@ -1152,7 +1800,9 @@
                                     " />
                 </label>
 
-                <footer class="dialog-actions">
+                <footer class="
+                                    dialog-actions
+                                ">
                     <button type="button" [disabled]="
                                         isSubmitting
                                     " (click)="
@@ -1164,7 +1814,9 @@
                         }}
                     </button>
 
-                    <button type="submit" class="primary-button" [disabled]="
+                    <button type="submit" class="
+                                        primary-button
+                                    " [disabled]="
                                         isSubmitting
                                     ">
                         {{
@@ -1182,7 +1834,9 @@
             }
 
             @case ('delete') {
-            <div class="delete-confirmation">
+            <div class="
+                                delete-confirmation
+                            ">
                 <p>
                     {{
                     text().portfolios
@@ -1194,7 +1848,7 @@
                         selectedPortfolio
                         ?.name
                         }}
-                    </strong>.
+                    </strong>
                 </p>
 
                 <p>
@@ -1204,7 +1858,9 @@
                     }}
                 </p>
 
-                <footer class="dialog-actions">
+                <footer class="
+                                    dialog-actions
+                                ">
                     <button type="button" [disabled]="
                                         isSubmitting
                                     " (click)="

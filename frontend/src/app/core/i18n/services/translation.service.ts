@@ -54,6 +54,18 @@ interface DashboardTranslations {
     marketRefreshPartial: string;
     marketRefreshFailed: string;
     failedSymbols: string;
+    allocation: string;
+    portfolioAllocations: string;
+    portfolioAllocation: string;
+    noAllocationData: string;
+    portfolioComparison: string;
+    cashVsInvested: string;
+    historicalPerformance: string;
+    portfolioGrowth: string;
+    growthHistory: string;
+    portfolioValue: string;
+    notEnoughHistory: string;
+    historyUnavailable: string;
     loadError: string;
 }
 
@@ -395,8 +407,13 @@ interface TransactionsTranslations {
     calculationMode: string;
     calculateByQuantity: string;
     calculateByAmount: string;
+    calculateDividendByShares: string;
     amountModeDescription: string;
     quantityModeDescription: string;
+    dividendAmountModeDescription: string;
+    dividendShareModeDescription: string;
+    dividendShares: string;
+    dividendPerShare: string;
     currency: string;
     executionTime: string;
     notes: string;
@@ -415,6 +432,8 @@ interface TransactionsTranslations {
     typeDeposit: string;
     typeWithdrawal: string;
     typeFee: string;
+    typeTransferIn: string;
+    typeTransferOut: string;
     createdSuccess: string;
     updatedSuccess: string;
     deletedSuccess: string;
@@ -754,6 +773,30 @@ const ENGLISH_TRANSLATIONS:
             ),
         failedSymbols:
             'Symbols not updated',
+        allocation:
+            'Allocation',
+        portfolioAllocations:
+            'Portfolio allocations',
+        portfolioAllocation:
+            'Portfolio allocation',
+        noAllocationData:
+            'No cash or invested assets are available for this portfolio.',
+        portfolioComparison:
+            'Portfolio comparison',
+        cashVsInvested:
+            'Cash vs invested',
+        historicalPerformance:
+            'Historical performance',
+        portfolioGrowth:
+            'Portfolio growth',
+        growthHistory:
+            'Growth history',
+        portfolioValue:
+            'Portfolio value',
+        notEnoughHistory:
+            'Not enough history yet. Change the portfolio or refresh market prices to create additional history points.',
+        historyUnavailable:
+            'Portfolio history is currently unavailable.',
         loadError:
             (
                 'Portfolio data could not be loaded. ' +
@@ -1412,10 +1455,17 @@ const ENGLISH_TRANSLATIONS:
         calculationMode: 'Calculation mode',
         calculateByQuantity: 'By quantity',
         calculateByAmount: 'By amount',
+        calculateDividendByShares: 'By shares',
         amountModeDescription:
             'Enter the total amount and ShareCutter will calculate fractional quantity from the current or manual unit price.',
         quantityModeDescription:
             'Enter the quantity and ShareCutter will calculate the total amount from quantity, unit price and fee.',
+        dividendAmountModeDescription:
+            'Enter the total dividend amount directly.',
+        dividendShareModeDescription:
+            'Enter the number of dividend-eligible shares and the dividend paid per share. ShareCutter will calculate the total dividend automatically.',
+        dividendShares: 'Dividend-eligible shares',
+        dividendPerShare: 'Dividend per share',
         currency: 'Currency',
         executionTime: 'Execution time',
         notes: 'Notes',
@@ -1434,6 +1484,8 @@ const ENGLISH_TRANSLATIONS:
         typeDeposit: 'Deposit',
         typeWithdrawal: 'Withdrawal',
         typeFee: 'Fee',
+        typeTransferIn: 'Transfer in',
+        typeTransferOut: 'Transfer out',
         createdSuccess: 'Transaction created successfully.',
         updatedSuccess: 'Transaction updated successfully.',
         deletedSuccess: 'Transaction deleted successfully.',
@@ -1941,6 +1993,30 @@ const HEBREW_TRANSLATIONS:
             ),
         failedSymbols:
             'סימולים שלא עודכנו',
+        allocation:
+            'הקצאה',
+        portfolioAllocations:
+            'חלוקת נכסים לפי תיק',
+        portfolioAllocation:
+            'חלוקת התיק',
+        noAllocationData:
+            'אין מזומן או נכסים מושקעים להצגה בתיק זה.',
+        portfolioComparison:
+            'השוואת תיקים',
+        cashVsInvested:
+            'מזומן מול השקעות',
+        historicalPerformance:
+            'ביצועים היסטוריים',
+        portfolioGrowth:
+            'צמיחת התיקים',
+        growthHistory:
+            'היסטוריית צמיחה',
+        portfolioValue:
+            'שווי התיק',
+        notEnoughHistory:
+            'עדיין אין מספיק היסטוריה. שינוי בתיק או רענון מחירי שוק ייצור נקודות היסטוריה נוספות.',
+        historyUnavailable:
+            'היסטוריית התיק אינה זמינה כרגע.',
         loadError:
             (
                 'לא ניתן לטעון את נתוני תיקי ההשקעות. ' +
@@ -2561,10 +2637,17 @@ const HEBREW_TRANSLATIONS:
         calculationMode: 'שיטת חישוב',
         calculateByQuantity: 'לפי כמות',
         calculateByAmount: 'לפי סכום',
+        calculateDividendByShares: 'לפי מספר מניות',
         amountModeDescription:
             'הזן את הסכום הכולל ו־ShareCutter יחשב את כמות המניות, כולל שברים, לפי המחיר הנוכחי או המחיר הידני.',
         quantityModeDescription:
             'הזן את הכמות ו־ShareCutter יחשב את הסכום הכולל לפי הכמות, המחיר ליחידה והעמלה.',
+        dividendAmountModeDescription:
+            'הזן ישירות את סכום הדיבידנד הכולל.',
+        dividendShareModeDescription:
+            'הזן את מספר המניות הזכאיות לדיבידנד ואת סכום הדיבידנד למניה. ShareCutter יחשב את סכום הדיבידנד הכולל אוטומטית.',
+        dividendShares: 'מספר מניות זכאיות',
+        dividendPerShare: 'דיבידנד למניה',
         currency: 'מטבע',
         executionTime: 'מועד ביצוע',
         notes: 'הערות',
@@ -2583,6 +2666,8 @@ const HEBREW_TRANSLATIONS:
         typeDeposit: 'הפקדה',
         typeWithdrawal: 'משיכה',
         typeFee: 'עמלה',
+        typeTransferIn: 'העברה נכנסת',
+        typeTransferOut: 'העברה יוצאת',
         createdSuccess: 'העסקה נוצרה בהצלחה.',
         updatedSuccess: 'העסקה עודכנה בהצלחה.',
         deletedSuccess: 'העסקה נמחקה בהצלחה.',

@@ -297,6 +297,15 @@ button:disabled {
     grid-column: 1 / -1;
 }
 
+.preview-details__warning {
+    background: #fff1d6;
+}
+
+.preview-details__warning dt,
+.preview-details__warning dd {
+    color: #8a5600;
+}
+
 .preview-details dt {
     color: var(--color-text-secondary);
     font-size: 0.75rem;
@@ -391,7 +400,6 @@ button:disabled {
 }
 
 @media (max-width: 62rem) {
-
     .allocation-workspace {
         grid-template-columns: 1fr;
     }
@@ -402,7 +410,6 @@ button:disabled {
 }
 
 @media (max-width: 42rem) {
-
     .allocation-purchase-header {
         align-items: stretch;
         flex-direction: column;

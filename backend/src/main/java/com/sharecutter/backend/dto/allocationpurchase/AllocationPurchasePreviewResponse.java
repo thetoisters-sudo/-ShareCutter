@@ -5,45 +5,29 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record AllocationPurchasePreviewResponse(
-
         UUID portfolioId,
-
         String portfolioName,
-
         UUID assetId,
-
         String symbol,
-
         String displayName,
-
         String exchange,
-
         String currency,
-
-        BigDecimal portfolioInitialValue,
-
+        BigDecimal portfolioCurrentValue,
         BigDecimal currentPrice,
-
         BigDecimal targetWeightPercent,
-
-        BigDecimal currentlyAssignedWeightPercent,
-
-        BigDecimal remainingAssignableWeightPercent,
-
+        BigDecimal weightAssignedToOtherAssetsPercent,
+        BigDecimal totalTargetWeightPercent,
+        BigDecimal allocationDifferencePercent,
+        BigDecimal currentMarketValue,
         BigDecimal targetMarketValue,
-
         BigDecimal existingQuantity,
-
         BigDecimal targetQuantity,
-
+        BigDecimal quantityDifference,
         BigDecimal quantityToBuy,
-
-        BigDecimal estimatedPurchaseAmount,
-
+        BigDecimal quantityToSell,
+        BigDecimal estimatedTradeAmount,
         String suggestedAction,
-
         OffsetDateTime calculatedAt
-
 ) {
 
     public AllocationPurchasePreviewResponse {
@@ -84,9 +68,9 @@ public record AllocationPurchasePreviewResponse(
                 "Suggested action"
         );
 
-        portfolioInitialValue =
+        portfolioCurrentValue =
                 zeroIfNull(
-                        portfolioInitialValue
+                        portfolioCurrentValue
                 );
 
         currentPrice =
@@ -99,14 +83,24 @@ public record AllocationPurchasePreviewResponse(
                         targetWeightPercent
                 );
 
-        currentlyAssignedWeightPercent =
+        weightAssignedToOtherAssetsPercent =
                 zeroIfNull(
-                        currentlyAssignedWeightPercent
+                        weightAssignedToOtherAssetsPercent
                 );
 
-        remainingAssignableWeightPercent =
+        totalTargetWeightPercent =
                 zeroIfNull(
-                        remainingAssignableWeightPercent
+                        totalTargetWeightPercent
+                );
+
+        allocationDifferencePercent =
+                zeroIfNull(
+                        allocationDifferencePercent
+                );
+
+        currentMarketValue =
+                zeroIfNull(
+                        currentMarketValue
                 );
 
         targetMarketValue =
@@ -124,15 +118,31 @@ public record AllocationPurchasePreviewResponse(
                         targetQuantity
                 );
 
+        quantityDifference =
+                zeroIfNull(
+                        quantityDifference
+                );
+
         quantityToBuy =
                 zeroIfNull(
                         quantityToBuy
                 );
 
-        estimatedPurchaseAmount =
+        quantityToSell =
                 zeroIfNull(
-                        estimatedPurchaseAmount
+                        quantityToSell
                 );
+
+        estimatedTradeAmount =
+                zeroIfNull(
+                        estimatedTradeAmount
+                );
+
+        if (calculatedAt == null) {
+            throw new IllegalArgumentException(
+                    "Calculation time must not be null"
+            );
+        }
     }
 
     private static BigDecimal zeroIfNull(

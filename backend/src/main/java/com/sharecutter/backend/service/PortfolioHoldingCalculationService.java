@@ -38,10 +38,14 @@ public class PortfolioHoldingCalculationService {
     private final PortfolioService
             portfolioService;
 
+    private final PortfolioSnapshotService
+            portfolioSnapshotService;
+
     public PortfolioHoldingCalculationService(
             PortfolioHoldingRepository portfolioHoldingRepository,
             TransactionRepository transactionRepository,
-            PortfolioService portfolioService
+            PortfolioService portfolioService,
+            PortfolioSnapshotService portfolioSnapshotService
     ) {
         this.portfolioHoldingRepository =
                 portfolioHoldingRepository;
@@ -51,6 +55,9 @@ public class PortfolioHoldingCalculationService {
 
         this.portfolioService =
                 portfolioService;
+
+        this.portfolioSnapshotService =
+                portfolioSnapshotService;
     }
 
     @Transactional
@@ -385,6 +392,12 @@ public class PortfolioHoldingCalculationService {
                 currentValue
         );
 
+        portfolioSnapshotService.recordSnapshot(
+                portfolio,
+                cashBalance,
+                totalMarketValue
+        );
+
         return portfolio;
     }
 
@@ -634,7 +647,7 @@ public class PortfolioHoldingCalculationService {
         );
     }
 
-    private BigDecimal calculatePortfolioCashBalance(
+        private BigDecimal calculatePortfolioCashBalance(
             PortfolioEntity portfolio
     ) {
         BigDecimal cashBalance =
@@ -714,7 +727,19 @@ public class PortfolioHoldingCalculationService {
                                         totalAmount
                                 );
 
+                case TRANSFER_IN ->
+                        cashBalance =
+                                cashBalance.add(
+                                        totalAmount
+                                );
+
                 case WITHDRAWAL ->
+                        cashBalance =
+                                cashBalance.subtract(
+                                        totalAmount
+                                );
+
+                case TRANSFER_OUT ->
                         cashBalance =
                                 cashBalance.subtract(
                                         totalAmount

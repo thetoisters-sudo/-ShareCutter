@@ -29,6 +29,7 @@ import {
     AllocationPurchaseService,
 } from '../../../../core/allocation-purchase/services/allocation-purchase.service';
 import {
+    AssetCreateRequest,
     AssetResponse,
 } from '../../../../core/asset/models/asset.models';
 import {
@@ -37,6 +38,12 @@ import {
 import {
     TranslationService,
 } from '../../../../core/i18n/services/translation.service';
+import {
+    MarketSymbolSearchResponse,
+} from '../../../../core/market-data/models/market-data.models';
+import {
+    MarketDataService,
+} from '../../../../core/market-data/services/market-data.service';
 import {
     PortfolioResponse,
 } from '../../../../core/portfolio/models/portfolio.models';
@@ -71,6 +78,9 @@ export class AllocationPurchasePage
     private readonly assetService =
         inject(AssetService);
 
+    private readonly marketDataService =
+        inject(MarketDataService);
+
     private readonly translationService =
         inject(TranslationService);
 
@@ -99,6 +109,15 @@ export class AllocationPurchasePage
     protected fee:
         number | null = null;
 
+    protected marketSearchQuery = '';
+
+    protected marketSearchResults:
+        MarketSymbolSearchResponse[] = [];
+
+    protected selectedMarketResult:
+        MarketSymbolSearchResponse | null =
+        null;
+
     protected preview:
         AllocationPurchasePreviewResponse | null =
         null;
@@ -111,6 +130,10 @@ export class AllocationPurchasePage
 
     protected isLoadingAssets = false;
 
+    protected isSearchingMarket = false;
+
+    protected isAddingMarketAsset = false;
+
     protected isPreviewing = false;
 
     protected isExecuting = false;
@@ -118,6 +141,8 @@ export class AllocationPurchasePage
     protected errorMessage = '';
 
     protected successMessage = '';
+
+    protected marketSearchMessage = '';
 
     ngOnInit(): void {
         this.loadPortfolios();
@@ -137,15 +162,20 @@ export class AllocationPurchasePage
             portfolioId;
 
         this.resetAssetSelection();
+        this.resetMarketSearch();
 
         if (!portfolioId) {
             this.assets = [];
+
             this.changeDetectorRef
                 .markForCheck();
+
             return;
         }
 
-        this.loadAssets(portfolioId);
+        this.loadAssets(
+            portfolioId,
+        );
     }
 
     protected selectAsset(
@@ -154,8 +184,266 @@ export class AllocationPurchasePage
         this.selectedAssetId =
             assetId;
 
+        this.selectedMarketResult =
+            null;
+
         this.clearPreviewAndExecution();
         this.clearMessages();
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected onMarketSearchQueryChange(
+        value: string,
+    ): void {
+        this.marketSearchQuery =
+            value;
+
+        this.marketSearchResults = [];
+        this.selectedMarketResult = null;
+        this.marketSearchMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected searchMarket(): void {
+        this.marketSearchMessage = '';
+        this.selectedMarketResult = null;
+
+        const query =
+            this.marketSearchQuery.trim();
+
+        if (query.length < 2) {
+            this.marketSearchResults = [];
+
+            this.marketSearchMessage =
+                this.text()
+                    .assets
+                    .enterAtLeastTwoCharacters;
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        this.isSearchingMarket = true;
+        this.marketSearchResults = [];
+
+        this.changeDetectorRef
+            .markForCheck();
+
+        this.marketDataService
+            .searchSymbols({
+                query,
+                limit: 15,
+            })
+            .pipe(
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: (results) => {
+                    this.marketSearchResults =
+                        results;
+
+                    this.isSearchingMarket =
+                        false;
+
+                    if (
+                        results.length === 0
+                    ) {
+                        this.marketSearchMessage =
+                            this.text()
+                                .assets
+                                .noMarketMatches;
+                    }
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+                error: (error: unknown) => {
+                    this.isSearchingMarket =
+                        false;
+
+                    this.marketSearchMessage =
+                        this.resolveError(
+                            error,
+                            this.text()
+                                .assets
+                                .marketSearchError,
+                        );
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            });
+    }
+
+    protected selectMarketResult(
+        result: MarketSymbolSearchResponse,
+    ): void {
+        this.selectedMarketResult =
+            result;
+
+        this.marketSearchMessage = '';
+
+        const existingAsset =
+            this.findExistingAsset(
+                result,
+            );
+
+        if (existingAsset) {
+            this.selectedAssetId =
+                existingAsset.id;
+
+            this.selectedMarketResult =
+                null;
+
+            this.marketSearchResults = [];
+
+            this.marketSearchQuery =
+                (
+                    existingAsset.symbol
+                    + ' · '
+                    + existingAsset.displayName
+                );
+
+            this.clearPreviewAndExecution();
+            this.clearMessages();
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        this.selectedAssetId = '';
+
+        this.clearPreviewAndExecution();
+        this.clearMessages();
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected clearMarketSelection(): void {
+        this.resetMarketSearch();
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected addSelectedMarketAsset(): void {
+        this.clearMessages();
+
+        if (
+            !this.selectedPortfolioId ||
+            !this.selectedMarketResult
+        ) {
+            return;
+        }
+
+        const existingAsset =
+            this.findExistingAsset(
+                this.selectedMarketResult,
+            );
+
+        if (existingAsset) {
+            this.selectedAssetId =
+                existingAsset.id;
+
+            this.resetMarketSearch();
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        const result =
+            this.selectedMarketResult;
+
+        const request:
+            AssetCreateRequest = {
+            symbol:
+                result.symbol,
+            displayName:
+                result.displayName,
+            assetType:
+                result.assetType,
+            currency:
+                result.currency,
+            isin:
+                null,
+            exchange:
+                result.exchange,
+            notes:
+                (
+                    'Added from the allocation screen ' +
+                    'using live market search.'
+                ),
+        };
+
+        this.isAddingMarketAsset = true;
+
+        this.changeDetectorRef
+            .markForCheck();
+
+        this.assetService
+            .createAsset(
+                this.selectedPortfolioId,
+                request,
+            )
+            .pipe(
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: (createdAsset) => {
+                    this.assets = [
+                        ...this.assets,
+                        createdAsset,
+                    ];
+
+                    this.selectedAssetId =
+                        createdAsset.id;
+
+                    this.isAddingMarketAsset =
+                        false;
+
+                    this.successMessage =
+                        this.text()
+                            .assets
+                            .createdSuccess;
+
+                    this.resetMarketSearch();
+
+                    this.clearPreviewAndExecution();
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+                error: (error: unknown) => {
+                    this.isAddingMarketAsset =
+                        false;
+
+                    this.errorMessage =
+                        this.resolveError(
+                            error,
+                            this.text()
+                                .assets
+                                .createError,
+                        );
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            });
     }
 
     protected requestPreview(): void {
@@ -167,6 +455,7 @@ export class AllocationPurchasePage
         }
 
         this.isPreviewing = true;
+
         this.changeDetectorRef
             .markForCheck();
 
@@ -219,17 +508,19 @@ export class AllocationPurchasePage
                 this.text()
                     .allocationPurchase
                     .previewRequired;
+
             return;
         }
 
         if (
-            this.preview.suggestedAction !==
-            'BUY'
+            this.preview.suggestedAction ===
+            'HOLD'
         ) {
             this.errorMessage =
                 this.text()
                     .allocationPurchase
-                    .noAdditionalPurchaseRequired;
+                    .alreadyAtTargetMessage;
+
             return;
         }
 
@@ -269,12 +560,19 @@ export class AllocationPurchasePage
                                 'allocation-executed',
                         });
 
+                    const actionLabel =
+                        response.action === 'SELL'
+                            ? this.text()
+                                .transactions
+                                .typeSell
+                            : this.text()
+                                .transactions
+                                .typeBuy;
+
                     this.successMessage =
                         (
-                            `${this.text()
-                                .allocationPurchase
-                                .purchaseSuccessPrefix} ` +
-                            `${response.purchasedQuantity} ` +
+                            `${actionLabel} ` +
+                            `${response.tradedQuantity} ` +
                             `${response.symbol} ` +
                             `${this.text()
                                 .allocationPurchase
@@ -318,6 +616,9 @@ export class AllocationPurchasePage
 
     protected dismissSuccessMessage(): void {
         this.successMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
     }
 
     protected retry(): void {
@@ -355,8 +656,22 @@ export class AllocationPurchasePage
                 this.selectedAssetId,
             ) &&
             this.targetWeightPercent !== null &&
-            this.targetWeightPercent > 0 &&
+            this.targetWeightPercent >= 0 &&
             this.targetWeightPercent <= 100 &&
+            !this.isPreviewing &&
+            !this.isExecuting &&
+            !this.isAddingMarketAsset
+        );
+    }
+
+    protected get canAddSelectedMarketAsset():
+        boolean {
+        return (
+            Boolean(
+                this.selectedPortfolioId,
+            ) &&
+            this.selectedMarketResult !== null &&
+            !this.isAddingMarketAsset &&
             !this.isPreviewing &&
             !this.isExecuting
         );
@@ -365,8 +680,12 @@ export class AllocationPurchasePage
     protected get canExecute(): boolean {
         return (
             this.preview !== null &&
-            this.preview.suggestedAction ===
-            'BUY' &&
+            (
+                this.preview.suggestedAction ===
+                'BUY' ||
+                this.preview.suggestedAction ===
+                'SELL'
+            ) &&
             !this.isExecuting &&
             !this.isPreviewing
         );
@@ -375,11 +694,14 @@ export class AllocationPurchasePage
     private loadPortfolios(): void {
         this.isLoadingPortfolios = true;
         this.errorMessage = '';
+
         this.portfolios = [];
         this.assets = [];
+
         this.selectedPortfolioId = '';
         this.selectedAssetId = '';
 
+        this.resetMarketSearch();
         this.clearPreviewAndExecution();
 
         this.changeDetectorRef
@@ -400,14 +722,7 @@ export class AllocationPurchasePage
             .subscribe({
                 next: (response) => {
                     this.portfolios =
-                        response.content.filter(
-                            (portfolio) =>
-                            (
-                                portfolio
-                                    .creationMethod ===
-                                'BY_AMOUNT'
-                            ),
-                        );
+                        response.content;
 
                     this.isLoadingPortfolios =
                         false;
@@ -448,6 +763,7 @@ export class AllocationPurchasePage
         portfolioId: string,
     ): void {
         this.isLoadingAssets = true;
+
         this.assets = [];
         this.selectedAssetId = '';
 
@@ -458,7 +774,9 @@ export class AllocationPurchasePage
             .markForCheck();
 
         this.assetService
-            .getAssets(portfolioId)
+            .getAssets(
+                portfolioId,
+            )
             .pipe(
                 takeUntilDestroyed(
                     this.destroyRef,
@@ -467,11 +785,7 @@ export class AllocationPurchasePage
             .subscribe({
                 next: (assets) => {
                     this.assets =
-                        assets.filter(
-                            (asset) =>
-                                asset.currency ===
-                                'USD',
-                        );
+                        assets;
 
                     this.isLoadingAssets =
                         false;
@@ -504,16 +818,59 @@ export class AllocationPurchasePage
             });
     }
 
+    private findExistingAsset(
+        result: MarketSymbolSearchResponse,
+    ): AssetResponse | null {
+        const normalizedSymbol =
+            result.symbol
+                .trim()
+                .toUpperCase();
+
+        const normalizedExchange =
+            result.exchange
+                ?.trim()
+                .toUpperCase() ?? '';
+
+        return (
+            this.assets.find(
+                (asset) => {
+                    const assetSymbol =
+                        asset.symbol
+                            .trim()
+                            .toUpperCase();
+
+                    const assetExchange =
+                        asset.exchange
+                            ?.trim()
+                            .toUpperCase() ?? '';
+
+                    return (
+                        assetSymbol ===
+                        normalizedSymbol &&
+                        assetExchange ===
+                        normalizedExchange
+                    );
+                },
+            ) ?? null
+        );
+    }
+
     private validateInput(): boolean {
         if (!this.selectedPortfolioId) {
             this.errorMessage =
-                this.text().allocationPurchase.selectPortfolio;
+                this.text()
+                    .allocationPurchase
+                    .selectPortfolio;
+
             return false;
         }
 
         if (!this.selectedAssetId) {
             this.errorMessage =
-                this.text().allocationPurchase.selectAsset;
+                this.text()
+                    .allocationPurchase
+                    .selectAsset;
+
             return false;
         }
 
@@ -525,17 +882,19 @@ export class AllocationPurchasePage
                 this.text()
                     .allocationPurchase
                     .targetWeightRequired;
+
             return false;
         }
 
         if (
-            this.targetWeightPercent <= 0 ||
+            this.targetWeightPercent < 0 ||
             this.targetWeightPercent > 100
         ) {
             this.errorMessage =
                 this.text()
                     .allocationPurchase
                     .targetWeightInvalid;
+
             return false;
         }
 
@@ -544,7 +903,10 @@ export class AllocationPurchasePage
             this.fee < 0
         ) {
             this.errorMessage =
-                this.text().allocationPurchase.feeInvalid;
+                this.text()
+                    .allocationPurchase
+                    .feeInvalid;
+
             return false;
         }
 
@@ -559,6 +921,14 @@ export class AllocationPurchasePage
 
         this.clearPreviewAndExecution();
         this.clearMessages();
+    }
+
+    private resetMarketSearch(): void {
+        this.marketSearchQuery = '';
+        this.marketSearchResults = [];
+        this.selectedMarketResult = null;
+        this.marketSearchMessage = '';
+        this.isSearchingMarket = false;
     }
 
     private clearPreviewAndExecution(): void {

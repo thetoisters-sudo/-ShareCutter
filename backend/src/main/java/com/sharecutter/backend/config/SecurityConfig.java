@@ -125,6 +125,7 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 HttpMethod.POST,
                                                 "/api/v1/portfolios",
+                                                "/api/v1/portfolios/from-holdings",
                                                 "/api/v1/portfolios/market-refresh"
                                         )
                                         .authenticated()
@@ -132,7 +133,8 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 HttpMethod.GET,
                                                 "/api/v1/portfolios",
-                                                "/api/v1/portfolios/*"
+                                                "/api/v1/portfolios/*",
+                                                "/api/v1/portfolios/*/history"
                                         )
                                         .authenticated()
 

@@ -17,7 +17,9 @@ import {
 import {
     PagedResponse,
     PortfolioAllocationResponse,
+    PortfolioCreateFromHoldingsRequest,
     PortfolioCreateRequest,
+    PortfolioHistoryPointResponse,
     PortfolioListQuery,
     PortfolioRenameRequest,
     PortfolioResponse,
@@ -70,7 +72,8 @@ export class PortfolioService {
         new Subject<PortfolioChangeEvent>();
 
     readonly portfolioChanged$ =
-        this.portfolioChangedSubject.asObservable();
+        this.portfolioChangedSubject
+            .asObservable();
 
     getPortfolios(
         query: PortfolioListQuery = {},
@@ -83,7 +86,9 @@ export class PortfolioService {
             this.portfoliosUrl,
             {
                 params:
-                    this.buildListParams(query),
+                    this.buildListParams(
+                        query,
+                    ),
             },
         );
     }
@@ -101,6 +106,16 @@ export class PortfolioService {
     ): Observable<PortfolioResponse> {
         return this.http.post<PortfolioResponse>(
             this.portfoliosUrl,
+            request,
+        );
+    }
+
+    createPortfolioFromHoldings(
+        request:
+            PortfolioCreateFromHoldingsRequest,
+    ): Observable<PortfolioResponse> {
+        return this.http.post<PortfolioResponse>(
+            `${this.portfoliosUrl}/from-holdings`,
             request,
         );
     }
@@ -134,7 +149,9 @@ export class PortfolioService {
     }
 
     refreshMarketData():
-        Observable<PortfolioMarketRefreshResponse> {
+        Observable<
+            PortfolioMarketRefreshResponse
+        > {
         return this.http.post<
             PortfolioMarketRefreshResponse
         >(
@@ -145,11 +162,16 @@ export class PortfolioService {
 
     getPortfolioSummary(
         portfolioId: string,
-    ): Observable<PortfolioSummaryResponse> {
+    ): Observable<
+        PortfolioSummaryResponse
+    > {
         return this.http.get<
             PortfolioSummaryResponse
         >(
-            `${this.portfoliosUrl}/${portfolioId}/analytics/summary`,
+            (
+                `${this.portfoliosUrl}/` +
+                `${portfolioId}/analytics/summary`
+            ),
         );
     }
 
@@ -161,14 +183,33 @@ export class PortfolioService {
         return this.http.get<
             PortfolioAllocationResponse
         >(
-            `${this.portfoliosUrl}/${portfolioId}/analytics/allocation`,
+            (
+                `${this.portfoliosUrl}/` +
+                `${portfolioId}/analytics/allocation`
+            ),
+        );
+    }
+
+    getPortfolioHistory(
+        portfolioId: string,
+    ): Observable<
+        PortfolioHistoryPointResponse[]
+    > {
+        return this.http.get<
+            PortfolioHistoryPointResponse[]
+        >(
+            (
+                `${this.portfoliosUrl}/` +
+                `${portfolioId}/history`
+            ),
         );
     }
 
     updateTargetWeight(
         portfolioId: string,
         assetId: string,
-        request: TargetWeightUpdateRequest,
+        request:
+            TargetWeightUpdateRequest,
     ): Observable<
         PortfolioAllocationResponse
     > {
@@ -176,9 +217,10 @@ export class PortfolioService {
             PortfolioAllocationResponse
         >(
             (
-                `${this.portfoliosUrl}/${portfolioId}` +
-                `/analytics/allocation/${assetId}` +
-                '/target-weight'
+                `${this.portfoliosUrl}/` +
+                `${portfolioId}` +
+                `/analytics/allocation/` +
+                `${assetId}/target-weight`
             ),
             request,
         );
@@ -189,7 +231,8 @@ export class PortfolioService {
     ): Observable<void> {
         return this.http.post<void>(
             (
-                `${this.portfoliosUrl}/${portfolioId}` +
+                `${this.portfoliosUrl}/` +
+                `${portfolioId}` +
                 '/transactions/rebuild'
             ),
             null,
@@ -210,35 +253,45 @@ export class PortfolioService {
         let params =
             new HttpParams();
 
-        if (query.page !== undefined) {
-            params = params.set(
-                'page',
-                query.page.toString(),
-            );
+        if (
+            query.page !== undefined
+        ) {
+            params =
+                params.set(
+                    'page',
+                    query.page.toString(),
+                );
         }
 
-        if (query.size !== undefined) {
-            params = params.set(
-                'size',
-                query.size.toString(),
-            );
+        if (
+            query.size !== undefined
+        ) {
+            params =
+                params.set(
+                    'size',
+                    query.size.toString(),
+                );
         }
 
-        if (query.sortBy !== undefined) {
-            params = params.set(
-                'sortBy',
-                query.sortBy,
-            );
+        if (
+            query.sortBy !== undefined
+        ) {
+            params =
+                params.set(
+                    'sortBy',
+                    query.sortBy,
+                );
         }
 
         if (
             query.sortDirection !==
             undefined
         ) {
-            params = params.set(
-                'sortDirection',
-                query.sortDirection,
-            );
+            params =
+                params.set(
+                    'sortDirection',
+                    query.sortDirection,
+                );
         }
 
         return params;

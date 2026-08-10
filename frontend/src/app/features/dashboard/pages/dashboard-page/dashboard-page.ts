@@ -25,6 +25,13 @@ import {
     of,
     switchMap,
 } from 'rxjs';
+import {
+    ChartConfiguration,
+    ChartData,
+} from 'chart.js';
+import {
+    BaseChartDirective,
+} from 'ng2-charts';
 
 import {
     TranslationService,
@@ -32,6 +39,7 @@ import {
 import {
     PortfolioAllocationResponse,
     PortfolioCreationMethod,
+    PortfolioHistoryPointResponse,
     PortfolioResponse,
     PortfolioSummaryResponse,
 } from '../../../../core/portfolio/models/portfolio.models';
@@ -57,6 +65,11 @@ interface DashboardPortfolio {
     calculatedAt: string;
     analyticsAvailable: boolean;
     allocationAvailable: boolean;
+    allocationAssets:
+    PortfolioAllocationResponse['assets'];
+    history:
+    PortfolioHistoryPointResponse[];
+    historyAvailable: boolean;
 }
 
 @Component({
@@ -66,6 +79,7 @@ interface DashboardPortfolio {
         DatePipe,
         DecimalPipe,
         RouterLink,
+        BaseChartDirective,
     ],
     templateUrl:
         './dashboard-page.html',
@@ -298,6 +312,340 @@ export class DashboardPage
         );
     }
 
+    protected getPortfolioAllocationChartData(
+        portfolio: DashboardPortfolio,
+    ): ChartData<
+        'doughnut',
+        number[],
+        string
+    > {
+        const labels: string[] = [];
+        const values: number[] = [];
+
+        if (portfolio.cashBalance > 0) {
+            labels.push(
+                this.text().dashboard.cash,
+            );
+
+            values.push(
+                portfolio.cashBalance,
+            );
+        }
+
+        const sortedAssets =
+            [...portfolio.allocationAssets]
+                .filter(
+                    (asset) =>
+                        asset.marketValue > 0,
+                )
+                .sort(
+                    (
+                        leftAsset,
+                        rightAsset,
+                    ) =>
+                        rightAsset.marketValue -
+                        leftAsset.marketValue,
+                );
+
+        for (const asset of sortedAssets) {
+            labels.push(asset.symbol);
+            values.push(asset.marketValue);
+        }
+
+        return {
+            labels,
+            datasets: [
+                {
+                    data: values,
+                },
+            ],
+        };
+    }
+
+    protected readonly allocationChartOptions:
+        ChartConfiguration<'doughnut'>['options'] = {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        padding: 18,
+                    },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const label =
+                                context.label ?? '';
+
+                            const value =
+                                Number(
+                                    context.raw ?? 0,
+                                );
+
+                            const total =
+                                context.dataset.data
+                                    .reduce(
+                                        (
+                                            sum,
+                                            item,
+                                        ) =>
+                                            sum +
+                                            Number(item),
+                                        0,
+                                    );
+
+                            const percent =
+                                total > 0
+                                    ? (
+                                        value /
+                                        total
+                                    ) * 100
+                                    : 0;
+
+                            return (
+                                `${label}: ` +
+                                `$${value.toLocaleString(
+                                    undefined,
+                                    {
+                                        minimumFractionDigits:
+                                            2,
+                                        maximumFractionDigits:
+                                            2,
+                                    },
+                                )} ` +
+                                `(${percent.toFixed(2)}%)`
+                            );
+                        },
+                    },
+                },
+            },
+        };
+
+    protected hasPortfolioAllocationData(
+        portfolio: DashboardPortfolio,
+    ): boolean {
+        return (
+            portfolio.cashBalance > 0 ||
+            portfolio.allocationAssets.some(
+                (asset) =>
+                    asset.marketValue > 0,
+            )
+        );
+    }
+
+    protected get cashVsInvestedChartData():
+        ChartData<'bar', number[], string> {
+        return {
+            labels:
+                this.portfolios.map(
+                    (portfolio) =>
+                        portfolio.name,
+                ),
+
+            datasets: [
+                {
+                    label:
+                        this.text().dashboard.cash,
+                    data:
+                        this.portfolios.map(
+                            (portfolio) =>
+                                portfolio.cashBalance,
+                        ),
+                },
+                {
+                    label:
+                        this.text().dashboard.holdings,
+                    data:
+                        this.portfolios.map(
+                            (portfolio) =>
+                                portfolio.holdingsMarketValue,
+                        ),
+                },
+            ],
+        };
+    }
+
+    protected readonly cashVsInvestedChartOptions:
+        ChartConfiguration<'bar'>['options'] = {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        padding: 18,
+                    },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const label =
+                                context.dataset.label ??
+                                '';
+
+                            const value =
+                                Number(
+                                    context.raw ?? 0,
+                                );
+
+                            return (
+                                `${label}: ` +
+                                `$${value.toLocaleString(
+                                    undefined,
+                                    {
+                                        minimumFractionDigits:
+                                            2,
+                                        maximumFractionDigits:
+                                            2,
+                                    },
+                                )}`
+                            );
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    stacked: false,
+                    ticks: {
+                        autoSkip: false,
+                    },
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: (value) =>
+                            `$${Number(value).toLocaleString(
+                                undefined,
+                                {
+                                    maximumFractionDigits:
+                                        0,
+                                },
+                            )}`,
+                    },
+                },
+            },
+        };
+
+    protected getPortfolioGrowthChartData(
+        portfolio: DashboardPortfolio,
+    ): ChartData<
+        'line',
+        number[],
+        string
+    > {
+        return {
+            labels:
+                portfolio.history.map(
+                    (point) =>
+                        this.formatHistoryLabel(
+                            point.capturedAt,
+                        ),
+                ),
+
+            datasets: [
+                {
+                    label:
+                        this.text().dashboard
+                            .portfolioValue,
+                    data:
+                        portfolio.history.map(
+                            (point) =>
+                                point.currentValue,
+                        ),
+                    tension: 0.25,
+                    fill: false,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                },
+            ],
+        };
+    }
+
+    protected readonly portfolioGrowthChartOptions:
+        ChartConfiguration<'line'>['options'] = {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        padding: 18,
+                    },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const value =
+                                Number(
+                                    context.raw ?? 0,
+                                );
+
+                            return (
+                                `${this.text().dashboard.portfolioValue}: ` +
+                                `$${value.toLocaleString(
+                                    undefined,
+                                    {
+                                        minimumFractionDigits:
+                                            2,
+                                        maximumFractionDigits:
+                                            2,
+                                    },
+                                )}`
+                            );
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 0,
+                    },
+                },
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: (value) =>
+                            `$${Number(value).toLocaleString(
+                                undefined,
+                                {
+                                    maximumFractionDigits:
+                                        0,
+                                },
+                            )}`,
+                    },
+                },
+            },
+        };
+
+    protected hasPortfolioGrowthData(
+        portfolio: DashboardPortfolio,
+    ): boolean {
+        return portfolio.history.length > 1;
+    }
+
     protected get bestPerformingPortfolio():
         DashboardPortfolio | null {
         if (
@@ -460,11 +808,38 @@ export class DashboardPage
                             }),
                         ),
                     ),
+
+            history:
+                this.portfolioService
+                    .getPortfolioHistory(
+                        portfolio.id,
+                    )
+                    .pipe(
+                        map((history) => ({
+                            value:
+                                history,
+
+                            available:
+                                true,
+                        })),
+
+                        catchError(() =>
+                            of({
+                                value:
+                                    [] as
+                                    PortfolioHistoryPointResponse[],
+
+                                available:
+                                    false,
+                            }),
+                        ),
+                    ),
         }).pipe(
             map(
                 ({
                     summary,
                     allocation,
+                    history,
                 }) =>
                     this.createDashboardPortfolio(
                         portfolio,
@@ -472,6 +847,8 @@ export class DashboardPage
                         summary.available,
                         allocation.value,
                         allocation.available,
+                        history.value,
+                        history.available,
                     ),
             ),
         );
@@ -485,6 +862,9 @@ export class DashboardPage
         allocation:
             PortfolioAllocationResponse | null,
         allocationAvailable: boolean,
+        history:
+            PortfolioHistoryPointResponse[],
+        historyAvailable: boolean,
     ): DashboardPortfolio {
         const currentValue =
             summary?.currentValue ??
@@ -570,7 +950,39 @@ export class DashboardPage
             analyticsAvailable,
 
             allocationAvailable,
+
+            allocationAssets:
+                allocation?.assets ?? [],
+
+            history,
+
+            historyAvailable,
         };
+    }
+
+    private formatHistoryLabel(
+        capturedAt: string,
+    ): string {
+        const date =
+            new Date(capturedAt);
+
+        if (
+            Number.isNaN(
+                date.getTime(),
+            )
+        ) {
+            return capturedAt;
+        }
+
+        return date.toLocaleString(
+            undefined,
+            {
+                month: 'short',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+            },
+        );
     }
 
     private calculatePercent(
