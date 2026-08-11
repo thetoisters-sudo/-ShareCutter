@@ -2,27 +2,32 @@
     <header class="portfolios-header">
         <div>
             <span class="portfolios-header__eyebrow">
-                Portfolio management
+                {{ text().portfolios.eyebrow }}
             </span>
 
-            <h1>Portfolios</h1>
+            <h1>
+                {{ text().portfolios.title }}
+            </h1>
 
             <p>
-                Create and maintain your investment portfolios,
-                update their values and review current performance.
+                {{ text().portfolios.description }}
             </p>
         </div>
 
         <button type="button" class="primary-button" (click)="openCreateDialog()">
-            Create portfolio
+            {{ text().portfolios.createPortfolio }}
         </button>
     </header>
 
     @if (successMessage) {
     <section class="message-banner message-banner--success" role="status">
-        <span>{{ successMessage }}</span>
+        <span>
+            {{ successMessage }}
+        </span>
 
-        <button type="button" aria-label="Dismiss message" (click)="dismissSuccessMessage()">
+        <button type="button" [attr.aria-label]="
+                    text().portfolios.dismissMessage
+                " (click)="dismissSuccessMessage()">
             ×
         </button>
     </section>
@@ -32,10 +37,15 @@
     <section class="page-state" aria-live="polite">
         <span class="page-state__spinner" aria-hidden="true"></span>
 
-        <h2>Loading portfolios</h2>
+        <h2>
+            {{ text().portfolios.loadingTitle }}
+        </h2>
 
         <p>
-            Your investment accounts are being retrieved.
+            {{
+            text().portfolios
+            .loadingDescription
+            }}
         </p>
     </section>
     } @else if (errorMessage) {
@@ -44,12 +54,19 @@
             !
         </span>
 
-        <h2>Portfolios unavailable</h2>
+        <h2>
+            {{
+            text().portfolios
+            .unavailableTitle
+            }}
+        </h2>
 
-        <p>{{ errorMessage }}</p>
+        <p>
+            {{ errorMessage }}
+        </p>
 
         <button type="button" class="primary-button" (click)="retry()">
-            Try again
+            {{ text().portfolios.retry }}
         </button>
     </section>
     } @else if (portfolios.length === 0) {
@@ -58,65 +75,132 @@
             +
         </span>
 
-        <h2>No portfolios yet</h2>
+        <h2>
+            {{ text().portfolios.emptyTitle }}
+        </h2>
 
         <p>
-            Create your first portfolio to begin tracking
-            capital, values and investment returns.
+            {{
+            text().portfolios
+            .emptyDescription
+            }}
         </p>
 
         <button type="button" class="primary-button" (click)="openCreateDialog()">
-            Create your first portfolio
+            {{
+            text().portfolios
+            .createFirstPortfolio
+            }}
         </button>
     </section>
     } @else {
-    <section class="portfolio-summary" aria-label="Current page summary">
+    <section class="portfolio-summary" [attr.aria-label]="
+                text().portfolios.currentPageSummary
+            ">
         <article class="summary-card">
-            <span>All portfolios</span>
+            <span>
+                {{
+                text().portfolios
+                .allPortfolios
+                }}
+            </span>
 
             <strong>
                 {{ totalElements }}
             </strong>
 
             <small>
-                Across all pages
+                {{
+                text().portfolios
+                .acrossAllPages
+                }}
             </small>
         </article>
 
         <article class="summary-card">
-            <span>Displayed value</span>
+            <span>
+                {{
+                text().portfolios
+                .displayedValue
+                }}
+            </span>
 
             <strong>
                 {{
                 totalCurrentValue
-                | currency:'USD':'symbol':'1.2-2'
+                | currency:
+                'USD':
+                'symbol':
+                '1.2-2'
                 }}
             </strong>
 
             <small>
-                Portfolios on this page
+                {{
+                text().portfolios
+                .calculatedValueOnPage
+                }}
             </small>
         </article>
 
         <article class="summary-card">
-            <span>Displayed profit</span>
+            <span>
+                {{
+                text().portfolios
+                .displayedProfit
+                }}
+            </span>
 
             <strong [class.summary-card__positive]="
-                        isPositiveOrZero(displayedProfit)
+                        isPositiveOrZero(
+                            displayedProfit
+                        )
                     " [class.summary-card__negative]="
-                        !isPositiveOrZero(displayedProfit)
+                        !isPositiveOrZero(
+                            displayedProfit
+                        )
                     ">
                 {{
                 displayedProfit
-                | currency:'USD':'symbol':'1.2-2'
+                | currency:
+                'USD':
+                'symbol':
+                '1.2-2'
                 }}
             </strong>
 
             <small>
-                Current value minus initial value
+                {{
+                text().portfolios
+                .combinedCalculatedProfit
+                }}
             </small>
         </article>
     </section>
+
+    @if (analyticsUnavailableCount > 0) {
+    <section class="
+                    message-banner
+                    message-banner--warning
+                " role="status">
+        <span>
+            {{ analyticsUnavailableCount }}
+
+            {{
+            analyticsUnavailableCount === 1
+            ? text().portfolios
+            .analyticsUnavailableSingle
+            : text().portfolios
+            .analyticsUnavailableMultiple
+            }}
+
+            {{
+            text().portfolios
+            .cachedValuesTemporarily
+            }}
+        </span>
+    </section>
+    }
 
     <section class="portfolio-list">
         @for (
@@ -126,45 +210,75 @@
         <article class="portfolio-card">
             <header class="portfolio-card__header">
                 <div>
-                    <span class="portfolio-card__method">
+                    <span class="
+                                    portfolio-card__method
+                                ">
                         {{
                         portfolio.creationMethod ===
                         'BY_AMOUNT'
-                        ? 'Created by amount'
-                        : 'Created by holdings'
+                        ? text()
+                        .portfolios
+                        .createdByAmount
+                        : text()
+                        .portfolios
+                        .createdByHoldings
                         }}
                     </span>
 
-                    <h2>{{ portfolio.name }}</h2>
+                    <h2>
+                        {{ portfolio.name }}
+                    </h2>
 
                     <small>
-                        Updated
                         {{
-                        portfolio.updatedAt
-                        | date:'mediumDate'
+                        portfolio
+                        .analyticsAvailable
+                        ? text()
+                        .portfolios
+                        .calculated
+                        : text()
+                        .portfolios
+                        .cached
+                        }}
+
+                        {{
+                        portfolio.calculatedAt
+                        | date:
+                        'mediumDate'
                         }}
                     </small>
                 </div>
 
                 <span class="return-badge" [class.return-badge--positive]="
                                 isPositiveOrZero(
-                                    portfolio.totalReturnPercent
+                                    portfolio
+                                        .totalReturnPercent
                                 )
                             " [class.return-badge--negative]="
                                 !isPositiveOrZero(
-                                    portfolio.totalReturnPercent
+                                    portfolio
+                                        .totalReturnPercent
                                 )
                             ">
                     {{
-                    portfolio.totalReturnPercent
-                    | number:'1.2-2'
+                    portfolio
+                    .totalReturnPercent
+                    | number:
+                    '1.2-2'
                     }}%
                 </span>
             </header>
 
-            <dl class="portfolio-card__values">
+            <dl class="
+                            portfolio-card__values
+                        ">
                 <div>
-                    <dt>Initial value</dt>
+                    <dt>
+                        {{
+                        text().portfolios
+                        .initialValue
+                        }}
+                    </dt>
 
                     <dd>
                         {{
@@ -178,7 +292,12 @@
                 </div>
 
                 <div>
-                    <dt>Current value</dt>
+                    <dt>
+                        {{
+                        text().portfolios
+                        .currentValue
+                        }}
+                    </dt>
 
                     <dd>
                         {{
@@ -192,11 +311,26 @@
                 </div>
 
                 <div>
-                    <dt>Realized profit</dt>
-
-                    <dd>
+                    <dt>
                         {{
-                        portfolio.totalRealizedProfit
+                        text().portfolios
+                        .totalProfit
+                        }}
+                    </dt>
+
+                    <dd [class.summary-card__positive]="
+                                    isPositiveOrZero(
+                                        portfolio
+                                            .totalProfit
+                                    )
+                                " [class.summary-card__negative]="
+                                    !isPositiveOrZero(
+                                        portfolio
+                                            .totalProfit
+                                    )
+                                ">
+                        {{
+                        portfolio.totalProfit
                         | currency:
                         'USD':
                         'symbol':
@@ -206,11 +340,17 @@
                 </div>
 
                 <div>
-                    <dt>Unrealized profit</dt>
+                    <dt>
+                        {{
+                        text().portfolios
+                        .realizedProfit
+                        }}
+                    </dt>
 
                     <dd>
                         {{
-                        portfolio.totalUnrealizedProfit
+                        portfolio
+                        .totalRealizedProfit
                         | currency:
                         'USD':
                         'symbol':
@@ -218,73 +358,830 @@
                         }}
                     </dd>
                 </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().portfolios
+                        .unrealizedProfit
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        portfolio
+                        .totalUnrealizedProfit
+                        | currency:
+                        'USD':
+                        'symbol':
+                        '1.2-2'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().portfolios
+                        .activeAssets
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        portfolio
+                        .activeAssetCount
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().portfolios
+                        .transactions
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        portfolio
+                        .transactionCount
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().portfolios
+                        .dataSource
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        portfolio
+                        .analyticsAvailable
+                        ? text()
+                        .portfolios
+                        .liveAnalytics
+                        : text()
+                        .portfolios
+                        .cachedPortfolio
+                        }}
+                    </dd>
+                </div>
             </dl>
 
-            <footer class="portfolio-card__actions">
-                <button type="button" (click)="openRenameDialog(portfolio)">
-                    Rename
+            <footer class="
+                            portfolio-card__actions
+                        ">
+                <button type="button" class="
+                                portfolio-details-button
+                            " [attr.aria-expanded]="
+                                isPortfolioExpanded(
+                                    portfolio.id
+                                )
+                            " [attr.aria-controls]="
+                                'portfolio-allocation-' +
+                                portfolio.id
+                            " (click)="
+                                togglePortfolioDetails(
+                                    portfolio
+                                )
+                            ">
+                    {{
+                    isPortfolioExpanded(
+                    portfolio.id
+                    )
+                    ? text()
+                    .portfolios
+                    .hideAllocation
+                    : text()
+                    .portfolios
+                    .showAllocation
+                    }}
                 </button>
 
-                <button type="button" (click)="openValueDialog(portfolio)">
-                    Update value
+                <button type="button" (click)="
+                                openEditDialog(
+                                    portfolio
+                                )
+                            ">
+                    {{
+                    text().transactions
+                    .edit
+                    }}
                 </button>
 
-                <button type="button" class="danger-button" (click)="openDeleteDialog(portfolio)">
-                    Delete
+                <button type="button" (click)="
+                        openPortfolioHistory(
+                            portfolio.id
+                        )
+                    ">
+                    {{
+                    text().portfolios.cancel ===
+                    'ביטול'
+                    ? 'היסטוריית תיק'
+                    : 'Portfolio history'
+                    }}
+                </button>
+
+                <button type="button" class="danger-button" (click)="
+                                openDeleteDialog(
+                                    portfolio
+                                )
+                            ">
+                    {{
+                    text().portfolios
+                    .delete
+                    }}
                 </button>
             </footer>
+
+            @if (
+            isPortfolioExpanded(
+            portfolio.id
+            )
+            ) {
+            <section class="
+                                portfolio-allocation
+                            " [id]="
+                                'portfolio-allocation-' +
+                                portfolio.id
+                            ">
+                <header class="
+                                    portfolio-allocation__header
+                                ">
+                    <div>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .currentAllocation
+                            }}
+                        </span>
+
+                        <h3>
+                            {{
+                            text()
+                            .portfolios
+                            .holdingsAndWeights
+                            }}
+                        </h3>
+                    </div>
+
+                    @if (
+                    getPortfolioAllocation(
+                    portfolio.id
+                    );
+                    as allocation
+                    ) {
+                    <small>
+                        {{
+                        text()
+                        .portfolios
+                        .calculated
+                        }}
+
+                        {{
+                        allocation
+                        .calculatedAt
+                        | date:
+                        'medium'
+                        }}
+                    </small>
+                    }
+                </header>
+
+                @if (
+                isAllocationLoading(
+                portfolio.id
+                )
+                ) {
+                <div class="
+                                        allocation-state
+                                        allocation-state--loading
+                                    " aria-live="polite">
+                    <span class="
+                                            page-state__spinner
+                                        " aria-hidden="true"></span>
+
+                    <p>
+                        {{
+                        text()
+                        .portfolios
+                        .loadingAllocation
+                        }}
+                    </p>
+                </div>
+                } @else if (
+                getAllocationError(
+                portfolio.id
+                );
+                as allocationError
+                ) {
+                <div class="
+                                        allocation-state
+                                        allocation-state--error
+                                    " role="alert">
+                    <span class="
+                                            allocation-state__icon
+                                        " aria-hidden="true">
+                        !
+                    </span>
+
+                    <div>
+                        <h4>
+                            {{
+                            text()
+                            .portfolios
+                            .allocationUnavailable
+                            }}
+                        </h4>
+
+                        <p>
+                            {{
+                            allocationError
+                            }}
+                        </p>
+                    </div>
+
+                    <button type="button" class="
+                                            primary-button
+                                        " (click)="
+                                            retryPortfolioAllocation(
+                                                portfolio.id
+                                            )
+                                        ">
+                        {{
+                        text()
+                        .portfolios
+                        .retry
+                        }}
+                    </button>
+                </div>
+                } @else if (
+                getPortfolioAllocation(
+                portfolio.id
+                );
+                as allocation
+                ) {
+                <section class="
+                                        allocation-summary
+                                    ">
+                    <article>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .portfolioValue
+                            }}
+                        </span>
+
+                        <strong>
+                            {{
+                            (
+                            allocation
+                            .portfolioValue ??
+                            portfolio
+                            .currentValue
+                            )
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .availableCash
+                            }}
+                        </span>
+
+                        <strong>
+                            {{
+                            (
+                            allocation
+                            .cashBalance ??
+                            0
+                            )
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .holdingsMarketValue
+                            }}
+                        </span>
+
+                        <strong>
+                            {{
+                            allocation
+                            .totalMarketValue
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .totalCost
+                            }}
+                        </span>
+
+                        <strong>
+                            {{
+                            allocation
+                            .totalCost
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .realizedProfit
+                            }}
+                        </span>
+
+                        <strong [class.summary-card__positive]="
+                                                isPositiveOrZero(
+                                                    allocation
+                                                        .totalRealizedProfit
+                                                )
+                                            " [class.summary-card__negative]="
+                                                !isPositiveOrZero(
+                                                    allocation
+                                                        .totalRealizedProfit
+                                                )
+                                            ">
+                            {{
+                            allocation
+                            .totalRealizedProfit
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .unrealizedProfit
+                            }}
+                        </span>
+
+                        <strong [class.summary-card__positive]="
+                                                isPositiveOrZero(
+                                                    allocation
+                                                        .totalUnrealizedProfit
+                                                )
+                                            " [class.summary-card__negative]="
+                                                !isPositiveOrZero(
+                                                    allocation
+                                                        .totalUnrealizedProfit
+                                                )
+                                            ">
+                            {{
+                            allocation
+                            .totalUnrealizedProfit
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .targetAllocation
+                            }}
+                        </span>
+
+                        <strong>
+                            {{
+                            (
+                            allocation
+                            .totalTargetWeightPercent ??
+                            0
+                            )
+                            | number:
+                            '1.2-2'
+                            }}%
+                        </strong>
+                    </article>
+
+                    <article>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .allocatedAssets
+                            }}
+                        </span>
+
+                        <strong>
+                            {{
+                            allocation
+                            .allocatedAssetCount
+                            }}
+                        </strong>
+                    </article>
+                </section>
+
+                @if (
+                allocation.assets
+                .length === 0
+                ) {
+                <div class="
+                                            allocation-state
+                                            allocation-state--empty
+                                        ">
+                    <span class="
+                                                allocation-state__icon
+                                            " aria-hidden="true">
+                        +
+                    </span>
+
+                    <div>
+                        <h4>
+                            {{
+                            text()
+                            .portfolios
+                            .noAllocatedAssets
+                            }}
+                        </h4>
+
+                        <p>
+                            {{
+                            text()
+                            .portfolios
+                            .noAllocatedAssetsDescription
+                            }}
+                        </p>
+                    </div>
+                </div>
+                } @else {
+                <div class="
+                                            allocation-table-wrapper
+                                        ">
+                    <table class="
+                                                allocation-table
+                                            ">
+                        <thead>
+                            <tr>
+                                <th>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .asset
+                                    }}
+                                </th>
+
+                                <th>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .quantity
+                                    }}
+                                </th>
+
+                                <th>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .averageCost
+                                    }}
+                                </th>
+
+                                <th>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .currentPrice
+                                    }}
+                                </th>
+
+                                <th>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .totalCost
+                                    }}
+                                </th>
+
+                                <th>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .marketValue
+                                    }}
+                                </th>
+
+                                <th>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .weight
+                                    }}
+                                </th>
+
+                                <th>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .realized
+                                    }}
+                                </th>
+
+                                <th>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .unrealized
+                                    }}
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @for (
+                            asset of
+                            allocation.assets;
+                            track
+                            asset.assetId
+                            ) {
+                            <tr>
+                                <td>
+                                    <div class="
+                                                                    asset-identity
+                                                                ">
+                                        <strong>
+                                            {{
+                                            asset
+                                            .symbol
+                                            }}
+                                        </strong>
+
+                                        <span>
+                                            {{
+                                            asset
+                                            .displayName
+                                            }}
+                                        </span>
+
+                                        <small>
+                                            {{
+                                            asset
+                                            .assetType
+                                            }}
+                                            ·
+                                            {{
+                                            asset
+                                            .currency
+                                            }}
+                                        </small>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    {{
+                                    asset
+                                    .quantity
+                                    | number:
+                                    '1.0-8'
+                                    }}
+                                </td>
+
+                                <td>
+                                    {{
+                                    asset
+                                    .averageCost
+                                    | currency:
+                                    asset
+                                    .currency:
+                                    'symbol':
+                                    '1.2-8'
+                                    }}
+                                </td>
+
+                                <td>
+                                    {{
+                                    asset
+                                    .currentPrice
+                                    | currency:
+                                    asset
+                                    .currency:
+                                    'symbol':
+                                    '1.2-8'
+                                    }}
+                                </td>
+
+                                <td>
+                                    {{
+                                    asset
+                                    .totalCost
+                                    | currency:
+                                    asset
+                                    .currency:
+                                    'symbol':
+                                    '1.2-2'
+                                    }}
+                                </td>
+
+                                <td>
+                                    {{
+                                    asset
+                                    .marketValue
+                                    | currency:
+                                    asset
+                                    .currency:
+                                    'symbol':
+                                    '1.2-2'
+                                    }}
+                                </td>
+
+                                <td>
+                                    <div class="
+                                                                    allocation-weight
+                                                                ">
+                                        <strong>
+                                            {{
+                                            asset
+                                            .allocationPercent
+                                            | number:
+                                            '1.2-2'
+                                            }}%
+                                        </strong>
+
+                                        <span class="
+                                                                        allocation-weight__track
+                                                                    ">
+                                            <span class="
+                                                                            allocation-weight__fill
+                                                                        " [style.width.%]="
+                                                                            asset
+                                                                                .allocationPercent
+                                                                        "></span>
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td [class.summary-card__positive]="
+                                                                isPositiveOrZero(
+                                                                    asset
+                                                                        .realizedProfit
+                                                                )
+                                                            " [class.summary-card__negative]="
+                                                                !isPositiveOrZero(
+                                                                    asset
+                                                                        .realizedProfit
+                                                                )
+                                                            ">
+                                    {{
+                                    asset
+                                    .realizedProfit
+                                    | currency:
+                                    asset
+                                    .currency:
+                                    'symbol':
+                                    '1.2-2'
+                                    }}
+                                </td>
+
+                                <td [class.summary-card__positive]="
+                                                                isPositiveOrZero(
+                                                                    asset
+                                                                        .unrealizedProfit
+                                                                )
+                                                            " [class.summary-card__negative]="
+                                                                !isPositiveOrZero(
+                                                                    asset
+                                                                        .unrealizedProfit
+                                                                )
+                                                            ">
+                                    {{
+                                    asset
+                                    .unrealizedProfit
+                                    | currency:
+                                    asset
+                                    .currency:
+                                    'symbol':
+                                    '1.2-2'
+                                    }}
+                                </td>
+                            </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                }
+                }
+            </section>
+            }
         </article>
         }
     </section>
 
-    <nav class="pagination" aria-label="Portfolio pages">
+    <nav class="pagination">
         <button type="button" [disabled]="isFirstPage" (click)="goToPreviousPage()">
-            Previous
+            {{ text().portfolios.previous }}
         </button>
 
         <span>
-            Page {{ visiblePageNumber }}
-            of {{ totalPages }}
+            {{ text().portfolios.page }}
+            {{ visiblePageNumber }}
+            {{ text().portfolios.of }}
+            {{ totalPages }}
         </span>
 
         <button type="button" [disabled]="isLastPage" (click)="goToNextPage()">
-            Next
+            {{ text().portfolios.next }}
         </button>
     </nav>
     }
 
     @if (dialogMode) {
     <div class="dialog-backdrop" role="presentation">
-        <section class="portfolio-dialog" role="dialog" aria-modal="true" aria-labelledby="portfolio-dialog-title">
-            <header class="portfolio-dialog__header">
+        <section class="portfolio-dialog" role="dialog" aria-modal="true" aria-labelledby="
+                    portfolio-dialog-title
+                ">
+            <header class="
+                        portfolio-dialog__header
+                    ">
                 <div>
                     <span>
-                        Portfolio action
+                        {{
+                        text().portfolios
+                        .portfolioAction
+                        }}
                     </span>
 
-                    <h2 id="portfolio-dialog-title">
+                    <h2 id="
+                                portfolio-dialog-title
+                            ">
                         @switch (dialogMode) {
                         @case ('create') {
-                        Create portfolio
+                        {{
+                        text()
+                        .portfolios
+                        .createDialogTitle
+                        }}
                         }
 
-                        @case ('rename') {
-                        Rename portfolio
-                        }
-
-                        @case ('value') {
-                        Update portfolio value
+                        @case ('edit') {
+                        {{
+                        editDialogTitleLabel
+                        }}
                         }
 
                         @case ('delete') {
-                        Delete portfolio
+                        {{
+                        text()
+                        .portfolios
+                        .deleteDialogTitle
+                        }}
                         }
                         }
                     </h2>
                 </div>
 
-                <button type="button" class="dialog-close" aria-label="Close dialog" [disabled]="isSubmitting"
-                    (click)="closeDialog()">
+                <button type="button" class="dialog-close" [disabled]="isSubmitting" (click)="closeDialog()">
                     ×
                 </button>
             </header>
@@ -299,136 +1196,1201 @@
             @case ('create') {
             <form class="portfolio-form" (ngSubmit)="submitCreate()">
                 <label>
-                    <span>Portfolio name</span>
+                    <span>
+                        {{
+                        text()
+                        .portfolios
+                        .portfolioName
+                        }}
+                    </span>
 
-                    <input type="text" name="createName" maxlength="120" autocomplete="off" [(ngModel)]="createName" />
+                    <input type="text" name="createName" maxlength="120" autocomplete="off" [(ngModel)]="
+                                        createName
+                                    " />
                 </label>
 
                 <label>
-                    <span>Creation method</span>
+                    <span>
+                        {{
+                        text()
+                        .portfolios
+                        .creationMethod
+                        }}
+                    </span>
 
-                    <select name="createMethod" [(ngModel)]="createMethod">
+                    <select name="createMethod" [(ngModel)]="
+                                        createMethod
+                                    " (ngModelChange)="
+                                        onCreateMethodChange()
+                                    ">
                         <option value="BY_AMOUNT">
-                            Allocate by amount
+                            {{
+                            text()
+                            .portfolios
+                            .allocateByAmount
+                            }}
                         </option>
 
                         <option value="BY_HOLDINGS">
-                            Enter existing holdings
+                            {{
+                            text()
+                            .portfolios
+                            .enterExistingHoldings
+                            }}
                         </option>
                     </select>
                 </label>
 
+                @if (
+                createMethod ===
+                'BY_AMOUNT'
+                ) {
                 <label>
-                    <span>Initial value</span>
+                    <span>
+                        {{
+                        text()
+                        .portfolios
+                        .initialValueField
+                        }}
+                    </span>
 
-                    <input type="number" name="createInitialValue" min="0" step="0.01"
-                        [(ngModel)]="createInitialValue" />
+                    <input type="number" name="
+                                            createInitialValue
+                                        " min="0.01" step="0.01" [(ngModel)]="
+                                            createInitialValue
+                                        " />
                 </label>
 
-                <footer class="dialog-actions">
-                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
-                        Cancel
+                <p>
+                    {{
+                    text()
+                    .portfolios
+                    .automaticCurrentValueNote
+                    }}
+                </p>
+                } @else {
+                <section class="
+                                        holdings-creation
+                                    ">
+                    <header class="
+                                            holdings-creation__header
+                                        ">
+                        <div>
+                            <span class="
+                                                    holdings-creation__eyebrow
+                                                ">
+                                {{
+                                text()
+                                .assets
+                                .liveMarketSearch
+                                }}
+                            </span>
+
+                            <h3>
+                                {{
+                                text()
+                                .portfolios
+                                .enterExistingHoldings
+                                }}
+                            </h3>
+                        </div>
+
+                        <strong>
+                            {{
+                            holdingDrafts
+                            .length
+                            }}
+                        </strong>
+                    </header>
+
+                    <p>
+                        {{
+                        text()
+                        .assets
+                        .marketSearchDescription
+                        }}
+                    </p>
+
+                    <label>
+                        <span>
+                            {{
+                            text()
+                            .portfolios
+                            .availableCash
+                            }}
+                        </span>
+
+                        <input type="number" name="createInitialCash" min="0" step="0.01"
+                            [(ngModel)]="createInitialCash" (ngModelChange)="onInitialCashChange()" />
+                    </label>
+
+                    <div class="
+                                            holding-search
+                                        ">
+                        <label>
+                            <span>
+                                {{
+                                text()
+                                .assets
+                                .symbolOrCompanyName
+                                }}
+                            </span>
+
+                            <div class="
+                                                    holding-search__controls
+                                                ">
+                                <input type="search" name="
+                                                        holdingSearchQuery
+                                                    " autocomplete="
+                                                        off
+                                                    " [placeholder]="
+                                                        text()
+                                                            .assets
+                                                            .marketSearchPlaceholder
+                                                    " [(ngModel)]="
+                                                        holdingSearchQuery
+                                                    " (ngModelChange)="
+                                                        onHoldingSearchQueryChange()
+                                                    " (keydown.enter)="
+                                                        $event
+                                                            .preventDefault();
+                                                        searchHoldingAssets()
+                                                    " />
+
+                                <button type="button" class="
+                                                        secondary-button
+                                                    " [disabled]="
+                                                        isSearchingHoldings
+                                                    " (click)="
+                                                        searchHoldingAssets()
+                                                    ">
+                                    {{
+                                    isSearchingHoldings
+                                    ? text()
+                                    .assets
+                                    .searchingMarket
+                                    : text()
+                                    .assets
+                                    .searchAssets
+                                    }}
+                                </button>
+                            </div>
+                        </label>
+
+                        @if (
+                        holdingSearchError
+                        ) {
+                        <p class="
+                                                    holdings-inline-error
+                                                " role="alert">
+                            {{
+                            holdingSearchError
+                            }}
+                        </p>
+                        }
+
+                        @if (
+                        isSearchingHoldings
+                        ) {
+                        <div class="
+                                                    holding-search-state
+                                                ">
+                            <span class="
+                                                        holding-search-state__spinner
+                                                    " aria-hidden="
+                                                        true
+                                                    "></span>
+
+                            <span>
+                                {{
+                                text()
+                                .assets
+                                .searchingMarket
+                                }}
+                            </span>
+                        </div>
+                        }
+
+                        @if (
+                        !isSearchingHoldings &&
+                        holdingSearchResults
+                        .length >
+                        0 &&
+                        !selectedMarketAsset
+                        ) {
+                        <div class="
+                                                    holding-search-results
+                                                ">
+                            @for (
+                            result of
+                            holdingSearchResults;
+                            track
+                            result.symbol +
+                            '-' +
+                            (
+                            result.exchange ??
+                            ''
+                            )
+                            ) {
+                            <button type="button" class="
+                                                            holding-search-result
+                                                        " (click)="
+                                                            selectHoldingAsset(
+                                                                result
+                                                            )
+                                                        ">
+                                <span class="
+                                                                holding-search-result__symbol
+                                                            ">
+                                    {{
+                                    result.symbol
+                                    }}
+                                </span>
+
+                                <span class="
+                                                                holding-search-result__details
+                                                            ">
+                                    <strong>
+                                        {{
+                                        result
+                                        .displayName
+                                        }}
+                                    </strong>
+
+                                    <small>
+                                        {{
+                                        result
+                                        .exchange ??
+                                        text()
+                                        .assets
+                                        .unknownExchange
+                                        }}
+                                        ·
+                                        {{
+                                        result
+                                        .assetType
+                                        }}
+                                        ·
+                                        {{
+                                        result
+                                        .currency
+                                        }}
+                                    </small>
+                                </span>
+                            </button>
+                            }
+                        </div>
+                        }
+                    </div>
+
+                    @if (
+                    selectedMarketAsset
+                    ) {
+                    <section class="
+                                                selected-holding
+                                            ">
+                        <header class="
+                                                    selected-holding__header
+                                                ">
+                            <div>
+                                <span>
+                                    {{
+                                    text()
+                                    .assets
+                                    .selectedInstrument
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    selectedMarketAsset
+                                    .symbol
+                                    }}
+                                </strong>
+
+                                <small>
+                                    {{
+                                    selectedMarketAsset
+                                    .displayName
+                                    }}
+                                </small>
+                            </div>
+
+                            <button type="button" class="
+                                                        selected-holding__clear
+                                                    " (click)="
+                                                        clearSelectedHoldingAsset()
+                                                    ">
+                                {{
+                                text()
+                                .assets
+                                .clearSelection
+                                }}
+                            </button>
+                        </header>
+
+                        <dl class="
+                                                    selected-holding__details
+                                                ">
+                            <div>
+                                <dt>
+                                    {{
+                                    text()
+                                    .assets
+                                    .assetType
+                                    }}
+                                </dt>
+
+                                <dd>
+                                    {{
+                                    selectedMarketAsset
+                                    .assetType
+                                    }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt>
+                                    {{
+                                    text()
+                                    .assets
+                                    .exchange
+                                    }}
+                                </dt>
+
+                                <dd>
+                                    {{
+                                    selectedMarketAsset
+                                    .exchange ??
+                                    text()
+                                    .assets
+                                    .notSpecified
+                                    }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt>
+                                    {{
+                                    text()
+                                    .assets
+                                    .currency
+                                    }}
+                                </dt>
+
+                                <dd>
+                                    {{
+                                    selectedMarketAsset
+                                    .currency
+                                    }}
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <label>
+                            <span>
+                                {{
+                                text()
+                                .portfolios
+                                .quantity
+                                }}
+                            </span>
+
+                            <input type="number" name="
+                                                        holdingQuantity
+                                                    " min="
+                                                        0.00000001
+                                                    " step="
+                                                        0.00000001
+                                                    " [(ngModel)]="
+                                                        holdingQuantity
+                                                    " (ngModelChange)="
+                                                        onHoldingQuantityChange()
+                                                    " />
+                        </label>
+
+                        <button type="button" class="
+                                                    primary-button
+                                                " (click)="
+                                                    addHoldingDraft()
+                                                ">
+                            {{
+                            text()
+                            .assets
+                            .addAsset
+                            }}
+                        </button>
+                    </section>
+                    }
+
+                    @if (
+                    holdingDrafts
+                    .length > 0
+                    ) {
+                    <section class="
+                                                holding-draft-list
+                                            ">
+                        <header class="
+                                                    holding-draft-list__header
+                                                ">
+                            <strong>
+                                {{
+                                text()
+                                .portfolios
+                                .holdingsAndWeights
+                                }}
+                            </strong>
+
+                            <span>
+                                {{
+                                holdingDrafts
+                                .length
+                                }}
+                            </span>
+                        </header>
+
+                        @for (
+                        holding of
+                        holdingDrafts;
+                        track
+                        holding.symbol +
+                        '-' +
+                        (
+                        holding.exchange ??
+                        ''
+                        );
+                        let index =
+                        $index
+                        ) {
+                        <article class="
+                                                        holding-draft
+                                                    ">
+                            <div class="
+                                                            holding-draft__identity
+                                                        ">
+                                <strong>
+                                    {{
+                                    holding
+                                    .symbol
+                                    }}
+                                </strong>
+
+                                <span>
+                                    {{
+                                    holding
+                                    .displayName
+                                    }}
+                                </span>
+
+                                <small>
+                                    {{
+                                    holding
+                                    .assetType
+                                    }}
+                                    ·
+                                    {{
+                                    holding
+                                    .currency
+                                    }}
+
+                                    @if (
+                                    holding
+                                    .exchange
+                                    ) {
+                                    ·
+                                    {{
+                                    holding
+                                    .exchange
+                                    }}
+                                    }
+                                </small>
+                            </div>
+
+                            <div class="
+                                                            holding-draft__quantity
+                                                        ">
+                                <span>
+                                    {{
+                                    text()
+                                    .portfolios
+                                    .quantity
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    holding
+                                    .quantity
+                                    | number:
+                                    '1.0-8'
+                                    }}
+                                </strong>
+                            </div>
+
+                            <button type="button" class="
+                                                            danger-button
+                                                            holding-draft__remove
+                                                        " (click)="
+                                                            removeHoldingDraft(
+                                                                index
+                                                            )
+                                                        ">
+                                {{
+                                text()
+                                .portfolios
+                                .delete
+                                }}
+                            </button>
+                        </article>
+                        }
+                    </section>
+                    }
+                </section>
+                }
+
+                <footer class="
+                                    dialog-actions
+                                ">
+                    <button type="button" [disabled]="
+                                        isSubmitting
+                                    " (click)="
+                                        closeDialog()
+                                    ">
+                        {{
+                        text()
+                        .portfolios
+                        .cancel
+                        }}
                     </button>
 
-                    <button type="submit" class="primary-button" [disabled]="isSubmitting">
+                    <button type="submit" class="
+                                        primary-button
+                                    " [disabled]="
+                                        isSubmitting
+                                    ">
                         {{
                         isSubmitting
-                        ? 'Creating...'
-                        : 'Create portfolio'
+                        ? text()
+                        .portfolios
+                        .creating
+                        : text()
+                        .portfolios
+                        .createPortfolio
                         }}
                     </button>
                 </footer>
             </form>
             }
 
-            @case ('rename') {
-            <form class="portfolio-form" (ngSubmit)="submitRename()">
-                <p>
-                    Enter a new name for
-                    <strong>
-                        {{ selectedPortfolio?.name }}
-                    </strong>.
-                </p>
-
+            @case ('edit') {
+            <div class="portfolio-form">
                 <label>
-                    <span>Portfolio name</span>
+                    <span>
+                        {{
+                        text().portfolios
+                        .portfolioName
+                        }}
+                    </span>
 
-                    <input type="text" name="renameValue" maxlength="120" autocomplete="off"
-                        [(ngModel)]="renameValue" />
+                    <input type="text" name="editName" maxlength="120" autocomplete="off" [(ngModel)]="editName" />
                 </label>
 
-                <footer class="dialog-actions">
-                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
-                        Cancel
-                    </button>
-
-                    <button type="submit" class="primary-button" [disabled]="isSubmitting">
+                <div class="dialog-actions">
+                    <button type="button" class="primary-button" [disabled]="
+                            isSubmitting ||
+                            !editName.trim() ||
+                            editName.trim() ===
+                            selectedPortfolio?.name
+                        " (click)="saveEditName()">
                         {{
                         isSubmitting
-                        ? 'Saving...'
-                        : 'Save name'
+                        ? text().portfolios.saving
+                        : text().portfolios.saveName
+                        }}
+                    </button>
+                </div>
+
+                @if (isLoadingEditPortfolio) {
+                <div class="
+                        allocation-state
+                        allocation-state--loading
+                    ">
+                    <span class="page-state__spinner" aria-hidden="true"></span>
+
+                    <p>
+                        {{
+                        text().portfolios
+                        .loadingAllocation
+                        }}
+                    </p>
+                </div>
+                } @else {
+                <section class="selection-summary">
+                    <div>
+                        <span>
+                            {{
+                            text().portfolios
+                            .availableCash
+                            }}
+                        </span>
+
+                        <strong>
+                            {{
+                            editAvailableCash
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>
+                            {{
+                            text().portfolios
+                            .activeAssets
+                            }}
+                        </span>
+
+                        <strong>
+                            {{ editHoldings.length }}
+                        </strong>
+                    </div>
+                </section>
+
+                <section class="holding-draft-list">
+                    <header class="
+                            holding-draft-list__header
+                        ">
+                        <strong>
+                            {{
+                            text().portfolios
+                            .holdingsAndWeights
+                            }}
+                        </strong>
+
+                        <span>
+                            {{ editHoldings.length }}
+                        </span>
+                    </header>
+
+                    @if (editHoldings.length === 0) {
+                    <p>
+                        {{
+                        text().portfolios
+                        .noAllocatedAssets
+                        }}
+                    </p>
+                    }
+
+                    @for (
+                    holding of editHoldings;
+                    track holding.assetId
+                    ) {
+                    <article class="holding-draft">
+                        <div class="
+                                holding-draft__identity
+                            ">
+                            <strong>
+                                {{ holding.symbol }}
+                            </strong>
+
+                            <span>
+                                {{
+                                holding.displayName
+                                }}
+                            </span>
+
+                            <small>
+                                {{
+                                holding.assetType
+                                }}
+                                ·
+                                {{
+                                holding.currency
+                                }}
+                                ·
+                                {{
+                                holding.currentPrice
+                                | currency:
+                                holding.currency:
+                                'symbol':
+                                '1.2-8'
+                                }}
+                            </small>
+                        </div>
+
+                        <div class="
+                                holding-draft__quantity
+                            ">
+                            <span>
+                                {{
+                                text().portfolios
+                                .quantity
+                                }}
+                            </span>
+
+                            <input type="number" min="0" step="0.00000001" [name]="
+                                    'editQuantity-' +
+                                    holding.assetId
+                                " [(ngModel)]="
+                                    holding.desiredQuantity
+                                " [disabled]="
+                                    holding.isSubmitting
+                                " />
+                        </div>
+
+                        <div class="result-actions">
+                            <button type="button" class="primary-button" [disabled]="
+                                    holding.isSubmitting
+                                " (click)="
+                                    updateEditHolding(
+                                        holding
+                                    )
+                                ">
+                                {{
+                                holding.isSubmitting
+                                ? text().transactions.saving
+                                : text().transactions.edit
+                                }}
+                            </button>
+
+                            <button type="button" class="danger-button" [disabled]="
+                                    holding.isSubmitting
+                                " (click)="
+                                    removeEditHolding(
+                                        holding
+                                    )
+                                ">
+                                {{
+                                removeHoldingLabel
+                                }}
+                            </button>
+                        </div>
+
+                        @if (holding.errorMessage) {
+                        <p class="holdings-inline-error" role="alert">
+                            {{
+                            holding.errorMessage
+                            }}
+                        </p>
+                        }
+                    </article>
+                    }
+                </section>
+
+                <section class="holdings-creation">
+                    <header class="
+                            holdings-creation__header
+                        ">
+                        <div>
+                            <span class="
+                                    holdings-creation__eyebrow
+                                ">
+                                {{
+                                text().assets
+                                .liveMarketSearch
+                                }}
+                            </span>
+
+                            <h3>
+                                {{
+                                text().assets
+                                .addAsset
+                                }}
+                            </h3>
+                        </div>
+                    </header>
+
+                    <div class="holding-search">
+                        <label>
+                            <span>
+                                {{
+                                text().assets
+                                .symbolOrCompanyName
+                                }}
+                            </span>
+
+                            <div class="
+                                    holding-search__controls
+                                ">
+                                <input type="search" name="editSearchQuery" autocomplete="off" [placeholder]="
+                                        text()
+                                        .assets
+                                        .marketSearchPlaceholder
+                                    " [(ngModel)]="
+                                        editSearchQuery
+                                    " (keydown.enter)="
+                                        $event.preventDefault();
+                                        searchEditAssets()
+                                    " />
+
+                                <button type="button" class="secondary-button" [disabled]="
+                                        isSearchingEditAssets ||
+                                        isAddingEditAsset
+                                    " (click)="
+                                        searchEditAssets()
+                                    ">
+                                    {{
+                                    isSearchingEditAssets
+                                    ? text().assets
+                                    .searchingMarket
+                                    : text().assets
+                                    .searchAssets
+                                    }}
+                                </button>
+                            </div>
+                        </label>
+
+                        @if (editSearchError) {
+                        <p class="holdings-inline-error" role="alert">
+                            {{
+                            editSearchError
+                            }}
+                        </p>
+                        }
+
+                        @if (
+                        editSearchResults.length >
+                        0 &&
+                        !editSelectedMarketAsset
+                        ) {
+                        <div class="
+                                holding-search-results
+                            ">
+                            @for (
+                            result of
+                            editSearchResults;
+                            track
+                            result.symbol +
+                            '-' +
+                            (
+                            result.exchange ??
+                            ''
+                            )
+                            ) {
+                            <button type="button" class="
+                                    holding-search-result
+                                " (click)="
+                                    selectEditAsset(
+                                        result
+                                    )
+                                ">
+                                <span class="
+                                        holding-search-result__symbol
+                                    ">
+                                    {{
+                                    result.symbol
+                                    }}
+                                </span>
+
+                                <span class="
+                                        holding-search-result__details
+                                    ">
+                                    <strong>
+                                        {{
+                                        result.displayName
+                                        }}
+                                    </strong>
+
+                                    <small>
+                                        {{
+                                        result.exchange ??
+                                        text().assets
+                                        .unknownExchange
+                                        }}
+                                        ·
+                                        {{
+                                        result.assetType
+                                        }}
+                                        ·
+                                        {{
+                                        result.currency
+                                        }}
+                                    </small>
+                                </span>
+                            </button>
+                            }
+                        </div>
+                        }
+                    </div>
+
+                    @if (editSelectedMarketAsset) {
+                    <section class="selected-holding">
+                        <header class="
+                                selected-holding__header
+                            ">
+                            <div>
+                                <span>
+                                    {{
+                                    text().assets
+                                    .selectedInstrument
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    editSelectedMarketAsset
+                                    .symbol
+                                    }}
+                                </strong>
+
+                                <small>
+                                    {{
+                                    editSelectedMarketAsset
+                                    .displayName
+                                    }}
+                                </small>
+                            </div>
+
+                            <button type="button" class="
+                                    selected-holding__clear
+                                " (click)="
+                                    clearEditSelectedAsset()
+                                ">
+                                {{
+                                text().assets
+                                .clearSelection
+                                }}
+                            </button>
+                        </header>
+
+                        <div class="allocation-form__grid">
+                            <button type="button" class="secondary-button" [class.primary-button]="
+                                    editAssetInputMode ===
+                                    'BY_QUANTITY'
+                                " (click)="
+                                    setEditAssetInputMode(
+                                        'BY_QUANTITY'
+                                    )
+                                ">
+                                {{
+                                text().transactions
+                                .calculateByQuantity
+                                }}
+                            </button>
+
+                            <button type="button" class="secondary-button" [class.primary-button]="
+                                    editAssetInputMode ===
+                                    'BY_AMOUNT'
+                                " (click)="
+                                    setEditAssetInputMode(
+                                        'BY_AMOUNT'
+                                    )
+                                ">
+                                {{
+                                text().transactions
+                                .calculateByAmount
+                                }}
+                            </button>
+                        </div>
+
+                        @if (isLoadingEditAssetPrice) {
+                        <p>
+                            {{
+                            text().transactions
+                            .loadingLiveMarketPrice
+                            }}
+                        </p>
+                        } @else if (
+                        editSelectedAssetPrice !== null
+                        ) {
+                        <div class="selection-summary">
+                            <div>
+                                <span>
+                                    {{
+                                    text().portfolios
+                                    .currentPrice
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    editSelectedAssetPrice
+                                    | currency:
+                                    editSelectedMarketAsset
+                                    .currency:
+                                    'symbol':
+                                    '1.2-8'
+                                    }}
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>
+                                    {{
+                                    text().portfolios
+                                    .availableCash
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    editAvailableCash
+                                    | currency:
+                                    'USD':
+                                    'symbol':
+                                    '1.2-2'
+                                    }}
+                                </strong>
+                            </div>
+                        </div>
+                        }
+
+                        @if (
+                        editAssetInputMode ===
+                        'BY_QUANTITY'
+                        ) {
+                        <label>
+                            <span>
+                                {{
+                                text().portfolios
+                                .quantity
+                                }}
+                            </span>
+
+                            <input type="number" name="editNewAssetQuantity" min="0.00000001" step="0.00000001"
+                                [(ngModel)]="
+                                    editNewAssetQuantity
+                                " />
+                        </label>
+                        } @else {
+                        <label>
+                            <span>
+                                {{
+                                text().transactions
+                                .totalAmount
+                                }}
+                            </span>
+
+                            <input type="number" name="editNewAssetAmount" min="0.01" step="0.01" [(ngModel)]="
+                                    editNewAssetAmount
+                                " />
+                        </label>
+
+                        @if (
+                        calculatedEditAssetQuantity !==
+                        null
+                        ) {
+                        <div class="selection-summary">
+                            <div>
+                                <span>
+                                    {{
+                                    text().portfolios
+                                    .quantity
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    calculatedEditAssetQuantity
+                                    | number:'1.0-8'
+                                    }}
+                                </strong>
+                            </div>
+                        </div>
+                        }
+                        }
+
+                        <button type="button" class="primary-button" [disabled]="
+                                isAddingEditAsset ||
+                                isLoadingEditAssetPrice ||
+                                editSelectedAssetPrice === null
+                            " (click)="addEditAsset()">
+                            {{
+                            isAddingEditAsset
+                            ? text().transactions.adding
+                            : text().assets.addAsset
+                            }}
+                        </button>
+                    </section>
+                    }
+                </section>
+                }
+
+                <footer class="dialog-actions">
+                    <button type="button" [disabled]="
+                            isSubmitting ||
+                            isAddingEditAsset
+                        " (click)="closeDialog()">
+                        {{
+                        text().portfolios
+                        .cancel
+                        }}
+                    </button>
+
+                    <button type="button" class="primary-button" [disabled]="
+                            isSubmitting ||
+                            isAddingEditAsset ||
+                            editHoldings.some(
+                                holding =>
+                                    holding.isSubmitting
+                            )
+                        " (click)="finishEdit()">
+                        {{
+                        finishEditLabel
                         }}
                     </button>
                 </footer>
-            </form>
-            }
-
-            @case ('value') {
-            <form class="portfolio-form" (ngSubmit)="submitValueUpdate()">
-                <p>
-                    Update the current value of
-                    <strong>
-                        {{ selectedPortfolio?.name }}
-                    </strong>.
-                </p>
-
-                <label>
-                    <span>Current value</span>
-
-                    <input type="number" name="currentValue" min="0" step="0.01" [(ngModel)]="currentValue" />
-                </label>
-
-                <footer class="dialog-actions">
-                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
-                        Cancel
-                    </button>
-
-                    <button type="submit" class="primary-button" [disabled]="isSubmitting">
-                        {{
-                        isSubmitting
-                        ? 'Updating...'
-                        : 'Update value'
-                        }}
-                    </button>
-                </footer>
-            </form>
+            </div>
             }
 
             @case ('delete') {
-            <div class="delete-confirmation">
+            <div class="
+                                delete-confirmation
+                            ">
                 <p>
-                    You are about to delete
+                    {{
+                    text().portfolios
+                    .deletePrompt
+                    }}
+
                     <strong>
-                        {{ selectedPortfolio?.name }}
-                    </strong>.
+                        {{
+                        selectedPortfolio
+                        ?.name
+                        }}
+                    </strong>
                 </p>
 
                 <p>
-                    This action removes the portfolio
-                    from your active account.
+                    {{
+                    text().portfolios
+                    .deleteDescription
+                    }}
                 </p>
 
-                <footer class="dialog-actions">
-                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
-                        Cancel
+                <footer class="
+                                    dialog-actions
+                                ">
+                    <button type="button" [disabled]="
+                                        isSubmitting
+                                    " (click)="
+                                        closeDialog()
+                                    ">
+                        {{
+                        text().portfolios
+                        .cancel
+                        }}
                     </button>
 
-                    <button type="button" class="danger-button danger-button--filled" [disabled]="isSubmitting"
-                        (click)="submitDelete()">
+                    <button type="button" class="
+                                        danger-button
+                                        danger-button--filled
+                                    " [disabled]="
+                                        isSubmitting
+                                    " (click)="
+                                        submitDelete()
+                                    ">
                         {{
                         isSubmitting
-                        ? 'Deleting...'
-                        : 'Delete portfolio'
+                        ? text()
+                        .portfolios
+                        .deleting
+                        : text()
+                        .portfolios
+                        .delete
                         }}
                     </button>
                 </footer>

@@ -559,6 +559,72 @@ public class TransactionController {
         );
     }
 
+    @PostMapping("/rebuild")
+    @Operation(
+            summary = "Rebuild portfolio state",
+            description = """
+                    Recalculates all active holdings and the complete
+                    portfolio state from the portfolio transaction history.
+
+                    This operation is useful after importing historical
+                    transactions, correcting legacy data or recovering
+                    derived holding information.
+
+                    The authenticated user must own the portfolio.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = """
+                            Portfolio holdings and calculated state
+                            rebuilt successfully
+                            """
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Authentication is required"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Portfolio was not found"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = """
+                            Portfolio calculation service is unavailable
+                            or rebuilding the portfolio state failed
+                            """
+            )
+    })
+    public ResponseEntity<Void> rebuildPortfolioState(
+            @Parameter(
+                    hidden = true
+            )
+            @AuthenticationPrincipal
+            UserEntity authenticatedUser,
+
+            @Parameter(
+                    name = "portfolioId",
+                    description = "Unique identifier of the portfolio",
+                    required = true,
+                    in = ParameterIn.PATH,
+                    example =
+                            "1a2b3c4d-5e6f-4789-abcd-0123456789ab"
+            )
+            @PathVariable
+            UUID portfolioId
+    ) {
+        transactionService.rebuildPortfolioState(
+                authenticatedUser.getId(),
+                portfolioId
+        );
+
+        return ResponseEntity
+                .ok()
+                .build();
+    }
+
     @DeleteMapping("/{transactionId}")
     @Operation(
             summary = "Delete a transaction",

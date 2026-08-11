@@ -2,14 +2,13 @@
     <header class="transactions-header">
         <div>
             <span class="transactions-header__eyebrow">
-                Transaction management
+                {{ text().transactions.eyebrow }}
             </span>
 
-            <h1>Transactions</h1>
+            <h1>{{ text().transactions.title }}</h1>
 
             <p>
-                Record purchases, sales, dividends,
-                deposits, withdrawals and portfolio fees.
+                {{ text().transactions.description }}
             </p>
         </div>
 
@@ -17,7 +16,7 @@
                 !selectedPortfolioId ||
                 isLoadingPortfolios
             " (click)="openCreateDialog()">
-            Add transaction
+            {{ text().transactions.addTransaction }}
         </button>
     </header>
 
@@ -25,7 +24,7 @@
     <section class="message-banner" role="status">
         <span>{{ successMessage }}</span>
 
-        <button type="button" aria-label="Dismiss message" (click)="dismissSuccessMessage()">
+        <button type="button" [attr.aria-label]="text().transactions.dismissMessage" (click)="dismissSuccessMessage()">
             ×
         </button>
     </section>
@@ -35,10 +34,10 @@
     <section class="page-state" aria-live="polite">
         <span class="page-state__spinner" aria-hidden="true"></span>
 
-        <h2>Loading portfolios</h2>
+        <h2>{{ text().transactions.loadingPortfoliosTitle }}</h2>
 
         <p>
-            Available portfolios are being retrieved.
+            {{ text().transactions.loadingPortfoliosDescription }}
         </p>
     </section>
     } @else if (
@@ -50,12 +49,12 @@
             !
         </span>
 
-        <h2>Transactions unavailable</h2>
+        <h2>{{ text().transactions.unavailableTitle }}</h2>
 
         <p>{{ errorMessage }}</p>
 
         <button type="button" class="primary-button" (click)="retry()">
-            Try again
+            {{ text().transactions.retry }}
         </button>
     </section>
     } @else if (portfolios.length === 0) {
@@ -64,17 +63,16 @@
             +
         </span>
 
-        <h2>No portfolios available</h2>
+        <h2>{{ text().transactions.noPortfoliosTitle }}</h2>
 
         <p>
-            Create a portfolio before recording
-            transactions.
+            {{ text().transactions.noPortfoliosDescription }}
         </p>
     </section>
     } @else {
     <section class="transactions-toolbar">
         <label>
-            <span>Portfolio</span>
+            <span>{{ text().transactions.portfolio }}</span>
 
             <select name="selectedPortfolioId" [ngModel]="selectedPortfolioId" [disabled]="isLoadingTransactions"
                 (ngModelChange)="
@@ -92,11 +90,11 @@
         </label>
 
         <label>
-            <span>Asset</span>
+            <span>{{ text().transactions.asset }}</span>
 
             <select name="filterAssetId" [(ngModel)]="filterAssetId" [disabled]="isLoadingAssets">
                 <option value="">
-                    All assets
+                    {{ text().transactions.allAssets }}
                 </option>
 
                 @for (
@@ -113,13 +111,13 @@
         </label>
 
         <label>
-            <span>Type</span>
+            <span>{{ text().transactions.type }}</span>
 
             <select name="filterTransactionType" [(ngModel)]="
                         filterTransactionType
                     ">
                 <option value="">
-                    All types
+                    {{ text().transactions.allTypes }}
                 </option>
 
                 @for (
@@ -128,7 +126,7 @@
                 track option.value
                 ) {
                 <option [value]="option.value">
-                    {{ option.label }}
+                    {{ getTransactionTypeLabel(option.value) }}
                 </option>
                 }
             </select>
@@ -137,13 +135,13 @@
 
     <section class="date-filters">
         <label>
-            <span>From date</span>
+            <span>{{ text().transactions.fromDate }}</span>
 
             <input type="date" name="filterStartDate" [(ngModel)]="filterStartDate" />
         </label>
 
         <label>
-            <span>To date</span>
+            <span>{{ text().transactions.toDate }}</span>
 
             <input type="date" name="filterEndDate" [(ngModel)]="filterEndDate" />
         </label>
@@ -163,11 +161,10 @@
     <section class="page-state" aria-live="polite">
         <span class="page-state__spinner" aria-hidden="true"></span>
 
-        <h2>Loading transactions</h2>
+        <h2>{{ text().transactions.loadingTransactionsTitle }}</h2>
 
         <p>
-            Transactions for the selected
-            portfolio are being retrieved.
+            {{ text().transactions.loadingTransactionsDescription }}
         </p>
     </section>
     } @else if (errorMessage) {
@@ -176,12 +173,12 @@
             !
         </span>
 
-        <h2>Transactions unavailable</h2>
+        <h2>{{ text().transactions.unavailableTitle }}</h2>
 
         <p>{{ errorMessage }}</p>
 
         <button type="button" class="primary-button" (click)="retry()">
-            Try again
+            {{ text().transactions.retry }}
         </button>
     </section>
     } @else if (
@@ -193,36 +190,36 @@
             +
         </span>
 
-        <h2>No transactions found</h2>
+        <h2>{{ text().transactions.noTransactionsTitle }}</h2>
 
         <p>
-            Record the first transaction for
+            {{ text().transactions.noTransactionsDescriptionPrefix }}
             <strong>
                 {{ selectedPortfolio?.name }}
             </strong>
-            or change the active filters.
+            {{ text().transactions.noTransactionsDescriptionSuffix }}
         </p>
 
         <button type="button" class="primary-button" (click)="openCreateDialog()">
-            Add first transaction
+            {{ text().transactions.addFirstTransaction }}
         </button>
     </section>
     } @else {
-    <section class="transaction-summary" aria-label="Transaction summary">
+    <section class="transaction-summary" [attr.aria-label]="text().transactions.summaryAriaLabel">
         <article class="summary-card">
-            <span>Total transactions</span>
+            <span>{{ text().transactions.totalTransactions }}</span>
 
             <strong>
                 {{ totalElements }}
             </strong>
 
             <small>
-                Matching the active filters
+                {{ text().transactions.matchingActiveFilters }}
             </small>
         </article>
 
         <article class="summary-card">
-            <span>Displayed amount</span>
+            <span>{{ text().transactions.displayedAmount }}</span>
 
             <strong>
                 {{
@@ -232,19 +229,19 @@
             </strong>
 
             <small>
-                Total on the current page
+                {{ text().transactions.totalOnCurrentPage }}
             </small>
         </article>
 
         <article class="summary-card">
-            <span>Displayed types</span>
+            <span>{{ text().transactions.displayedTypes }}</span>
 
             <strong>
                 {{ displayedTransactionTypes }}
             </strong>
 
             <small>
-                Distinct transaction types
+                {{ text().transactions.distinctTransactionTypes }}
             </small>
         </article>
     </section>
@@ -289,7 +286,7 @@
 
             <dl class="transaction-card__details">
                 <div>
-                    <dt>Executed</dt>
+                    <dt>{{ text().transactions.executed }}</dt>
 
                     <dd>
                         {{
@@ -300,7 +297,7 @@
                 </div>
 
                 <div>
-                    <dt>Quantity</dt>
+                    <dt>{{ text().transactions.quantity }}</dt>
 
                     <dd>
                         {{
@@ -310,13 +307,13 @@
                         transaction.quantity
                         | number:'1.0-8'
                         )
-                        : 'Not applicable'
+                        : text().transactions.notApplicable
                         }}
                     </dd>
                 </div>
 
                 <div>
-                    <dt>Unit price</dt>
+                    <dt>{{ text().transactions.unitPrice }}</dt>
 
                     <dd>
                         {{
@@ -326,13 +323,13 @@
                         transaction.unitPrice
                         | number:'1.2-8'
                         )
-                        : 'Not applicable'
+                        : text().transactions.notApplicable
                         }}
                     </dd>
                 </div>
 
                 <div>
-                    <dt>Fee</dt>
+                    <dt>{{ text().transactions.fee }}</dt>
 
                     <dd>
                         {{
@@ -342,7 +339,7 @@
                         transaction.fee
                         | number:'1.2-8'
                         )
-                        : 'Not specified'
+                        : text().transactions.notSpecified
                         }}
                     </dd>
                 </div>
@@ -375,7 +372,7 @@
         }
     </section>
 
-    <nav class="pagination" aria-label="Transaction pages">
+    <nav class="pagination" [attr.aria-label]="text().transactions.transactionPages">
         <button type="button" [disabled]="
                         isFirstPage ||
                         isLoadingTransactions
@@ -384,9 +381,9 @@
         </button>
 
         <span>
-            Page
+            {{ text().transactions.page }}
             {{ visiblePageNumber }}
-            of
+            {{ text().transactions.of }}
             {{ totalPages }}
         </span>
 
@@ -406,28 +403,28 @@
             <header class="transaction-dialog__header">
                 <div>
                     <span>
-                        Transaction action
+                        {{ text().transactions.transactionAction }}
                     </span>
 
                     <h2 id="transaction-dialog-title">
                         @switch (dialogMode) {
                         @case ('create') {
-                        Add transaction
+                        {{ text().transactions.addTransaction }}
                         }
 
                         @case ('edit') {
-                        Edit transaction
+                        {{ text().transactions.editDialogTitle }}
                         }
 
                         @case ('delete') {
-                        Delete transaction
+                        {{ text().transactions.deleteDialogTitle }}
                         }
                         }
                     </h2>
                 </div>
 
-                <button type="button" class="dialog-close" aria-label="Close dialog" [disabled]="isSubmitting"
-                    (click)="closeDialog()">
+                <button type="button" class="dialog-close" [attr.aria-label]="text().transactions.closeDialog"
+                    [disabled]="isSubmitting" (click)="closeDialog()">
                     ×
                 </button>
             </header>
@@ -449,7 +446,7 @@
                         ">
                 <div class="transaction-form__grid">
                     <label>
-                        <span>Transaction type</span>
+                        <span>{{ text().transactions.transactionType }}</span>
 
                         <select name="transactionType" [(ngModel)]="
                                         formValue.transactionType
@@ -462,25 +459,26 @@
                             track option.value
                             ) {
                             <option [value]="option.value">
-                                {{ option.label }}
+                                {{ getTransactionTypeLabel(option.value) }}
                             </option>
                             }
                         </select>
                     </label>
 
                     <label>
-                        <span>Asset</span>
+                        <span>{{ text().transactions.asset }}</span>
 
-                        <select name="assetId" [(ngModel)]="
-                                        formValue.assetId
-                                    " [disabled]="
-                                        !transactionRequiresAsset(
-                                            formValue.transactionType
-                                        ) ||
-                                        isLoadingAssets
-                                    ">
+                        <select name="assetId" [ngModel]="formValue.assetId" [disabled]="
+                                !transactionRequiresAsset(
+                                    formValue.transactionType
+                                ) ||
+                                isLoadingAssets ||
+                                isLoadingMarketPrice
+                            " (ngModelChange)="
+                                onTransactionAssetChange($event)
+                            ">
                             <option value="">
-                                Select asset
+                                {{ text().transactions.selectAsset }}
                             </option>
 
                             @for (
@@ -498,50 +496,205 @@
                 </div>
 
                 @if (
-                transactionUsesQuantity(
+                transactionSupportsCalculationMode(
                 formValue.transactionType
                 )
                 ) {
                 <div class="transaction-form__grid">
                     <label>
-                        <span>Quantity</span>
+                        <span>
+                            {{ text().transactions.calculationMode }}
+                        </span>
 
-                        <input type="number" name="quantity" min="0.00000001" step="0.00000001" [(ngModel)]="
-                                            formValue.quantity
-                                        " />
+                        <select name="calculationMode" [ngModel]="calculationMode" [disabled]="isLoadingMarketPrice"
+                            (ngModelChange)="
+                                setCalculationMode($event)
+                            ">
+                            @if (
+                            formValue.transactionType === 'DIVIDEND'
+                            ) {
+                            <option value="BY_AMOUNT">
+                                {{ text().transactions.calculateByAmount }}
+                            </option>
+
+                            <option value="BY_QUANTITY">
+                                {{ text().transactions.calculateDividendByShares }}
+                            </option>
+                            } @else {
+                            <option value="BY_QUANTITY">
+                                {{ text().transactions.calculateByQuantity }}
+                            </option>
+
+                            <option value="BY_AMOUNT">
+                                {{ text().transactions.calculateByAmount }}
+                            </option>
+                            }
+                        </select>
+                    </label>
+
+                    <div>
+                        <span>
+                            @if (
+                            formValue.transactionType === 'DIVIDEND'
+                            ) {
+                            {{
+                            calculationMode === 'BY_AMOUNT'
+                            ? text().transactions.dividendAmountModeDescription
+                            : text().transactions.dividendShareModeDescription
+                            }}
+                            } @else {
+                            {{
+                            calculationMode === 'BY_AMOUNT'
+                            ? text().transactions.amountModeDescription
+                            : text().transactions.quantityModeDescription
+                            }}
+                            }
+                        </span>
+                    </div>
+                </div>
+
+                @if (
+                transactionUsesTradePricing(
+                formValue.transactionType
+                )
+                ) {
+                <div class="transaction-form__grid">
+                    <label>
+                        <span>{{ text().transactions.quantity }}</span>
+
+                        <input type="number" name="quantity" min="0.00000001" step="0.00000001"
+                            [(ngModel)]="formValue.quantity" [readonly]="
+                                calculationMode === 'BY_AMOUNT'
+                            " [disabled]="isLoadingMarketPrice" (ngModelChange)="
+                                onTransactionQuantityChange()
+                            " />
                     </label>
 
                     <label>
-                        <span>Unit price</span>
+                        <span>{{ text().transactions.unitPrice }}</span>
 
-                        <input type="number" name="unitPrice" min="0" step="0.00000001" [(ngModel)]="
-                                            formValue.unitPrice
-                                        " />
+                        <input type="number" name="unitPrice" min="0" step="0.00000001"
+                            [(ngModel)]="formValue.unitPrice" [readonly]="
+                                !isManualPrice &&
+                                !marketPriceErrorMessage
+                            " [disabled]="isLoadingMarketPrice" (ngModelChange)="
+                                onManualUnitPriceChange()
+                            " />
                     </label>
                 </div>
+
+                <section class="market-price-panel" aria-live="polite">
+                    <div class="market-price-panel__status">
+                        @if (isLoadingMarketPrice) {
+                        <strong>
+                            {{ text().transactions.loadingLiveMarketPrice }}
+                        </strong>
+                        } @else if (
+                        marketPriceRetrievedAt &&
+                        !isManualPrice
+                        ) {
+                        <strong>
+                            {{ text().transactions.liveMarketPriceLoaded }}
+                        </strong>
+
+                        <small>
+                            {{
+                            marketPriceRetrievedAt
+                            | date:'medium'
+                            }}
+                        </small>
+                        } @else if (isManualPrice) {
+                        <strong>
+                            {{ text().transactions.manualExecutionPrice }}
+                        </strong>
+
+                        <small>
+                            {{ text().transactions.manualExecutionPriceDescription }}
+                        </small>
+                        } @else {
+                        <strong>
+                            {{ text().transactions.selectAssetToLoadPrice }}
+                        </strong>
+                        }
+                    </div>
+
+                    <div class="market-price-panel__actions">
+                        <label class="manual-price-toggle">
+                            <input type="checkbox" name="isManualPrice" [ngModel]="isManualPrice"
+                                [disabled]="isLoadingMarketPrice" (ngModelChange)="
+                                    setManualPriceMode($event)
+                                " />
+
+                            <span>
+                                {{ text().transactions.manualPrice }}
+                            </span>
+                        </label>
+
+                        <button type="button" [disabled]="
+                                !formValue.assetId ||
+                                isLoadingMarketPrice
+                            " (click)="refreshMarketPrice()">
+                            {{ text().transactions.refreshPrice }}
+                        </button>
+                    </div>
+                </section>
+
+                @if (marketPriceErrorMessage) {
+                <p class="market-price-error" role="alert">
+                    {{ marketPriceErrorMessage }}
+                </p>
+                }
+                } @else if (
+                formValue.transactionType === 'DIVIDEND' &&
+                calculationMode === 'BY_QUANTITY'
+                ) {
+                <div class="transaction-form__grid">
+                    <label>
+                        <span>{{ text().transactions.dividendShares }}</span>
+
+                        <input type="number" name="quantity" min="0.00000001" step="0.00000001"
+                            [(ngModel)]="formValue.quantity" (ngModelChange)="
+                                onTransactionQuantityChange()
+                            " />
+                    </label>
+
+                    <label>
+                        <span>{{ text().transactions.dividendPerShare }}</span>
+
+                        <input type="number" name="unitPrice" min="0" step="0.00000001"
+                            [(ngModel)]="formValue.unitPrice" (ngModelChange)="
+                                onDividendPerShareChange()
+                            " />
+                    </label>
+                </div>
+                }
                 }
 
                 <div class="transaction-form__grid">
                     <label>
-                        <span>Total amount</span>
+                        <span>{{ text().transactions.totalAmount }}</span>
 
-                        <input type="number" name="totalAmount" min="0" step="0.00000001" [(ngModel)]="
-                                        formValue.totalAmount
-                                    " />
+                        <input type="number" name="totalAmount" min="0" step="0.00000001"
+                            [(ngModel)]="formValue.totalAmount" [readonly]="
+                                totalAmountIsCalculated()
+                            " (ngModelChange)="
+                                onTransactionTotalAmountChange()
+                            " />
                     </label>
 
                     <label>
-                        <span>Fee</span>
+                        <span>{{ text().transactions.fee }}</span>
 
-                        <input type="number" name="fee" min="0" step="0.00000001" [(ngModel)]="
-                                        formValue.fee
-                                    " />
+                        <input type="number" name="fee" min="0" step="0.00000001" [(ngModel)]="formValue.fee"
+                            (ngModelChange)="
+                                onTransactionFeeChange()
+                            " />
                     </label>
                 </div>
 
                 <div class="transaction-form__grid">
                     <label>
-                        <span>Currency</span>
+                        <span>{{ text().transactions.currency }}</span>
 
                         <input type="text" name="currency" maxlength="3" autocomplete="off" [(ngModel)]="
                                         formValue.currency
@@ -549,7 +702,7 @@
                     </label>
 
                     <label>
-                        <span>Execution time</span>
+                        <span>{{ text().transactions.executionTime }}</span>
 
                         <input type="datetime-local" name="executedAt" [(ngModel)]="
                                         formValue.executedAt
@@ -558,7 +711,7 @@
                 </div>
 
                 <label>
-                    <span>Notes</span>
+                    <span>{{ text().transactions.notes }}</span>
 
                     <textarea name="notes" maxlength="2000" rows="4" [(ngModel)]="
                                     formValue.notes
@@ -576,14 +729,14 @@
                         ) {
                         {{
                         isSubmitting
-                        ? 'Adding...'
-                        : 'Add transaction'
+                        ? text().transactions.adding
+                        : text().transactions.addTransaction
                         }}
                         } @else {
                         {{
                         isSubmitting
-                        ? 'Saving...'
-                        : 'Save transaction'
+                        ? text().transactions.saving
+                        : text().transactions.saveTransaction
                         }}
                         }
                     </button>
@@ -594,22 +747,23 @@
             @if (dialogMode === 'delete') {
             <div class="delete-confirmation">
                 <p>
-                    You are about to delete this
+                    {{ text().transactions.deletePromptPrefix }}
                     <strong>
                         {{
+                        getTransactionTypeLabel(
                         selectedTransaction
-                        ?.transactionType
+                        ?.transactionType!
+                        )
                         }}
                     </strong>
-                    transaction from
+                    {{ text().transactions.deletePromptMiddle }}
                     <strong>
                         {{ selectedPortfolio?.name }}
                     </strong>.
                 </p>
 
                 <p>
-                    The transaction will no longer
-                    appear in portfolio calculations.
+                    {{ text().transactions.deleteCalculationNotice }}
                 </p>
 
                 <footer class="dialog-actions">
@@ -623,8 +777,8 @@
                                 " [disabled]="isSubmitting" (click)="submitDelete()">
                         {{
                         isSubmitting
-                        ? 'Deleting...'
-                        : 'Delete transaction'
+                        ? text().transactions.deleting
+                        : text().transactions.deleteTransaction
                         }}
                     </button>
                 </footer>

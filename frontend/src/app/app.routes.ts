@@ -32,6 +32,24 @@ export const routes: Routes = [
         },
     },
     {
+        path: 'portfolios/:portfolioId/history',
+        canActivate: [
+            authGuard,
+        ],
+        loadComponent: () =>
+            import(
+                './features/portfolio-history/pages/portfolio-history-page/portfolio-history-page'
+            ).then(
+                (module) =>
+                    module.PortfolioHistoryPage,
+            ),
+        data: {
+            title: 'Portfolio History',
+            description:
+                'Review and export the complete transaction history of a portfolio.',
+        },
+    },
+    {
         path: 'portfolios',
         canActivate: [
             authGuard,
@@ -83,6 +101,24 @@ export const routes: Routes = [
             title: 'Transactions',
             description:
                 'Record and manage purchases, sales, dividends, deposits, withdrawals and fees.',
+        },
+    },
+    {
+        path: 'allocation-purchase',
+        canActivate: [
+            authGuard,
+        ],
+        loadComponent: () =>
+            import(
+                './features/allocation-purchase/pages/allocation-purchase-page/allocation-purchase-page'
+            ).then(
+                (module) =>
+                    module.AllocationPurchasePage,
+            ),
+        data: {
+            title: 'Allocation Purchase',
+            description:
+                'Calculate and execute fractional purchases based on portfolio target weights.',
         },
     },
     {

@@ -140,7 +140,7 @@ class TransactionServiceTests {
                 .isEqualByComparingTo("5.00000000");
 
         assertThat(savedTransaction.getTotalAmount())
-                .isEqualByComparingTo("1507.50000000");
+                .isEqualByComparingTo("1502.50000000");
 
         assertThat(savedTransaction.getCurrency())
                 .isEqualTo("USD");
@@ -324,7 +324,7 @@ class TransactionServiceTests {
                         InvalidTransactionException.class
                 )
                 .hasMessageContaining(
-                        "SELL transaction must include a quantity"
+                        "SELL transaction quantity must be greater than zero"
                 );
 
         verify(transactionRepository, never())
@@ -378,7 +378,7 @@ class TransactionServiceTests {
                         InvalidTransactionException.class
                 )
                 .hasMessageContaining(
-                        "BUY transaction must include a unit price"
+                        "BUY transaction unit price must not be negative"
                 );
 
         verify(transactionRepository, never())
@@ -1035,7 +1035,7 @@ class TransactionServiceTests {
                 .isEqualByComparingTo("2.00000000");
 
         assertThat(transaction.getTotalAmount())
-                .isEqualByComparingTo("802.00000000");
+                .isEqualByComparingTo("800.00000000");
 
         assertThat(transaction.getCurrency())
                 .isEqualTo("USD");

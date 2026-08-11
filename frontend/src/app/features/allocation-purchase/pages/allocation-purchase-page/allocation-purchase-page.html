@@ -1,0 +1,1201 @@
+<section class="allocation-purchase-page">
+    <header class="allocation-purchase-header">
+        <div>
+            <span class="allocation-purchase-header__eyebrow">
+                {{ text().allocationPurchase.eyebrow }}
+            </span>
+
+            <h1>
+                {{ text().allocationPurchase.title }}
+            </h1>
+
+            <p>
+                {{ text().allocationPurchase.description }}
+            </p>
+        </div>
+
+        <button type="button" class="secondary-button" [disabled]="
+                isPreviewing ||
+                isExecuting ||
+                isAddingMarketAsset
+            " (click)="clearResult()">
+            {{ text().allocationPurchase.reset }}
+        </button>
+    </header>
+
+    @if (successMessage) {
+    <section class="message-banner" role="status">
+        <span>
+            {{ successMessage }}
+        </span>
+
+        <button type="button" [attr.aria-label]="
+                    text()
+                        .allocationPurchase
+                        .dismissSuccessMessage
+                " (click)="dismissSuccessMessage()">
+            ×
+        </button>
+    </section>
+    }
+
+    @if (isLoadingPortfolios) {
+    <section class="page-state" aria-live="polite">
+        <span class="page-state__spinner" aria-hidden="true"></span>
+
+        <h2>
+            {{
+            text()
+            .allocationPurchase
+            .loadingPortfoliosTitle
+            }}
+        </h2>
+
+        <p>
+            {{
+            text()
+            .allocationPurchase
+            .loadingPortfoliosDescription
+            }}
+        </p>
+    </section>
+    } @else if (
+    errorMessage &&
+    portfolios.length === 0
+    ) {
+    <section class="page-state page-state--error" role="alert">
+        <span class="page-state__icon" aria-hidden="true">
+            !
+        </span>
+
+        <h2>
+            {{
+            text()
+            .allocationPurchase
+            .unavailableTitle
+            }}
+        </h2>
+
+        <p>
+            {{ errorMessage }}
+        </p>
+
+        <button type="button" class="primary-button" (click)="retry()">
+            {{ text().allocationPurchase.retry }}
+        </button>
+    </section>
+    } @else if (portfolios.length === 0) {
+    <section class="page-state">
+        <span class="page-state__icon" aria-hidden="true">
+            %
+        </span>
+
+        <h2>
+            {{
+            text()
+            .allocationPurchase
+            .noEligiblePortfoliosTitle
+            }}
+        </h2>
+
+        <p>
+            {{
+            text()
+            .allocationPurchase
+            .noEligiblePortfoliosDescription
+            }}
+        </p>
+    </section>
+    } @else {
+    <section class="allocation-workspace">
+        <article class="allocation-form-card">
+            <header class="card-header">
+                <div>
+                    <span class="card-header__eyebrow">
+                        {{
+                        text()
+                        .allocationPurchase
+                        .purchaseSetup
+                        }}
+                    </span>
+
+                    <h2>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .setTargetAllocation
+                        }}
+                    </h2>
+                </div>
+            </header>
+
+            @if (
+            errorMessage &&
+            portfolios.length > 0
+            ) {
+            <p class="form-error" role="alert">
+                {{ errorMessage }}
+            </p>
+            }
+
+            <form class="allocation-form" (ngSubmit)="requestPreview()">
+                <label>
+                    <span>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .portfolio
+                        }}
+                    </span>
+
+                    <select name="selectedPortfolioId" [ngModel]="selectedPortfolioId" [disabled]="
+                                isLoadingAssets ||
+                                isPreviewing ||
+                                isExecuting ||
+                                isAddingMarketAsset
+                            " (ngModelChange)="
+                                selectPortfolio($event)
+                            ">
+                        @for (
+                        portfolio of portfolios;
+                        track portfolio.id
+                        ) {
+                        <option [value]="portfolio.id">
+                            {{ portfolio.name }}
+                        </option>
+                        }
+                    </select>
+                </label>
+
+                <label>
+                    <span>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .asset
+                        }}
+                    </span>
+
+                    <select name="selectedAssetId" [ngModel]="selectedAssetId" [disabled]="
+                                isLoadingAssets ||
+                                assets.length === 0 ||
+                                isPreviewing ||
+                                isExecuting ||
+                                isAddingMarketAsset
+                            " (ngModelChange)="
+                                selectAsset($event)
+                            ">
+                        @if (isLoadingAssets) {
+                        <option value="">
+                            {{
+                            text()
+                            .allocationPurchase
+                            .loadingAssets
+                            }}
+                        </option>
+                        } @else if (
+                        assets.length === 0
+                        ) {
+                        <option value="">
+                            {{
+                            text()
+                            .assets
+                            .noAssetsTitle
+                            }}
+                        </option>
+                        }
+
+                        @for (
+                        asset of assets;
+                        track asset.id
+                        ) {
+                        <option [value]="asset.id">
+                            {{ asset.symbol }}
+                            ·
+                            {{ asset.displayName }}
+                            ·
+                            {{ asset.currency }}
+                        </option>
+                        }
+                    </select>
+                </label>
+
+                <section class="asset-summary">
+                    <span class="card-header__eyebrow">
+                        {{
+                        text()
+                        .assets
+                        .liveMarketSearch
+                        }}
+                    </span>
+
+                    <strong>
+                        {{
+                        text()
+                        .assets
+                        .findListedInstrument
+                        }}
+                    </strong>
+
+                    <small>
+                        {{
+                        text()
+                        .assets
+                        .marketSearchDescription
+                        }}
+                    </small>
+
+                    <label>
+                        <span>
+                            {{
+                            text()
+                            .assets
+                            .symbolOrCompanyName
+                            }}
+                        </span>
+
+                        <input type="text" name="marketSearchQuery" [ngModel]="marketSearchQuery" [placeholder]="
+                                    text()
+                                        .assets
+                                        .marketSearchPlaceholder
+                                " [disabled]="
+                                    isSearchingMarket ||
+                                    isAddingMarketAsset ||
+                                    isPreviewing ||
+                                    isExecuting
+                                " (ngModelChange)="
+                                    onMarketSearchQueryChange(
+                                        $event
+                                    )
+                                " />
+                    </label>
+
+                    <div class="result-actions">
+                        <button type="button" class="secondary-button" [disabled]="
+                                    isSearchingMarket ||
+                                    isAddingMarketAsset ||
+                                    marketSearchQuery
+                                        .trim()
+                                        .length < 2
+                                " (click)="searchMarket()">
+                            @if (isSearchingMarket) {
+                            {{
+                            text()
+                            .assets
+                            .searchingMarket
+                            }}
+                            } @else {
+                            {{
+                            text()
+                            .assets
+                            .searchAssets
+                            }}
+                            }
+                        </button>
+
+                        @if (
+                        marketSearchQuery ||
+                        selectedMarketResult
+                        ) {
+                        <button type="button" class="secondary-button" [disabled]="
+                                        isSearchingMarket ||
+                                        isAddingMarketAsset
+                                    " (click)="
+                                        clearMarketSelection()
+                                    ">
+                            {{
+                            text()
+                            .assets
+                            .clearSelection
+                            }}
+                        </button>
+                        }
+                    </div>
+
+                    @if (marketSearchMessage) {
+                    <p class="action-message">
+                        {{ marketSearchMessage }}
+                    </p>
+                    }
+
+                    @if (
+                    marketSearchResults.length > 0
+                    ) {
+                    <section>
+                        <strong>
+                            {{
+                            text()
+                            .assets
+                            .marketSearchResults
+                            }}
+                        </strong>
+
+                        @for (
+                        result of marketSearchResults;
+                        track
+                        result.symbol +
+                        '|' +
+                        result.exchange
+                        ) {
+                        <button type="button" class="secondary-button" style="
+                                            width: 100%;
+                                            margin-top: 0.5rem;
+                                            justify-content:
+                                                space-between;
+                                        " [disabled]="
+                                            isAddingMarketAsset ||
+                                            isPreviewing ||
+                                            isExecuting
+                                        " (click)="
+                                            selectMarketResult(
+                                                result
+                                            )
+                                        ">
+                            <span>
+                                <strong>
+                                    {{
+                                    result.symbol
+                                    }}
+                                </strong>
+
+                                ·
+
+                                {{
+                                result.displayName
+                                }}
+                            </span>
+
+                            <small>
+                                {{
+                                result.exchange ||
+                                text()
+                                .assets
+                                .unknownExchange
+                                }}
+
+                                ·
+                                {{
+                                result.currency
+                                }}
+                            </small>
+                        </button>
+                        }
+                    </section>
+                    }
+
+                    @if (selectedMarketResult) {
+                    <section class="asset-summary">
+                        <span class="card-header__eyebrow">
+                            {{
+                            text()
+                            .assets
+                            .selectedInstrument
+                            }}
+                        </span>
+
+                        <div>
+                            <span class="asset-summary__symbol">
+                                {{
+                                selectedMarketResult
+                                .symbol
+                                }}
+                            </span>
+
+                            <div>
+                                <strong>
+                                    {{
+                                    selectedMarketResult
+                                    .displayName
+                                    }}
+                                </strong>
+
+                                <small>
+                                    {{
+                                    selectedMarketResult
+                                    .exchange ||
+                                    text()
+                                    .assets
+                                    .unknownExchange
+                                    }}
+
+                                    ·
+
+                                    {{
+                                    selectedMarketResult
+                                    .currency
+                                    }}
+
+                                    ·
+
+                                    {{
+                                    selectedMarketResult
+                                    .instrumentType
+                                    }}
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="result-actions">
+                            <button type="button" class="primary-button" [disabled]="
+                                            !canAddSelectedMarketAsset
+                                        " (click)="
+                                            addSelectedMarketAsset()
+                                        ">
+                                @if (
+                                isAddingMarketAsset
+                                ) {
+                                {{
+                                text()
+                                .assets
+                                .adding
+                                }}
+                                } @else {
+                                {{
+                                text()
+                                .assets
+                                .addAsset
+                                }}
+                                }
+                            </button>
+                        </div>
+                    </section>
+                    }
+                </section>
+
+                <div class="allocation-form__grid">
+                    <label>
+                        <span>
+                            {{
+                            text()
+                            .allocationPurchase
+                            .targetWeight
+                            }}
+                        </span>
+
+                        <input type="number" name="targetWeightPercent" min="0" max="100" step="0.000001"
+                            placeholder="12.5" [(ngModel)]="
+                                    targetWeightPercent
+                                " [disabled]="
+                                    isPreviewing ||
+                                    isExecuting ||
+                                    isAddingMarketAsset
+                                " />
+                    </label>
+
+                    <label>
+                        <span>
+                            {{ text().transactions.fee }}
+                        </span>
+
+                        <input type="number" name="fee" min="0" step="0.00000001" placeholder="0" [(ngModel)]="fee"
+                            [disabled]="
+                                    isPreviewing ||
+                                    isExecuting ||
+                                    isAddingMarketAsset
+                                " />
+                    </label>
+                </div>
+
+                @if (selectedPortfolio) {
+                <section class="selection-summary">
+                    <div>
+                        <span>
+                            {{
+                            text()
+                            .allocationPurchase
+                            .portfolioValue
+                            }}
+                        </span>
+
+                        <strong>
+                            {{
+                            selectedPortfolio
+                            .currentValue
+                            | currency:'USD'
+                            }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>
+                            {{
+                            text()
+                            .allocationPurchase
+                            .creationMethod
+                            }}
+                        </span>
+
+                        <strong>
+                            {{
+                            selectedPortfolio
+                            .creationMethod ===
+                            'BY_AMOUNT'
+                            ? text()
+                            .portfolios
+                            .createdByAmount
+                            : text()
+                            .portfolios
+                            .createdByHoldings
+                            }}
+                        </strong>
+                    </div>
+                </section>
+                }
+
+                @if (selectedAsset) {
+                <section class="asset-summary">
+                    <div>
+                        <span class="asset-summary__symbol">
+                            {{ selectedAsset.symbol }}
+                        </span>
+
+                        <div>
+                            <strong>
+                                {{
+                                selectedAsset
+                                .displayName
+                                }}
+                            </strong>
+
+                            <small>
+                                {{
+                                selectedAsset.exchange ||
+                                text()
+                                .allocationPurchase
+                                .exchangeNotSpecified
+                                }}
+                                ·
+                                {{
+                                selectedAsset
+                                .currency
+                                }}
+                            </small>
+                        </div>
+                    </div>
+                </section>
+                }
+
+                <button type="submit" class="primary-button" [disabled]="!canPreview">
+                    {{
+                    isPreviewing
+                    ? text()
+                    .allocationPurchase
+                    .calculating
+                    : text()
+                    .allocationPurchase
+                    .calculatePreview
+                    }}
+                </button>
+            </form>
+        </article>
+
+        <article class="allocation-result-card">
+            @if (isPreviewing) {
+            <section class="result-state" aria-live="polite">
+                <span class="page-state__spinner" aria-hidden="true"></span>
+
+                <h2>
+                    {{
+                    text()
+                    .allocationPurchase
+                    .calculatingAllocationTitle
+                    }}
+                </h2>
+
+                <p>
+                    {{
+                    text()
+                    .allocationPurchase
+                    .calculatingAllocationDescription
+                    }}
+                </p>
+            </section>
+            } @else if (preview) {
+            <header class="card-header">
+                <div>
+                    <span class="card-header__eyebrow">
+                        {{
+                        text()
+                        .allocationPurchase
+                        .purchasePreview
+                        }}
+                    </span>
+
+                    <h2>
+                        {{ preview.symbol }}
+                        {{
+                        text()
+                        .allocationPurchase
+                        .allocation
+                        }}
+                    </h2>
+                </div>
+
+                <span class="action-badge" [class.action-badge--buy]="
+                                preview.suggestedAction ===
+                                'BUY'
+                            " [class.action-badge--warning]="
+                                preview.suggestedAction ===
+                                'SELL'
+                            ">
+                    @switch (
+                    preview.suggestedAction
+                    ) {
+                    @case ('BUY') {
+                    {{
+                    text()
+                    .transactions
+                    .typeBuy
+                    }}
+                    }
+
+                    @case ('SELL') {
+                    {{
+                    text()
+                    .transactions
+                    .typeSell
+                    }}
+                    }
+
+                    @default {
+                    {{
+                    text()
+                    .allocationPurchase
+                    .actionNone
+                    }}
+                    }
+                    }
+                </span>
+            </header>
+
+            <dl class="preview-details">
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .currentMarketPrice
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        preview.currentPrice
+                        | currency:
+                        preview.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .portfolioValue
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        preview
+                        .portfolioCurrentValue
+                        | currency:
+                        preview.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .portfolios
+                        .marketValue
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        preview
+                        .currentMarketValue
+                        | currency:
+                        preview.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .targetWeightLabel
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        preview
+                        .targetWeightPercent
+                        | number:'1.0-6'
+                        }}%
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .targetMarketValue
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        preview
+                        .targetMarketValue
+                        | currency:
+                        preview.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .existingQuantity
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        preview
+                        .existingQuantity
+                        | number:'1.0-8'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .targetQuantity
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        preview
+                        .targetQuantity
+                        | number:'1.0-8'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .transactions
+                        .quantity
+                        }}
+                    </dt>
+
+                    <dd>
+                        @if (
+                        preview.suggestedAction ===
+                        'SELL'
+                        ) {
+                        {{
+                        preview
+                        .quantityToSell
+                        | number:'1.0-8'
+                        }}
+                        } @else if (
+                        preview.suggestedAction ===
+                        'BUY'
+                        ) {
+                        {{
+                        preview
+                        .quantityToBuy
+                        | number:'1.0-8'
+                        }}
+                        } @else {
+                        0
+                        }
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .transactions
+                        .totalAmount
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        preview
+                        .estimatedTradeAmount
+                        | currency:
+                        preview.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .portfolios
+                        .targetAllocation
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        preview
+                        .totalTargetWeightPercent
+                        | number:'1.0-6'
+                        }}%
+                    </dd>
+                </div>
+
+                <div class="preview-details__wide" [class.preview-details__warning]="
+                                preview
+                                    .allocationDifferencePercent <
+                                0
+                            ">
+                    <dt>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .remainingAssignableWeight
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        preview
+                        .allocationDifferencePercent
+                        | number:'1.0-6'
+                        }}%
+                    </dd>
+                </div>
+            </dl>
+
+            <p class="calculated-at">
+                {{
+                text()
+                .allocationPurchase
+                .calculated
+                }}
+
+                {{
+                preview.calculatedAt
+                | date:'medium'
+                }}
+            </p>
+
+            @if (
+            preview.suggestedAction ===
+            'BUY' ||
+            preview.suggestedAction ===
+            'SELL'
+            ) {
+            <footer class="result-actions">
+                <button type="button" class="secondary-button" [disabled]="isExecuting" (click)="requestPreview()">
+                    {{
+                    text()
+                    .allocationPurchase
+                    .recalculate
+                    }}
+                </button>
+
+                <button type="button" class="primary-button" [disabled]="!canExecute" (click)="executePurchase()">
+                    @if (isExecuting) {
+                    {{
+                    text()
+                    .allocationPurchase
+                    .executing
+                    }}
+                    } @else if (
+                    preview
+                    .suggestedAction ===
+                    'SELL'
+                    ) {
+                    {{
+                    text()
+                    .transactions
+                    .typeSell
+                    }}
+                    } @else {
+                    {{
+                    text()
+                    .transactions
+                    .typeBuy
+                    }}
+                    }
+                </button>
+            </footer>
+            } @else {
+            <p class="action-message">
+                {{
+                text()
+                .allocationPurchase
+                .alreadyAtTargetMessage
+                }}
+            </p>
+            }
+            } @else if (execution) {
+            <header class="card-header">
+                <div>
+                    <span class="card-header__eyebrow">
+                        {{
+                        text()
+                        .transactions
+                        .createdSuccess
+                        }}
+                    </span>
+
+                    <h2>
+                        {{ execution.symbol }}
+                        ·
+
+                        @if (
+                        execution.action ===
+                        'SELL'
+                        ) {
+                        {{
+                        text()
+                        .transactions
+                        .typeSell
+                        }}
+                        } @else {
+                        {{
+                        text()
+                        .transactions
+                        .typeBuy
+                        }}
+                        }
+                    </h2>
+                </div>
+
+                <span class="action-badge" [class.action-badge--buy]="
+                                execution.action ===
+                                'BUY'
+                            " [class.action-badge--warning]="
+                                execution.action ===
+                                'SELL'
+                            ">
+                    {{
+                    text()
+                    .allocationPurchase
+                    .complete
+                    }}
+                </span>
+            </header>
+
+            <dl class="preview-details">
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .transactions
+                        .quantity
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        execution
+                        .tradedQuantity
+                        | number:'1.0-8'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .transactions
+                        .unitPrice
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        execution
+                        .unitPrice
+                        | currency:
+                        execution.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .transactions
+                        .totalAmount
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        execution
+                        .tradeAmount
+                        | currency:
+                        execution.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .transactions
+                        .fee
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        execution.fee
+                        | currency:
+                        execution.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .portfolios
+                        .availableCash
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        execution
+                        .availableCashBefore
+                        | currency:
+                        execution.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .availableCashAfter
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        execution
+                        .availableCashAfter
+                        | currency:
+                        execution.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text()
+                        .portfolios
+                        .targetAllocation
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        execution
+                        .totalTargetWeightPercent
+                        | number:'1.0-6'
+                        }}%
+                    </dd>
+                </div>
+
+                <div class="preview-details__wide">
+                    <dt>
+                        {{
+                        text()
+                        .allocationPurchase
+                        .transactionId
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{ execution.transactionId }}
+                    </dd>
+                </div>
+            </dl>
+
+            <p class="calculated-at">
+                {{
+                text()
+                .allocationPurchase
+                .executed
+                }}
+
+                {{
+                execution.executedAt
+                | date:'medium'
+                }}
+            </p>
+
+            <footer class="result-actions">
+                <button type="button" class="primary-button" (click)="clearResult()">
+                    {{
+                    text()
+                    .allocationPurchase
+                    .startAnotherAllocation
+                    }}
+                </button>
+            </footer>
+            } @else {
+            <section class="result-state">
+                <span class="page-state__icon" aria-hidden="true">
+                    %
+                </span>
+
+                <h2>
+                    {{
+                    text()
+                    .allocationPurchase
+                    .noPreviewTitle
+                    }}
+                </h2>
+
+                <p>
+                    {{
+                    text()
+                    .allocationPurchase
+                    .noPreviewDescription
+                    }}
+                </p>
+            </section>
+            }
+        </article>
+    </section>
+    }
+</section>

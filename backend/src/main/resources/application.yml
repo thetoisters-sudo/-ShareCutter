@@ -33,6 +33,11 @@ app:
     access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:15m}
     refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:30d}
 
+  market-data:
+    twelve-data:
+      base-url: ${TWELVE_DATA_BASE_URL:https://api.twelvedata.com}
+      api-key: ${TWELVE_DATA_API_KEY:}
+
 logging:
   level:
     com.sharecutter.backend.security.JwtAuthenticationFilter: DEBUG

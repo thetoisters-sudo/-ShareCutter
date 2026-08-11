@@ -17,19 +17,33 @@ public record AssetAllocationItemResponse(
 
         String currency,
 
-        BigDecimal boughtQuantity,
+        BigDecimal quantity,
 
-        BigDecimal soldQuantity,
+        BigDecimal averageCost,
 
-        BigDecimal currentQuantity,
+        BigDecimal currentPrice,
 
-        BigDecimal totalBuyAmount,
+        BigDecimal totalCost,
 
-        BigDecimal totalSellAmount,
+        BigDecimal marketValue,
 
-        BigDecimal netInvestedAmount,
+        BigDecimal realizedProfit,
 
-        BigDecimal allocationPercent
+        BigDecimal unrealizedProfit,
+
+        BigDecimal allocationPercent,
+
+        BigDecimal targetWeightPercent,
+
+        BigDecimal targetMarketValue,
+
+        BigDecimal targetQuantity,
+
+        BigDecimal quantityDifference,
+
+        BigDecimal estimatedTradeValue,
+
+        String rebalanceAction
 
 ) {
 
@@ -61,51 +75,122 @@ public record AssetAllocationItemResponse(
                 "Asset currency"
         );
 
-        boughtQuantity =
-                zeroIfNull(boughtQuantity);
+        quantity = zeroIfNull(
+                quantity
+        );
 
-        soldQuantity =
-                zeroIfNull(soldQuantity);
+        averageCost = zeroIfNull(
+                averageCost
+        );
 
-        currentQuantity =
-                zeroIfNull(currentQuantity);
+        currentPrice = zeroIfNull(
+                currentPrice
+        );
 
-        totalBuyAmount =
-                zeroIfNull(totalBuyAmount);
+        totalCost = zeroIfNull(
+                totalCost
+        );
 
-        totalSellAmount =
-                zeroIfNull(totalSellAmount);
+        marketValue = zeroIfNull(
+                marketValue
+        );
 
-        netInvestedAmount =
-                zeroIfNull(netInvestedAmount);
+        realizedProfit = zeroIfNull(
+                realizedProfit
+        );
 
-        allocationPercent =
-                zeroIfNull(allocationPercent);
+        unrealizedProfit = zeroIfNull(
+                unrealizedProfit
+        );
 
-        validateNonNegative(
-                boughtQuantity,
-                "Bought quantity"
+        allocationPercent = zeroIfNull(
+                allocationPercent
+        );
+
+        targetWeightPercent = zeroIfNull(
+                targetWeightPercent
+        );
+
+        targetMarketValue = zeroIfNull(
+                targetMarketValue
+        );
+
+        targetQuantity = zeroIfNull(
+                targetQuantity
+        );
+
+        quantityDifference = zeroIfNull(
+                quantityDifference
+        );
+
+        estimatedTradeValue = zeroIfNull(
+                estimatedTradeValue
+        );
+
+        rebalanceAction = requireText(
+                rebalanceAction,
+                "Rebalance action"
         );
 
         validateNonNegative(
-                soldQuantity,
-                "Sold quantity"
+                quantity,
+                "Quantity"
         );
 
         validateNonNegative(
-                totalBuyAmount,
-                "Total buy amount"
+                averageCost,
+                "Average cost"
         );
 
         validateNonNegative(
-                totalSellAmount,
-                "Total sell amount"
+                currentPrice,
+                "Current price"
+        );
+
+        validateNonNegative(
+                totalCost,
+                "Total cost"
+        );
+
+        validateNonNegative(
+                marketValue,
+                "Market value"
         );
 
         validateNonNegative(
                 allocationPercent,
                 "Allocation percent"
         );
+
+        validateNonNegative(
+                targetWeightPercent,
+                "Target weight percent"
+        );
+
+        validateNonNegative(
+                targetMarketValue,
+                "Target market value"
+        );
+
+        validateNonNegative(
+                targetQuantity,
+                "Target quantity"
+        );
+
+        validateNonNegative(
+                estimatedTradeValue,
+                "Estimated trade value"
+        );
+
+        if (
+                targetWeightPercent.compareTo(
+                        BigDecimal.valueOf(100)
+                ) > 0
+        ) {
+            throw new IllegalArgumentException(
+                    "Target weight percent must not exceed 100"
+            );
+        }
     }
 
     private static BigDecimal zeroIfNull(
@@ -122,7 +207,8 @@ public record AssetAllocationItemResponse(
     ) {
         if (value.signum() < 0) {
             throw new IllegalArgumentException(
-                    fieldName + " must not be negative"
+                    fieldName
+                            + " must not be negative"
             );
         }
     }
@@ -133,7 +219,8 @@ public record AssetAllocationItemResponse(
     ) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(
-                    fieldName + " must not be blank"
+                    fieldName
+                            + " must not be blank"
             );
         }
 

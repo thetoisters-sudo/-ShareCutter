@@ -2,37 +2,55 @@
     <div class="auth-page__layout">
         <div class="auth-page__introduction">
             <span class="auth-page__eyebrow">
-                Start with ShareCutter
+                {{ text().auth.register.eyebrow }}
             </span>
 
-            <h1>Create your account</h1>
+            <h1>
+                {{ text().auth.register.title }}
+            </h1>
 
             <p>
-                Build portfolios, record transactions and manage
-                weekly allocation targets from one personal workspace.
+                {{ text().auth.register.description }}
             </p>
 
             <ul class="auth-page__benefits">
                 <li>
-                    Create and manage multiple portfolios
+                    {{
+                    text()
+                    .auth
+                    .register
+                    .benefitMultiplePortfolios
+                    }}
                 </li>
 
                 <li>
-                    Track assets and transaction history
+                    {{
+                    text()
+                    .auth
+                    .register
+                    .benefitAssetsTransactions
+                    }}
                 </li>
 
                 <li>
-                    Define weekly portfolio targets
+                    {{
+                    text()
+                    .auth
+                    .register
+                    .benefitWeeklyTargets
+                    }}
                 </li>
             </ul>
         </div>
 
         <div class="auth-card">
             <div class="auth-card__header">
-                <h2>Create account</h2>
+                <h2>
+                    {{ text().auth.register.cardTitle }}
+                </h2>
 
                 <p>
-                    Enter your details to create a ShareCutter account.
+                    {{ text().auth.register.cardDescription }}
                 </p>
             </div>
 
@@ -46,20 +64,30 @@
                 <div class="auth-form__name-grid">
                     <div class="auth-form__field">
                         <label for="firstName">
-                            First name
+                            {{ text().auth.register.firstName }}
                         </label>
 
                         <input id="firstName" type="text" formControlName="firstName" autocomplete="given-name"
-                            placeholder="First name" [attr.aria-invalid]="
-                firstNameControl.invalid &&
-                firstNameControl.touched
-              " />
+                            [placeholder]="
+                                text()
+                                    .auth
+                                    .register
+                                    .firstNamePlaceholder
+                            " [attr.aria-invalid]="
+                                firstNameControl.invalid &&
+                                firstNameControl.touched
+                            " />
 
                         @if (
                         shouldShowFirstNameRequiredError()
                         ) {
                         <p class="auth-form__error">
-                            First name is required.
+                            {{
+                            text()
+                            .auth
+                            .register
+                            .firstNameRequired
+                            }}
                         </p>
                         }
 
@@ -67,28 +95,42 @@
                         shouldShowFirstNameLengthError()
                         ) {
                         <p class="auth-form__error">
-                            First name must not exceed
-                            100 characters.
+                            {{
+                            text()
+                            .auth
+                            .register
+                            .firstNameLength
+                            }}
                         </p>
                         }
                     </div>
 
                     <div class="auth-form__field">
                         <label for="lastName">
-                            Last name
+                            {{ text().auth.register.lastName }}
                         </label>
 
                         <input id="lastName" type="text" formControlName="lastName" autocomplete="family-name"
-                            placeholder="Last name" [attr.aria-invalid]="
-                lastNameControl.invalid &&
-                lastNameControl.touched
-              " />
+                            [placeholder]="
+                                text()
+                                    .auth
+                                    .register
+                                    .lastNamePlaceholder
+                            " [attr.aria-invalid]="
+                                lastNameControl.invalid &&
+                                lastNameControl.touched
+                            " />
 
                         @if (
                         shouldShowLastNameRequiredError()
                         ) {
                         <p class="auth-form__error">
-                            Last name is required.
+                            {{
+                            text()
+                            .auth
+                            .register
+                            .lastNameRequired
+                            }}
                         </p>
                         }
 
@@ -96,8 +138,12 @@
                         shouldShowLastNameLengthError()
                         ) {
                         <p class="auth-form__error">
-                            Last name must not exceed
-                            100 characters.
+                            {{
+                            text()
+                            .auth
+                            .register
+                            .lastNameLength
+                            }}
                         </p>
                         }
                     </div>
@@ -105,31 +151,55 @@
 
                 <div class="auth-form__field">
                     <label for="email">
-                        Email address
+                        {{ text().auth.register.emailAddress }}
                     </label>
 
-                    <input id="email" type="email" formControlName="email" autocomplete="email"
-                        placeholder="name@example.com" [attr.aria-invalid]="
-              emailControl.invalid &&
-              emailControl.touched
-            " />
+                    <input id="email" type="email" formControlName="email" autocomplete="email" [placeholder]="
+                            text()
+                                .auth
+                                .register
+                                .emailPlaceholder
+                        " [attr.aria-invalid]="
+                            emailControl.invalid &&
+                            emailControl.touched
+                        " />
 
-                    @if (shouldShowEmailRequiredError()) {
+                    @if (
+                    shouldShowEmailRequiredError()
+                    ) {
                     <p class="auth-form__error">
-                        Email address is required.
+                        {{
+                        text()
+                        .auth
+                        .register
+                        .emailRequired
+                        }}
                     </p>
                     }
 
-                    @if (shouldShowEmailFormatError()) {
+                    @if (
+                    shouldShowEmailFormatError()
+                    ) {
                     <p class="auth-form__error">
-                        Enter a valid email address.
+                        {{
+                        text()
+                        .auth
+                        .register
+                        .emailInvalid
+                        }}
                     </p>
                     }
 
-                    @if (shouldShowEmailLengthError()) {
+                    @if (
+                    shouldShowEmailLengthError()
+                    ) {
                     <p class="auth-form__error">
-                        Email address must not exceed
-                        320 characters.
+                        {{
+                        text()
+                        .auth
+                        .register
+                        .emailLength
+                        }}
                     </p>
                     }
                 </div>
@@ -137,25 +207,35 @@
                 <div class="auth-form__field">
                     <div class="auth-form__label-row">
                         <label for="password">
-                            Password
+                            {{ text().auth.register.password }}
                         </label>
 
                         <span>
-                            8 to 72 characters
+                            {{ text().auth.register.passwordHint }}
                         </span>
                     </div>
 
                     <input id="password" type="password" formControlName="password" autocomplete="new-password"
-                        placeholder="Create a password" [attr.aria-invalid]="
-              passwordControl.invalid &&
-              passwordControl.touched
-            " />
+                        [placeholder]="
+                            text()
+                                .auth
+                                .register
+                                .passwordPlaceholder
+                        " [attr.aria-invalid]="
+                            passwordControl.invalid &&
+                            passwordControl.touched
+                        " />
 
                     @if (
                     shouldShowPasswordRequiredError()
                     ) {
                     <p class="auth-form__error">
-                        Password is required.
+                        {{
+                        text()
+                        .auth
+                        .register
+                        .passwordRequired
+                        }}
                     </p>
                     }
 
@@ -163,33 +243,52 @@
                     shouldShowPasswordLengthError()
                     ) {
                     <p class="auth-form__error">
-                        Password must contain between
-                        8 and 72 characters.
+                        {{
+                        text()
+                        .auth
+                        .register
+                        .passwordLength
+                        }}
                     </p>
                     }
                 </div>
 
                 <div class="auth-form__field">
                     <label for="confirmPassword">
-                        Confirm password
+                        {{
+                        text()
+                        .auth
+                        .register
+                        .confirmPassword
+                        }}
                     </label>
 
                     <input id="confirmPassword" type="password" formControlName="confirmPassword"
-                        autocomplete="new-password" placeholder="Enter the password again" [attr.aria-invalid]="
-              (
-                confirmPasswordControl.invalid ||
-                registerForm.hasError(
-                  'passwordsMismatch'
-                )
-              ) &&
-              confirmPasswordControl.touched
-            " />
+                        autocomplete="new-password" [placeholder]="
+                            text()
+                                .auth
+                                .register
+                                .confirmPasswordPlaceholder
+                        " [attr.aria-invalid]="
+                            (
+                                confirmPasswordControl.invalid ||
+                                registerForm.hasError(
+                                    'passwordsMismatch'
+                                )
+                            ) &&
+                            confirmPasswordControl.touched
+                        " />
 
                     @if (
                     shouldShowConfirmPasswordRequiredError()
                     ) {
                     <p class="auth-form__error">
-                        Password confirmation is required.
+                        {{
+                        text()
+                        .auth
+                        .register
+                        .confirmPasswordRequired
+                        }}
                     </p>
                     }
 
@@ -197,7 +296,12 @@
                     shouldShowPasswordMismatchError()
                     ) {
                     <p class="auth-form__error">
-                        The passwords do not match.
+                        {{
+                        text()
+                        .auth
+                        .register
+                        .passwordsMismatch
+                        }}
                     </p>
                     }
                 </div>
@@ -208,10 +312,10 @@
             </form>
 
             <p class="auth-card__footer">
-                Already have an account?
+                {{ text().auth.register.alreadyHaveAccount }}
 
                 <a routerLink="/login">
-                    Log in
+                    {{ text().auth.register.login }}
                 </a>
             </p>
         </div>

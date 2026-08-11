@@ -154,6 +154,7 @@ describe('App', () => {
       'Portfolios',
       'Assets',
       'Transactions',
+      'Allocation',
     ]);
   });
 
@@ -201,6 +202,30 @@ describe('App', () => {
         ?.textContent
         ?.trim(),
     ).toBe('Transactions');
+  });
+
+  it('should link the Allocation navigation item to the allocation page', () => {
+    fixture.detectChanges();
+
+    const compiled =
+      fixture.nativeElement as HTMLElement;
+
+    const allocationLink =
+      compiled.querySelector<
+        HTMLAnchorElement
+      >(
+        'a[routerLink="/allocation-purchase"]',
+      );
+
+    expect(
+      allocationLink,
+    ).not.toBeNull();
+
+    expect(
+      allocationLink
+        ?.textContent
+        ?.trim(),
+    ).toBe('Allocation');
   });
 
   it('should render guest account actions when logged out', () => {

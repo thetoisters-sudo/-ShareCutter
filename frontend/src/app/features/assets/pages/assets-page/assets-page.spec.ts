@@ -14,17 +14,26 @@ import {
     throwError,
 } from 'rxjs';
 import {
+    afterEach,
     vi,
 } from 'vitest';
 
 import {
     AssetCreateRequest,
     AssetResponse,
+    AssetType,
     AssetUpdateRequest,
 } from '../../../../core/asset/models/asset.models';
 import {
     AssetService,
 } from '../../../../core/asset/services/asset.service';
+import {
+    MarketPriceResponse,
+    MarketSymbolSearchResponse,
+} from '../../../../core/market-data/models/market-data.models';
+import {
+    MarketDataService,
+} from '../../../../core/market-data/services/market-data.service';
 import {
     PagedResponse,
     PortfolioResponse,
@@ -84,6 +93,44 @@ class AssetServiceStub {
     );
 }
 
+class MarketDataServiceStub {
+    searchResponse:
+        MarketSymbolSearchResponse[] = [
+            createMarketSearchResult(),
+        ];
+
+    priceResponse:
+        MarketPriceResponse = {
+            symbol: 'TTWO',
+            exchange: 'NASDAQ',
+            price: 205.55,
+            retrievedAt:
+                '2026-08-05T13:00:00Z',
+        };
+
+    searchSymbols = vi.fn(
+        (
+            _request: {
+                query: string;
+                limit?: number;
+            },
+        ): Observable<
+            MarketSymbolSearchResponse[]
+        > =>
+            of(this.searchResponse),
+    );
+
+    getLatestPrice = vi.fn(
+        (
+            _request: {
+                symbol: string;
+                exchange?: string | null;
+            },
+        ): Observable<MarketPriceResponse> =>
+            of(this.priceResponse),
+    );
+}
+
 class PortfolioServiceStub {
     response:
         PagedResponse<PortfolioResponse> = {
@@ -117,7 +164,10 @@ describe('AssetsPage', () => {
     let fixture: ComponentFixture<AssetsPage>;
     let component: AssetsPage;
     let assetService: AssetServiceStub;
-    let portfolioService: PortfolioServiceStub;
+    let marketDataService:
+        MarketDataServiceStub;
+    let portfolioService:
+        PortfolioServiceStub;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -128,6 +178,10 @@ describe('AssetsPage', () => {
                 {
                     provide: AssetService,
                     useClass: AssetServiceStub,
+                },
+                {
+                    provide: MarketDataService,
+                    useClass: MarketDataServiceStub,
                 },
                 {
                     provide: PortfolioService,
@@ -146,9 +200,17 @@ describe('AssetsPage', () => {
             AssetService,
         ) as unknown as AssetServiceStub;
 
+        marketDataService = TestBed.inject(
+            MarketDataService,
+        ) as unknown as MarketDataServiceStub;
+
         portfolioService = TestBed.inject(
             PortfolioService,
         ) as unknown as PortfolioServiceStub;
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it('should create', () => {
@@ -259,6 +321,230 @@ describe('AssetsPage', () => {
         ).not.toContain('AAPL');
     });
 
+    it('should display market search inside the create dialog', () => {
+        fixture.detectChanges();
+
+        const state = getComponentState(component);
+
+        state.openCreateDialog();
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(
+                By.css('.market-search'),
+            ),
+        ).not.toBeNull();
+
+        expect(
+            fixture.nativeElement.textContent,
+        ).toContain(
+            'Find a listed instrument',
+        );
+    });
+
+    it('should search market instruments after the debounce period', () => {
+        vi.useFakeTimers();
+
+        fixture.detectChanges();
+
+        const state = getComponentState(component);
+
+        state.openCreateDialog();
+        state.onMarketSearchChange(
+            '  Take Two  ',
+        );
+
+        expect(
+            marketDataService.searchSymbols,
+        ).not.toHaveBeenCalled();
+
+        vi.advanceTimersByTime(349);
+
+        expect(
+            marketDataService.searchSymbols,
+        ).not.toHaveBeenCalled();
+
+        vi.advanceTimersByTime(1);
+
+        expect(
+            marketDataService.searchSymbols,
+        ).toHaveBeenCalledWith({
+            query: 'Take Two',
+            limit: 10,
+        });
+
+        expect(
+            state.marketSearchResults,
+        ).toEqual([
+            createMarketSearchResult(),
+        ]);
+    });
+
+    it('should not search a one-character market query', () => {
+        vi.useFakeTimers();
+
+        fixture.detectChanges();
+
+        const state = getComponentState(component);
+
+        state.openCreateDialog();
+        state.onMarketSearchChange('T');
+
+        vi.advanceTimersByTime(350);
+
+        expect(
+            marketDataService.searchSymbols,
+        ).not.toHaveBeenCalled();
+
+        expect(
+            state.marketSearchMessage,
+        ).toBe(
+            'Enter at least 2 characters.',
+        );
+    });
+
+    it('should fill the asset form and load price after selecting a market result', () => {
+        fixture.detectChanges();
+
+        const state = getComponentState(component);
+        const result =
+            createMarketSearchResult();
+
+        state.openCreateDialog();
+        state.selectMarketResult(result);
+
+        expect(state.formValue).toEqual({
+            symbol: 'TTWO',
+            displayName:
+                'Take-Two Interactive Software Inc.',
+            assetType: 'STOCK',
+            currency: 'USD',
+            isin: '',
+            exchange: 'NASDAQ',
+            notes: '',
+        });
+
+        expect(
+            marketDataService.getLatestPrice,
+        ).toHaveBeenCalledWith({
+            symbol: 'TTWO',
+            exchange: 'NASDAQ',
+        });
+
+        expect(
+            state.selectedMarketResult,
+        ).toEqual(result);
+
+        expect(
+            state.selectedMarketPrice,
+        ).toEqual(
+            marketDataService.priceResponse,
+        );
+    });
+
+    it('should display a selected market instrument and its price', () => {
+        fixture.detectChanges();
+
+        const state = getComponentState(component);
+
+        state.openCreateDialog();
+
+        state.selectMarketResult(
+            createMarketSearchResult(),
+        );
+
+        fixture.detectChanges();
+
+        const selectedMarket =
+            fixture.debugElement.query(
+                By.css('.selected-market'),
+            );
+
+        expect(selectedMarket).not.toBeNull();
+
+        expect(
+            selectedMarket.nativeElement
+                .textContent,
+        ).toContain('TTWO');
+
+        expect(
+            selectedMarket.nativeElement
+                .textContent,
+        ).toContain('205.55');
+
+        expect(
+            selectedMarket.nativeElement
+                .textContent,
+        ).toContain('USD');
+    });
+
+    it('should clear the selected market result', () => {
+        fixture.detectChanges();
+
+        const state = getComponentState(component);
+
+        state.openCreateDialog();
+
+        state.selectMarketResult(
+            createMarketSearchResult(),
+        );
+
+        state.clearSelectedMarketResult();
+
+        expect(
+            state.selectedMarketResult,
+        ).toBeNull();
+
+        expect(
+            state.selectedMarketPrice,
+        ).toBeNull();
+
+        expect(
+            state.marketSearchValue,
+        ).toBe('');
+
+        expect(
+            state.marketSearchResults,
+        ).toEqual([]);
+    });
+
+    it('should allow manual entry when market search fails', () => {
+        vi.useFakeTimers();
+
+        marketDataService
+            .searchSymbols
+            .mockReturnValueOnce(
+                throwError(
+                    () =>
+                        new HttpErrorResponse({
+                            status: 503,
+                            statusText:
+                                'Service Unavailable',
+                        }),
+                ),
+            );
+
+        fixture.detectChanges();
+
+        const state = getComponentState(component);
+
+        state.openCreateDialog();
+        state.onMarketSearchChange('TTWO');
+
+        vi.advanceTimersByTime(350);
+
+        expect(
+            state.marketSearchResults,
+        ).toEqual([]);
+
+        expect(
+            state.marketSearchMessage,
+        ).toBe(
+            'Market data is not configured. ' +
+            'You can continue with manual entry.',
+        );
+    });
+
     it('should create an asset', () => {
         fixture.detectChanges();
 
@@ -292,6 +578,36 @@ describe('AssetsPage', () => {
                 isin: 'US5949181045',
                 exchange: 'NASDAQ',
                 notes: 'Technology holding',
+            },
+        );
+    });
+
+    it('should create a market-selected asset', () => {
+        fixture.detectChanges();
+
+        const state = getComponentState(component);
+
+        state.openCreateDialog();
+
+        state.selectMarketResult(
+            createMarketSearchResult(),
+        );
+
+        state.submitCreate();
+
+        expect(
+            assetService.createAsset,
+        ).toHaveBeenCalledWith(
+            'portfolio-1',
+            {
+                symbol: 'TTWO',
+                displayName:
+                    'Take-Two Interactive Software Inc.',
+                assetType: 'STOCK',
+                currency: 'USD',
+                isin: null,
+                exchange: 'NASDAQ',
+                notes: null,
             },
         );
     });
@@ -356,6 +672,24 @@ describe('AssetsPage', () => {
                     'Core technology holding',
             },
         );
+    });
+
+    it('should not display market search inside the edit dialog', () => {
+        fixture.detectChanges();
+
+        const state = getComponentState(component);
+
+        state.openEditDialog(
+            createAsset(),
+        );
+
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(
+                By.css('.market-search'),
+            ),
+        ).toBeNull();
     });
 
     it('should delete an asset', () => {
@@ -438,37 +772,59 @@ describe('AssetsPage', () => {
 interface AssetsPageTestState {
     selectedPortfolioId: string;
     searchValue: string;
+    marketSearchValue: string;
     isLoadingAssets: boolean;
     isSubmitting: boolean;
+    isSearchingMarket: boolean;
+    isLoadingMarketPrice: boolean;
     actionErrorMessage: string;
+    marketSearchMessage: string;
+
+    marketSearchResults:
+    MarketSymbolSearchResponse[];
+
+    selectedMarketResult:
+    MarketSymbolSearchResponse | null;
+
+    selectedMarketPrice:
+    MarketPriceResponse | null;
+
     formValue: {
         symbol: string;
         displayName: string;
-        assetType:
-        | 'STOCK'
-        | 'ETF'
-        | 'BOND'
-        | 'FUND'
-        | 'CRYPTO'
-        | 'COMMODITY'
-        | 'FOREX'
-        | 'CASH'
-        | 'OTHER';
+        assetType: AssetType;
         currency: string;
         isin: string;
         exchange: string;
         notes: string;
     };
+
     onSearchChange(): void;
+
+    onMarketSearchChange(
+        value: string,
+    ): void;
+
+    selectMarketResult(
+        result: MarketSymbolSearchResponse,
+    ): void;
+
+    clearSelectedMarketResult(): void;
+
     openCreateDialog(): void;
+
     submitCreate(): void;
+
     openEditDialog(
         asset: AssetResponse,
     ): void;
+
     submitEdit(): void;
+
     openDeleteDialog(
         asset: AssetResponse,
     ): void;
+
     submitDelete(): void;
 }
 
@@ -490,12 +846,15 @@ function createPortfolio():
         totalRealizedProfit: 500,
         totalUnrealizedProfit: 1000,
         totalReturnPercent: 15,
-        createdAt: '2026-07-20T10:00:00Z',
-        updatedAt: '2026-07-29T10:00:00Z',
+        createdAt:
+            '2026-07-20T10:00:00Z',
+        updatedAt:
+            '2026-07-29T10:00:00Z',
     };
 }
 
-function createAsset(): AssetResponse {
+function createAsset():
+    AssetResponse {
     return {
         id: 'asset-1',
         portfolioId: 'portfolio-1',
@@ -506,7 +865,25 @@ function createAsset(): AssetResponse {
         isin: 'US0378331005',
         exchange: 'NASDAQ',
         notes: 'Core technology holding',
-        createdAt: '2026-07-30T10:00:00Z',
-        updatedAt: '2026-07-30T10:00:00Z',
+        createdAt:
+            '2026-07-30T10:00:00Z',
+        updatedAt:
+            '2026-07-30T10:00:00Z',
+    };
+}
+
+function createMarketSearchResult():
+    MarketSymbolSearchResponse {
+    return {
+        symbol: 'TTWO',
+        displayName:
+            'Take-Two Interactive Software Inc.',
+        exchange: 'NASDAQ',
+        micCode: 'XNAS',
+        instrumentType:
+            'Common Stock',
+        country: 'United States',
+        currency: 'USD',
+        assetType: 'STOCK',
     };
 }

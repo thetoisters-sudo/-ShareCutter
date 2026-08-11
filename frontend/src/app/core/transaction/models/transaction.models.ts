@@ -4,7 +4,9 @@ export type TransactionType =
     | 'DIVIDEND'
     | 'FEE'
     | 'DEPOSIT'
-    | 'WITHDRAWAL';
+    | 'WITHDRAWAL'
+    | 'TRANSFER_IN'
+    | 'TRANSFER_OUT';
 
 export interface TransactionResponse {
     id: string;
@@ -85,5 +87,13 @@ export const TRANSACTION_TYPE_OPTIONS:
         {
             value: 'WITHDRAWAL',
             label: 'Withdrawal',
+        },
+        {
+            value: 'TRANSFER_IN',
+            label: 'Transfer In',
+        },
+        {
+            value: 'TRANSFER_OUT',
+            label: 'Transfer Out',
         },
     ];

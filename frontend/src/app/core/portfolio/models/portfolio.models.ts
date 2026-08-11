@@ -1,3 +1,7 @@
+import {
+    AssetType,
+} from '../../asset/models/asset.models';
+
 export type PortfolioCreationMethod =
     | 'BY_AMOUNT'
     | 'BY_HOLDINGS';
@@ -10,6 +14,21 @@ export interface PortfolioCreateRequest {
     name: string;
     creationMethod: PortfolioCreationMethod;
     initialValue: number;
+}
+
+export interface PortfolioHoldingCreateItemRequest {
+    symbol: string;
+    displayName: string;
+    assetType: AssetType;
+    currency: string;
+    exchange: string | null;
+    quantity: number;
+}
+
+export interface PortfolioCreateFromHoldingsRequest {
+    name: string;
+    holdings: PortfolioHoldingCreateItemRequest[];
+    initialCash: number;
 }
 
 export interface PortfolioRenameRequest {
@@ -71,5 +90,49 @@ export interface PortfolioSummaryResponse {
     totalDepositAmount: number;
     totalWithdrawalAmount: number;
     netCashFlow: number;
+    calculatedAt: string;
+}
+
+export interface PortfolioHistoryPointResponse {
+    currentValue: number;
+    cashBalance: number;
+    holdingsMarketValue: number;
+    totalProfit: number;
+    totalReturnPercent: number;
+    capturedAt: string;
+}
+
+export interface AssetAllocationItemResponse {
+    assetId: string;
+    symbol: string;
+    displayName: string;
+    assetType: string;
+    currency: string;
+    quantity: number;
+    averageCost: number;
+    currentPrice: number;
+    totalCost: number;
+    marketValue: number;
+    realizedProfit: number;
+    unrealizedProfit: number;
+    allocationPercent: number;
+}
+
+export interface PortfolioAllocationResponse {
+    portfolioId: string;
+    portfolioName: string;
+
+    portfolioValue?: number;
+    cashBalance?: number;
+
+    totalMarketValue: number;
+    totalCost: number;
+    totalRealizedProfit: number;
+    totalUnrealizedProfit: number;
+
+    totalTargetWeightPercent?: number;
+
+    allocatedAssetCount: number;
+    assets: AssetAllocationItemResponse[];
     calculatedAt: string;
 }

@@ -1,6 +1,10 @@
 <div class="application-shell">
   <header class="application-header">
-    <a class="brand" routerLink="/" aria-label="ShareCutter home">
+    <a class="brand" routerLink="/" [attr.aria-label]="
+                isHebrew()
+                    ? 'דף הבית של ShareCutter'
+                    : 'ShareCutter home'
+            ">
       <span class="brand__mark">
         SC
       </span>
@@ -11,77 +15,161 @@
         </strong>
 
         <small>
+          @if (isHebrew()) {
+          סימולטור תיקי השקעות
+          } @else {
           Portfolio Simulator
+          }
         </small>
       </span>
     </a>
 
-    <nav class="main-navigation" aria-label="Main navigation">
+    <nav class="main-navigation" [attr.aria-label]="
+                isHebrew()
+                    ? 'ניווט ראשי'
+                    : 'Main navigation'
+            ">
       <a routerLink="/dashboard" routerLinkActive="main-navigation__link--active" class="main-navigation__link">
+        @if (isHebrew()) {
+        לוח בקרה
+        } @else {
         Dashboard
+        }
       </a>
 
       <a routerLink="/portfolios" routerLinkActive="main-navigation__link--active" class="main-navigation__link">
+        @if (isHebrew()) {
+        תיקים
+        } @else {
         Portfolios
+        }
       </a>
 
       <a routerLink="/assets" routerLinkActive="main-navigation__link--active" class="main-navigation__link">
+        @if (isHebrew()) {
+        נכסים
+        } @else {
         Assets
+        }
       </a>
 
       <a routerLink="/transactions" routerLinkActive="main-navigation__link--active" class="main-navigation__link">
+        @if (isHebrew()) {
+        עסקאות
+        } @else {
         Transactions
+        }
+      </a>
+
+      <a routerLink="/allocation-purchase" routerLinkActive="main-navigation__link--active"
+        class="main-navigation__link">
+        @if (isHebrew()) {
+        הקצאה
+        } @else {
+        Allocation
+        }
       </a>
     </nav>
 
-    <nav class="account-navigation" aria-label="Account navigation">
-      @if (isLoadingCurrentUser()) {
-      <span class="account-navigation__loading" role="status" aria-live="polite">
-        Loading account...
-      </span>
-      } @else if (
-      isAuthenticated() &&
-      currentUser();
-      as user
-      ) {
-      <div class="account-navigation__identity">
-        <span class="account-navigation__avatar">
-          {{
-          user.firstName.charAt(0)
-          }}{{
-          user.lastName.charAt(0)
-          }}
-        </span>
-
-        <span class="account-navigation__user">
-          <strong>
-            {{
-            user.firstName
-            }}
-            {{
-            user.lastName
-            }}
-          </strong>
-
-          <small>
-            {{ user.email }}
-          </small>
-        </span>
-      </div>
-
-      <button type="button" class="account-navigation__logout" (click)="logout()">
-        Log out
+    <div class="header-actions">
+      <button type="button" class="preference-button" (click)="toggleLanguage()" [attr.aria-label]="
+                    isHebrew()
+                        ? 'Switch to English'
+                        : 'החלף לעברית'
+                ">
+        @if (isHebrew()) {
+        English
+        } @else {
+        עברית
+        }
       </button>
-      } @else {
-      <a routerLink="/login" routerLinkActive="account-navigation__link--active" class="account-navigation__link">
-        Log in
-      </a>
 
-      <a routerLink="/register" routerLinkActive="account-navigation__link--active" class="account-navigation__button">
-        Create account
-      </a>
-      }
-    </nav>
+      <button type="button" class="preference-button preference-button--icon" (click)="toggleTheme()" [attr.aria-label]="
+                    isDarkMode()
+                        ? (
+                            isHebrew()
+                                ? 'עבור למצב בהיר'
+                                : 'Switch to light mode'
+                        )
+                        : (
+                            isHebrew()
+                                ? 'עבור למצב כהה'
+                                : 'Switch to dark mode'
+                        )
+                ">
+        @if (isDarkMode()) {
+        ☀
+        } @else {
+        ☾
+        }
+      </button>
+
+      <nav class="account-navigation" [attr.aria-label]="
+                    isHebrew()
+                        ? 'ניווט חשבון'
+                        : 'Account navigation'
+                ">
+        @if (isLoadingCurrentUser()) {
+        <span class="account-navigation__loading" role="status" aria-live="polite">
+          @if (isHebrew()) {
+          טוען חשבון...
+          } @else {
+          Loading account...
+          }
+        </span>
+        } @else if (
+        isAuthenticated() &&
+        currentUser();
+        as user
+        ) {
+        <div class="account-navigation__identity">
+          <span class="account-navigation__avatar">
+            {{
+            user.firstName.charAt(0)
+            }}{{
+            user.lastName.charAt(0)
+            }}
+          </span>
+
+          <span class="account-navigation__user">
+            <strong>
+              {{ user.firstName }}
+              {{ user.lastName }}
+            </strong>
+
+            <small>
+              {{ user.email }}
+            </small>
+          </span>
+        </div>
+
+        <button type="button" class="account-navigation__logout" (click)="logout()">
+          @if (isHebrew()) {
+          התנתק
+          } @else {
+          Log out
+          }
+        </button>
+        } @else {
+        <a routerLink="/login" routerLinkActive="account-navigation__link--active" class="account-navigation__link">
+          @if (isHebrew()) {
+          התחברות
+          } @else {
+          Log in
+          }
+        </a>
+
+        <a routerLink="/register" routerLinkActive="account-navigation__link--active"
+          class="account-navigation__button">
+          @if (isHebrew()) {
+          יצירת חשבון
+          } @else {
+          Create account
+          }
+        </a>
+        }
+      </nav>
+    </div>
   </header>
 
   <main class="application-content">
@@ -92,7 +180,12 @@
     <p>
       {{ applicationName }}
       &middot;
+
+      @if (isHebrew()) {
+      ניהול הקצאות ומשקלי יעד שבועיים
+      } @else {
       Portfolio allocation and weekly target management
+      }
     </p>
   </footer>
 </div>

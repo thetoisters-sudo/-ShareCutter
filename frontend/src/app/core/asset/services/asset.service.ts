@@ -1,11 +1,21 @@
-import { HttpClient } from '@angular/common/http';
+import {
+    HttpClient,
+} from '@angular/common/http';
 import {
     Injectable,
     inject,
 } from '@angular/core';
-import { Observable } from 'rxjs';
+import {
+    Observable,
+    tap,
+} from 'rxjs';
 
-import { environment } from '../../../../environments/environment';
+import {
+    environment,
+} from '../../../../environments/environment';
+import {
+    PortfolioService,
+} from '../../portfolio/services/portfolio.service';
 import {
     AssetCreateRequest,
     AssetResponse,
@@ -16,7 +26,11 @@ import {
     providedIn: 'root',
 })
 export class AssetService {
-    private readonly http = inject(HttpClient);
+    private readonly http =
+        inject(HttpClient);
+
+    private readonly portfolioService =
+        inject(PortfolioService);
 
     getAssets(
         portfolioId: string,
@@ -42,6 +56,14 @@ export class AssetService {
         return this.http.post<AssetResponse>(
             this.buildAssetsUrl(portfolioId),
             request,
+        ).pipe(
+            tap(() => {
+                this.portfolioService
+                    .notifyPortfolioChanged({
+                        portfolioId,
+                        reason: 'asset-created',
+                    });
+            }),
         );
     }
 
@@ -53,6 +75,14 @@ export class AssetService {
         return this.http.put<AssetResponse>(
             `${this.buildAssetsUrl(portfolioId)}/${assetId}`,
             request,
+        ).pipe(
+            tap(() => {
+                this.portfolioService
+                    .notifyPortfolioChanged({
+                        portfolioId,
+                        reason: 'asset-updated',
+                    });
+            }),
         );
     }
 
@@ -62,6 +92,14 @@ export class AssetService {
     ): Observable<void> {
         return this.http.delete<void>(
             `${this.buildAssetsUrl(portfolioId)}/${assetId}`,
+        ).pipe(
+            tap(() => {
+                this.portfolioService
+                    .notifyPortfolioChanged({
+                        portfolioId,
+                        reason: 'asset-deleted',
+                    });
+            }),
         );
     }
 

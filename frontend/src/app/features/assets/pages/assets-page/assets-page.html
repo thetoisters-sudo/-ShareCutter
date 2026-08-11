@@ -2,14 +2,15 @@
     <header class="assets-header">
         <div>
             <span class="assets-header__eyebrow">
-                Asset management
+                {{ text().assets.eyebrow }}
             </span>
 
-            <h1>Assets</h1>
+            <h1>
+                {{ text().assets.title }}
+            </h1>
 
             <p>
-                Create and maintain the financial instruments
-                held in each investment portfolio.
+                {{ text().assets.description }}
             </p>
         </div>
 
@@ -17,15 +18,19 @@
                 !selectedPortfolioId ||
                 isLoadingPortfolios
             " (click)="openCreateDialog()">
-            Add asset
+            {{ text().assets.addAsset }}
         </button>
     </header>
 
     @if (successMessage) {
     <section class="message-banner" role="status">
-        <span>{{ successMessage }}</span>
+        <span>
+            {{ successMessage }}
+        </span>
 
-        <button type="button" aria-label="Dismiss message" (click)="dismissSuccessMessage()">
+        <button type="button" [attr.aria-label]="
+                    text().assets.dismissMessage
+                " (click)="dismissSuccessMessage()">
             ×
         </button>
     </section>
@@ -35,66 +40,124 @@
     <section class="page-state" aria-live="polite">
         <span class="page-state__spinner" aria-hidden="true"></span>
 
-        <h2>Loading portfolios</h2>
+        <h2>
+            {{
+            text()
+            .assets
+            .loadingPortfoliosTitle
+            }}
+        </h2>
 
         <p>
-            Available portfolios are being retrieved.
+            {{
+            text()
+            .assets
+            .loadingPortfoliosDescription
+            }}
         </p>
     </section>
     } @else if (
     errorMessage &&
     portfolios.length === 0
     ) {
-    <section class="page-state page-state--error" role="alert">
+    <section class="
+                page-state
+                page-state--error
+            " role="alert">
         <span class="page-state__icon" aria-hidden="true">
             !
         </span>
 
-        <h2>Assets unavailable</h2>
+        <h2>
+            {{
+            text()
+            .assets
+            .unavailableTitle
+            }}
+        </h2>
 
-        <p>{{ errorMessage }}</p>
+        <p>
+            {{ errorMessage }}
+        </p>
 
         <button type="button" class="primary-button" (click)="retry()">
-            Try again
+            {{ text().assets.retry }}
         </button>
     </section>
-    } @else if (portfolios.length === 0) {
+    } @else if (
+    portfolios.length === 0
+    ) {
     <section class="page-state">
         <span class="page-state__icon" aria-hidden="true">
             +
         </span>
 
-        <h2>No portfolios available</h2>
+        <h2>
+            {{
+            text()
+            .assets
+            .noPortfoliosTitle
+            }}
+        </h2>
 
         <p>
-            Create a portfolio before adding assets.
+            {{
+            text()
+            .assets
+            .noPortfoliosDescription
+            }}
         </p>
     </section>
     } @else {
     <section class="assets-toolbar">
         <label>
-            <span>Portfolio</span>
+            <span>
+                {{
+                text()
+                .assets
+                .portfolio
+                }}
+            </span>
 
-            <select name="selectedPortfolioId" [ngModel]="selectedPortfolioId" [disabled]="isLoadingAssets"
-                (ngModelChange)="
+            <select name="selectedPortfolioId" [ngModel]="
+                        selectedPortfolioId
+                    " [disabled]="
+                        isLoadingAssets
+                    " (ngModelChange)="
                         selectPortfolio($event)
                     ">
                 @for (
-                portfolio of portfolios;
+                portfolio
+                of portfolios;
                 track portfolio.id
                 ) {
                 <option [value]="portfolio.id">
-                    {{ portfolio.name }}
+                    {{
+                    portfolio.name
+                    }}
                 </option>
                 }
             </select>
         </label>
 
         <label>
-            <span>Search assets</span>
+            <span>
+                {{
+                text()
+                .assets
+                .searchAssets
+                }}
+            </span>
 
-            <input type="search" name="searchValue" placeholder="Symbol, name, currency or exchange" autocomplete="off"
-                [(ngModel)]="searchValue" (ngModelChange)="onSearchChange()" />
+            <input type="search" name="searchValue" [placeholder]="
+                        text()
+                            .assets
+                            .searchPlaceholder
+                    " autocomplete="off" [(ngModel)]="
+                        searchValue
+                    " (ngModelChange)="
+                        onSearchChange()
+                    " />
         </label>
     </section>
 
@@ -102,108 +165,205 @@
     <section class="page-state" aria-live="polite">
         <span class="page-state__spinner" aria-hidden="true"></span>
 
-        <h2>Loading assets</h2>
+        <h2>
+            {{
+            text()
+            .assets
+            .loadingAssetsTitle
+            }}
+        </h2>
 
         <p>
-            Assets for the selected portfolio
-            are being retrieved.
+            {{
+            text()
+            .assets
+            .loadingAssetsDescription
+            }}
         </p>
     </section>
     } @else if (errorMessage) {
-    <section class="page-state page-state--error" role="alert">
+    <section class="
+                    page-state
+                    page-state--error
+                " role="alert">
         <span class="page-state__icon" aria-hidden="true">
             !
         </span>
 
-        <h2>Assets unavailable</h2>
+        <h2>
+            {{
+            text()
+            .assets
+            .unavailableTitle
+            }}
+        </h2>
 
-        <p>{{ errorMessage }}</p>
+        <p>
+            {{ errorMessage }}
+        </p>
 
         <button type="button" class="primary-button" (click)="retry()">
-            Try again
+            {{ text().assets.retry }}
         </button>
     </section>
-    } @else if (assets.length === 0) {
+    } @else if (
+    assets.length === 0
+    ) {
     <section class="page-state">
         <span class="page-state__icon" aria-hidden="true">
             +
         </span>
 
-        <h2>No assets yet</h2>
+        <h2>
+            {{
+            text()
+            .assets
+            .noAssetsTitle
+            }}
+        </h2>
 
         <p>
-            Add the first asset to
+            {{
+            text()
+            .assets
+            .noAssetsDescription
+            }}
+
             <strong>
-                {{ selectedPortfolio?.name }}
+                {{
+                selectedPortfolio
+                ?.name
+                }}
             </strong>.
         </p>
 
-        <button type="button" class="primary-button" (click)="openCreateDialog()">
-            Add first asset
+        <button type="button" class="primary-button" (click)="
+                        openCreateDialog()
+                    ">
+            {{
+            text()
+            .assets
+            .addFirstAsset
+            }}
         </button>
     </section>
     } @else {
-    <section class="asset-summary" aria-label="Asset summary">
+    <section class="asset-summary" [attr.aria-label]="
+                    text()
+                        .assets
+                        .summaryAriaLabel
+                ">
         <article class="summary-card">
-            <span>Total assets</span>
+            <span>
+                {{
+                text()
+                .assets
+                .totalAssets
+                }}
+            </span>
 
             <strong>
                 {{ assets.length }}
             </strong>
 
             <small>
-                In the selected portfolio
+                {{
+                text()
+                .assets
+                .inSelectedPortfolio
+                }}
             </small>
         </article>
 
         <article class="summary-card">
-            <span>Asset types</span>
+            <span>
+                {{
+                text()
+                .assets
+                .assetTypes
+                }}
+            </span>
 
             <strong>
-                {{ uniqueAssetTypes }}
+                {{
+                uniqueAssetTypes
+                }}
             </strong>
 
             <small>
-                Distinct classifications
+                {{
+                text()
+                .assets
+                .distinctClassifications
+                }}
             </small>
         </article>
 
         <article class="summary-card">
-            <span>Currencies</span>
+            <span>
+                {{
+                text()
+                .assets
+                .currencies
+                }}
+            </span>
 
             <strong>
-                {{ uniqueCurrencies }}
+                {{
+                uniqueCurrencies
+                }}
             </strong>
 
             <small>
-                Distinct trading currencies
+                {{
+                text()
+                .assets
+                .distinctTradingCurrencies
+                }}
             </small>
         </article>
     </section>
 
-    @if (filteredAssets.length === 0) {
+    @if (
+    filteredAssets.length ===
+    0
+    ) {
     <section class="page-state">
         <span class="page-state__icon" aria-hidden="true">
             ?
         </span>
 
-        <h2>No matching assets</h2>
+        <h2>
+            {{
+            text()
+            .assets
+            .noMatchingAssets
+            }}
+        </h2>
 
         <p>
-            Change the search value
-            to display other assets.
+            {{
+            text()
+            .assets
+            .noMatchingAssetsDescription
+            }}
         </p>
     </section>
     } @else {
     <section class="asset-list">
         @for (
-        asset of filteredAssets;
+        asset
+        of filteredAssets;
         track asset.id
         ) {
         <article class="asset-card">
-            <header class="asset-card__header">
+            <header class="
+                                    asset-card__header
+                                ">
                 <div>
-                    <span class="asset-card__type">
+                    <span class="
+                                            asset-card__type
+                                        ">
                         {{
                         getAssetTypeLabel(
                         asset.assetType
@@ -212,82 +372,142 @@
                     </span>
 
                     <h2>
-                        {{ asset.symbol }}
+                        {{
+                        asset.symbol
+                        }}
                     </h2>
 
                     <p>
-                        {{ asset.displayName }}
+                        {{
+                        asset.displayName
+                        }}
                     </p>
                 </div>
 
-                <span class="currency-badge">
-                    {{ asset.currency }}
+                <span class="
+                                        currency-badge
+                                    ">
+                    {{
+                    asset.currency
+                    }}
                 </span>
             </header>
 
-            <dl class="asset-card__details">
+            <dl class="
+                                    asset-card__details
+                                ">
                 <div>
-                    <dt>Exchange</dt>
+                    <dt>
+                        {{
+                        text()
+                        .assets
+                        .exchange
+                        }}
+                    </dt>
 
                     <dd>
                         {{
                         asset.exchange ||
-                        'Not specified'
+                        text()
+                        .assets
+                        .notSpecified
                         }}
                     </dd>
                 </div>
 
                 <div>
-                    <dt>ISIN</dt>
+                    <dt>
+                        {{
+                        text()
+                        .assets
+                        .isin
+                        }}
+                    </dt>
 
                     <dd>
                         {{
                         asset.isin ||
-                        'Not specified'
+                        text()
+                        .assets
+                        .notSpecified
                         }}
                     </dd>
                 </div>
 
                 <div>
-                    <dt>Created</dt>
+                    <dt>
+                        {{
+                        text()
+                        .assets
+                        .created
+                        }}
+                    </dt>
 
                     <dd>
                         {{
                         asset.createdAt
-                        | date:'mediumDate'
+                        | date:
+                        'mediumDate'
                         }}
                     </dd>
                 </div>
 
                 <div>
-                    <dt>Updated</dt>
+                    <dt>
+                        {{
+                        text()
+                        .assets
+                        .updated
+                        }}
+                    </dt>
 
                     <dd>
                         {{
                         asset.updatedAt
-                        | date:'mediumDate'
+                        | date:
+                        'mediumDate'
                         }}
                     </dd>
                 </div>
             </dl>
 
             @if (asset.notes) {
-            <p class="asset-card__notes">
-                {{ asset.notes }}
+            <p class="
+                                        asset-card__notes
+                                    ">
+                {{
+                asset.notes
+                }}
             </p>
             }
 
-            <footer class="asset-card__actions">
+            <footer class="
+                                    asset-card__actions
+                                ">
                 <button type="button" (click)="
-                                        openEditDialog(asset)
+                                        openEditDialog(
+                                            asset
+                                        )
                                     ">
-                    Edit
+                    {{
+                    text()
+                    .assets
+                    .edit
+                    }}
                 </button>
 
-                <button type="button" class="danger-button" (click)="
-                                        openDeleteDialog(asset)
+                <button type="button" class="
+                                        danger-button
+                                    " (click)="
+                                        openDeleteDialog(
+                                            asset
+                                        )
                                     ">
-                    Delete
+                    {{
+                    text()
+                    .assets
+                    .delete
+                    }}
                 </button>
             </footer>
         </article>
@@ -299,75 +519,494 @@
 
     @if (dialogMode) {
     <div class="dialog-backdrop" role="presentation">
-        <section class="asset-dialog" role="dialog" aria-modal="true" aria-labelledby="asset-dialog-title">
-            <header class="asset-dialog__header">
+        <section class="asset-dialog" role="dialog" aria-modal="true" aria-labelledby="
+                    asset-dialog-title
+                ">
+            <header class="
+                        asset-dialog__header
+                    ">
                 <div>
                     <span>
-                        Asset action
+                        {{
+                        text()
+                        .assets
+                        .assetAction
+                        }}
                     </span>
 
-                    <h2 id="asset-dialog-title">
-                        @switch (dialogMode) {
-                        @case ('create') {
-                        Add asset
+                    <h2 id="
+                                asset-dialog-title
+                            ">
+                        @switch (
+                        dialogMode
+                        ) {
+                        @case (
+                        'create'
+                        ) {
+                        {{
+                        text()
+                        .assets
+                        .createDialogTitle
+                        }}
                         }
 
-                        @case ('edit') {
-                        Edit asset
+                        @case (
+                        'edit'
+                        ) {
+                        {{
+                        text()
+                        .assets
+                        .editDialogTitle
+                        }}
                         }
 
-                        @case ('delete') {
-                        Delete asset
+                        @case (
+                        'delete'
+                        ) {
+                        {{
+                        text()
+                        .assets
+                        .deleteDialogTitle
+                        }}
                         }
                         }
                     </h2>
                 </div>
 
-                <button type="button" class="dialog-close" aria-label="Close dialog" [disabled]="isSubmitting"
-                    (click)="closeDialog()">
+                <button type="button" class="dialog-close" [attr.aria-label]="
+                            text()
+                                .assets
+                                .closeDialog
+                        " [disabled]="
+                            isSubmitting
+                        " (click)="
+                            closeDialog()
+                        ">
                     ×
                 </button>
             </header>
 
-            @if (actionErrorMessage) {
+            @if (
+            actionErrorMessage
+            ) {
             <p class="dialog-error" role="alert">
-                {{ actionErrorMessage }}
+                {{
+                actionErrorMessage
+                }}
             </p>
             }
 
             @if (
-            dialogMode === 'create' ||
-            dialogMode === 'edit'
+            dialogMode ===
+            'create' ||
+            dialogMode ===
+            'edit'
             ) {
             <form class="asset-form" (ngSubmit)="
-                            dialogMode === 'create'
+                            dialogMode ===
+                            'create'
                                 ? submitCreate()
                                 : submitEdit()
                         ">
-                <div class="asset-form__grid">
-                    <label>
-                        <span>Symbol</span>
+                @if (
+                dialogMode ===
+                'create'
+                ) {
+                <section class="
+                                    market-search
+                                ">
+                    <div class="
+                                        market-search__header
+                                    ">
+                        <div>
+                            <span class="
+                                                market-search__eyebrow
+                                            ">
+                                {{
+                                text()
+                                .assets
+                                .liveMarketSearch
+                                }}
+                            </span>
 
-                        <input type="text" name="symbol" maxlength="30" autocomplete="off" [(ngModel)]="
+                            <h3>
+                                {{
+                                text()
+                                .assets
+                                .findListedInstrument
+                                }}
+                            </h3>
+
+                            <p>
+                                {{
+                                text()
+                                .assets
+                                .marketSearchDescription
+                                }}
+                            </p>
+                        </div>
+
+                        @if (
+                        selectedMarketResult
+                        ) {
+                        <button type="
+                                                button
+                                            " class="
+                                                market-search__clear
+                                            " (click)="
+                                                clearSelectedMarketResult()
+                                            ">
+                            {{
+                            text()
+                            .assets
+                            .clearSelection
+                            }}
+                        </button>
+                        }
+                    </div>
+
+                    <label class="
+                                        market-search__field
+                                    ">
+                        <span>
+                            {{
+                            text()
+                            .assets
+                            .symbolOrCompanyName
+                            }}
+                        </span>
+
+                        <div class="
+                                            market-search__input-wrapper
+                                        ">
+                            <input type="
+                                                search
+                                            " name="
+                                                marketSearchValue
+                                            " [placeholder]="
+                                                text()
+                                                    .assets
+                                                    .marketSearchPlaceholder
+                                            " autocomplete="
+                                                off
+                                            " [ngModel]="
+                                                marketSearchValue
+                                            " [disabled]="
+                                                isSubmitting ||
+                                                isLoadingMarketPrice
+                                            " (ngModelChange)="
+                                                onMarketSearchChange(
+                                                    $event
+                                                )
+                                            " />
+
+                            @if (
+                            isSearchingMarket
+                            ) {
+                            <span class="
+                                                    market-search__spinner
+                                                " [attr.aria-label]="
+                                                    text()
+                                                        .assets
+                                                        .searchingMarket
+                                                "></span>
+                            }
+                        </div>
+                    </label>
+
+                    @if (
+                    marketSearchResults
+                    .length > 0
+                    ) {
+                    <div class="
+                                            market-results
+                                        " role="
+                                            listbox
+                                        " [attr.aria-label]="
+                                            text()
+                                                .assets
+                                                .marketSearchResults
+                                        ">
+                        @for (
+                        result
+                        of marketSearchResults;
+                        track
+                        result.symbol +
+                        result.exchange
+                        ) {
+                        <button type="
+                                                    button
+                                                " class="
+                                                    market-result
+                                                " (click)="
+                                                    selectMarketResult(
+                                                        result
+                                                    )
+                                                ">
+                            <span class="
+                                                        market-result__symbol
+                                                    ">
+                                {{
+                                result.symbol
+                                }}
+                            </span>
+
+                            <span class="
+                                                        market-result__main
+                                                    ">
+                                <strong>
+                                    {{
+                                    result.displayName
+                                    }}
+                                </strong>
+
+                                <small>
+                                    {{
+                                    result.exchange ||
+                                    text()
+                                    .assets
+                                    .unknownExchange
+                                    }}
+                                    ·
+                                    {{
+                                    result.currency
+                                    }}
+                                </small>
+                            </span>
+
+                            <span class="
+                                                        market-result__type
+                                                    ">
+                                {{
+                                getAssetTypeLabel(
+                                result.assetType
+                                )
+                                }}
+                            </span>
+                        </button>
+                        }
+                    </div>
+                    }
+
+                    @if (
+                    marketSearchMessage
+                    ) {
+                    <p class="
+                                            market-search__message
+                                        " role="
+                                            status
+                                        ">
+                        {{
+                        marketSearchMessage
+                        }}
+                    </p>
+                    }
+
+                    @if (
+                    selectedMarketResult
+                    ) {
+                    <article class="
+                                            selected-market
+                                        ">
+                        <header>
+                            <div>
+                                <span>
+                                    {{
+                                    text()
+                                    .assets
+                                    .selectedInstrument
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    selectedMarketResult
+                                    .symbol
+                                    }}
+                                </strong>
+
+                                <p>
+                                    {{
+                                    selectedMarketResult
+                                    .displayName
+                                    }}
+                                </p>
+                            </div>
+
+                            <span class="
+                                                    currency-badge
+                                                ">
+                                {{
+                                selectedMarketResult
+                                .currency
+                                }}
+                            </span>
+                        </header>
+
+                        <dl>
+                            <div>
+                                <dt>
+                                    {{
+                                    text()
+                                    .assets
+                                    .exchange
+                                    }}
+                                </dt>
+
+                                <dd>
+                                    {{
+                                    selectedMarketResult
+                                    .exchange ||
+                                    text()
+                                    .assets
+                                    .notSpecified
+                                    }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt>
+                                    {{
+                                    text()
+                                    .assets
+                                    .country
+                                    }}
+                                </dt>
+
+                                <dd>
+                                    {{
+                                    selectedMarketResult
+                                    .country ||
+                                    text()
+                                    .assets
+                                    .notSpecified
+                                    }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt>
+                                    {{
+                                    text()
+                                    .assets
+                                    .instrumentType
+                                    }}
+                                </dt>
+
+                                <dd>
+                                    {{
+                                    selectedMarketResult
+                                    .instrumentType ||
+                                    text()
+                                    .assets
+                                    .notSpecified
+                                    }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt>
+                                    {{
+                                    text()
+                                    .assets
+                                    .latestPrice
+                                    }}
+                                </dt>
+
+                                <dd>
+                                    @if (
+                                    isLoadingMarketPrice
+                                    ) {
+                                    {{
+                                    text()
+                                    .assets
+                                    .loading
+                                    }}
+                                    } @else if (
+                                    selectedMarketPrice
+                                    ) {
+                                    {{
+                                    selectedMarketPrice
+                                    .price
+                                    | number:
+                                    '1.2-8'
+                                    }}
+                                    {{
+                                    selectedMarketResult
+                                    .currency
+                                    }}
+                                    } @else {
+                                    {{
+                                    text()
+                                    .assets
+                                    .unavailable
+                                    }}
+                                    }
+                                </dd>
+                            </div>
+                        </dl>
+                    </article>
+                    }
+
+                    <p class="
+                                        market-search__manual-note
+                                    ">
+                        {{
+                        text()
+                        .assets
+                        .manualMarketNote
+                        }}
+                    </p>
+                </section>
+                }
+
+                <div class="
+                                asset-form__grid
+                            ">
+                    <label>
+                        <span>
+                            {{
+                            text()
+                            .assets
+                            .symbol
+                            }}
+                        </span>
+
+                        <input type="text" name="symbol" maxlength="30" autocomplete="
+                                        off
+                                    " [(ngModel)]="
                                         formValue.symbol
                                     " />
                     </label>
 
                     <label>
-                        <span>Asset type</span>
+                        <span>
+                            {{
+                            text()
+                            .assets
+                            .assetType
+                            }}
+                        </span>
 
-                        <select name="assetType" [(ngModel)]="
+                        <select name="
+                                        assetType
+                                    " [(ngModel)]="
                                         formValue.assetType
                                     ">
                             @for (
-                            option of
-                            assetTypeOptions;
-                            track option.value
+                            option
+                            of assetTypeOptions;
+                            track
+                            option.value
                             ) {
                             <option [value]="
-                                                option.value
-                                            ">
-                                {{ option.label }}
+                                    option.value
+                                ">
+                                {{
+                                getAssetTypeLabel(
+                                option.value
+                                )
+                                }}
                             </option>
                             }
                         </select>
@@ -375,64 +1014,138 @@
                 </div>
 
                 <label>
-                    <span>Display name</span>
+                    <span>
+                        {{
+                        text()
+                        .assets
+                        .displayName
+                        }}
+                    </span>
 
-                    <input type="text" name="displayName" maxlength="160" autocomplete="off" [(ngModel)]="
-                                    formValue.displayName
+                    <input type="text" name="
+                                    displayName
+                                " maxlength="160" autocomplete="
+                                    off
+                                " [(ngModel)]="
+                                    formValue
+                                        .displayName
                                 " />
                 </label>
 
-                <div class="asset-form__grid">
+                <div class="
+                                asset-form__grid
+                            ">
                     <label>
-                        <span>Currency</span>
+                        <span>
+                            {{
+                            text()
+                            .assets
+                            .currency
+                            }}
+                        </span>
 
-                        <input type="text" name="currency" maxlength="3" autocomplete="off" [(ngModel)]="
-                                        formValue.currency
+                        <input type="text" name="
+                                        currency
+                                    " maxlength="3" autocomplete="
+                                        off
+                                    " [(ngModel)]="
+                                        formValue
+                                            .currency
                                     " />
                     </label>
 
                     <label>
-                        <span>Exchange</span>
+                        <span>
+                            {{
+                            text()
+                            .assets
+                            .exchange
+                            }}
+                        </span>
 
-                        <input type="text" name="exchange" maxlength="40" autocomplete="off" [(ngModel)]="
-                                        formValue.exchange
+                        <input type="text" name="
+                                        exchange
+                                    " maxlength="40" autocomplete="
+                                        off
+                                    " [(ngModel)]="
+                                        formValue
+                                            .exchange
                                     " />
                     </label>
                 </div>
 
                 <label>
-                    <span>ISIN</span>
+                    <span>
+                        {{
+                        text()
+                        .assets
+                        .isin
+                        }}
+                    </span>
 
-                    <input type="text" name="isin" maxlength="12" autocomplete="off" [(ngModel)]="
+                    <input type="text" name="isin" maxlength="12" autocomplete="
+                                    off
+                                " [(ngModel)]="
                                     formValue.isin
                                 " />
                 </label>
 
                 <label>
-                    <span>Notes</span>
+                    <span>
+                        {{
+                        text()
+                        .assets
+                        .notes
+                        }}
+                    </span>
 
                     <textarea name="notes" maxlength="2000" rows="4" [(ngModel)]="
                                     formValue.notes
                                 "></textarea>
                 </label>
 
-                <footer class="dialog-actions">
-                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
-                        Cancel
+                <footer class="
+                                dialog-actions
+                            ">
+                    <button type="button" [disabled]="
+                                    isSubmitting
+                                " (click)="
+                                    closeDialog()
+                                ">
+                        {{
+                        text()
+                        .assets
+                        .cancel
+                        }}
                     </button>
 
-                    <button type="submit" class="primary-button" [disabled]="isSubmitting">
-                        @if (dialogMode === 'create') {
+                    <button type="submit" class="
+                                    primary-button
+                                " [disabled]="
+                                    isSubmitting
+                                ">
+                        @if (
+                        dialogMode ===
+                        'create'
+                        ) {
                         {{
                         isSubmitting
-                        ? 'Adding...'
-                        : 'Add asset'
+                        ? text()
+                        .assets
+                        .adding
+                        : text()
+                        .assets
+                        .addAsset
                         }}
                         } @else {
                         {{
                         isSubmitting
-                        ? 'Saving...'
-                        : 'Save asset'
+                        ? text()
+                        .assets
+                        .saving
+                        : text()
+                        .assets
+                        .saveAsset
                         }}
                         }
                     </button>
@@ -440,37 +1153,80 @@
             </form>
             }
 
-            @if (dialogMode === 'delete') {
-            <div class="delete-confirmation">
+            @if (
+            dialogMode ===
+            'delete'
+            ) {
+            <div class="
+                            delete-confirmation
+                        ">
                 <p>
-                    You are about to delete
+                    {{
+                    text()
+                    .assets
+                    .deletePrompt
+                    }}
+
                     <strong>
-                        {{ selectedAsset?.symbol }}
+                        {{
+                        selectedAsset
+                        ?.symbol
+                        }}
                     </strong>
-                    from
+
+                    {{
+                    text()
+                    .assets
+                    .portfolio
+                    }}
+
                     <strong>
-                        {{ selectedPortfolio?.name }}
+                        {{
+                        selectedPortfolio
+                        ?.name
+                        }}
                     </strong>.
                 </p>
 
                 <p>
-                    Existing transactions may still
-                    refer to this asset.
+                    {{
+                    text()
+                    .assets
+                    .deleteTransactionsNotice
+                    }}
                 </p>
 
-                <footer class="dialog-actions">
-                    <button type="button" [disabled]="isSubmitting" (click)="closeDialog()">
-                        Cancel
+                <footer class="
+                                dialog-actions
+                            ">
+                    <button type="button" [disabled]="
+                                    isSubmitting
+                                " (click)="
+                                    closeDialog()
+                                ">
+                        {{
+                        text()
+                        .assets
+                        .cancel
+                        }}
                     </button>
 
                     <button type="button" class="
                                     danger-button
                                     danger-button--filled
-                                " [disabled]="isSubmitting" (click)="submitDelete()">
+                                " [disabled]="
+                                    isSubmitting
+                                " (click)="
+                                    submitDelete()
+                                ">
                         {{
                         isSubmitting
-                        ? 'Deleting...'
-                        : 'Delete asset'
+                        ? text()
+                        .assets
+                        .deleting
+                        : text()
+                        .assets
+                        .delete
                         }}
                     </button>
                 </footer>

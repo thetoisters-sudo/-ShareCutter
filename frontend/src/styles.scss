@@ -19,7 +19,8 @@
     --color-danger: #c4314b;
     --color-success: #17845b;
 
-    --shadow-card: 0 1rem 2.5rem rgba(23, 32, 51, 0.08);
+    --shadow-card:
+        0 1rem 2.5rem rgba(23, 32, 51, 0.08);
 
     font-family:
         Inter,
@@ -27,9 +28,34 @@
         -apple-system,
         BlinkMacSystemFont,
         'Segoe UI',
+        Arial,
         sans-serif;
+
     font-synthesis: none;
     text-rendering: optimizeLegibility;
+}
+
+:root[data-theme='dark'] {
+    color-scheme: dark;
+
+    --color-background: #0d111b;
+    --color-surface: #151b27;
+    --color-surface-muted: #1d2534;
+
+    --color-text-primary: #f3f6fb;
+    --color-text-secondary: #9daabd;
+
+    --color-primary: #6f95ff;
+    --color-primary-hover: #8aa9ff;
+    --color-primary-subtle: #202f56;
+    --color-on-primary: #081124;
+
+    --color-border: #2a3547;
+    --color-danger: #ff7088;
+    --color-success: #4ed09a;
+
+    --shadow-card:
+        0 1rem 2.75rem rgba(0, 0, 0, 0.32);
 }
 
 *,
@@ -41,14 +67,29 @@
 html {
     min-width: 20rem;
     min-height: 100%;
-    background-color: var(--color-background);
+    background-color:
+        var(--color-background);
+}
+
+html,
+body {
+    transition:
+        background-color 180ms ease,
+        color 180ms ease;
 }
 
 body {
     min-height: 100vh;
     margin: 0;
-    background-color: var(--color-background);
-    color: var(--color-text-primary);
+    background-color:
+        var(--color-background);
+    color:
+        var(--color-text-primary);
+}
+
+html[dir='rtl'] body {
+    direction: rtl;
+    text-align: start;
 }
 
 button,
@@ -60,11 +101,39 @@ textarea {
 
 button,
 a {
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color:
+        transparent;
 }
 
 img,
 svg {
     display: block;
     max-width: 100%;
+}
+
+input,
+select,
+textarea {
+    border-color:
+        var(--color-border);
+    background-color:
+        var(--color-surface);
+    color:
+        var(--color-text-primary);
+}
+
+::placeholder {
+    color:
+        var(--color-text-secondary);
+}
+
+a,
+button,
+input,
+select,
+textarea {
+    transition:
+        background-color 160ms ease,
+        border-color 160ms ease,
+        color 160ms ease;
 }

@@ -2,38 +2,28 @@
     <div class="auth-page__layout">
         <div class="auth-page__introduction">
             <span class="auth-page__eyebrow">
-                ShareCutter account
+                {{ text().auth.login.eyebrow }}
             </span>
 
-            <h1>Welcome back</h1>
+            <h1>{{ text().auth.login.title }}</h1>
 
             <p>
-                Log in to review your portfolios, weekly targets,
-                asset allocations and transaction history.
+                {{ text().auth.login.description }}
             </p>
 
             <ul class="auth-page__benefits">
-                <li>
-                    Track portfolio performance
-                </li>
-
-                <li>
-                    Review weekly allocation targets
-                </li>
-
-                <li>
-                    Manage assets and transactions
-                </li>
+                <li>{{ text().auth.login.benefitPerformance }}</li>
+                <li>{{ text().auth.login.benefitWeeklyTargets }}</li>
+                <li>{{ text().auth.login.benefitAssetsTransactions }}</li>
             </ul>
         </div>
 
         <div class="auth-card">
             <div class="auth-card__header">
-                <h2>Log in</h2>
+                <h2>{{ text().auth.login.cardTitle }}</h2>
 
                 <p>
-                    Enter the email and password associated with
-                    your account.
+                    {{ text().auth.login.cardDescription }}
                 </p>
             </div>
 
@@ -52,24 +42,24 @@
             <form class="auth-form" [formGroup]="loginForm" (ngSubmit)="submit()" novalidate>
                 <div class="auth-form__field">
                     <label for="email">
-                        Email address
+                        {{ text().auth.login.emailAddress }}
                     </label>
 
                     <input id="email" type="email" formControlName="email" autocomplete="email"
-                        placeholder="name@example.com" [attr.aria-invalid]="
+                        [placeholder]="text().auth.login.emailPlaceholder" [attr.aria-invalid]="
                             emailControl.invalid &&
                             emailControl.touched
                         " />
 
                     @if (shouldShowEmailRequiredError()) {
                     <p class="auth-form__error">
-                        Email address is required.
+                        {{ text().auth.login.emailRequired }}
                     </p>
                     }
 
                     @if (shouldShowEmailFormatError()) {
                     <p class="auth-form__error">
-                        Enter a valid email address.
+                        {{ text().auth.login.emailInvalid }}
                     </p>
                     }
                 </div>
@@ -77,30 +67,29 @@
                 <div class="auth-form__field">
                     <div class="auth-form__label-row">
                         <label for="password">
-                            Password
+                            {{ text().auth.login.password }}
                         </label>
 
                         <span>
-                            Minimum 8 characters
+                            {{ text().auth.login.passwordHint }}
                         </span>
                     </div>
 
                     <input id="password" type="password" formControlName="password" autocomplete="current-password"
-                        placeholder="Enter your password" [attr.aria-invalid]="
+                        [placeholder]="text().auth.login.passwordPlaceholder" [attr.aria-invalid]="
                             passwordControl.invalid &&
                             passwordControl.touched
                         " />
 
                     @if (shouldShowPasswordRequiredError()) {
                     <p class="auth-form__error">
-                        Password is required.
+                        {{ text().auth.login.passwordRequired }}
                     </p>
                     }
 
                     @if (shouldShowPasswordLengthError()) {
                     <p class="auth-form__error">
-                        Password must contain between 8 and
-                        100 characters.
+                        {{ text().auth.login.passwordLength }}
                     </p>
                     }
                 </div>
@@ -111,10 +100,10 @@
             </form>
 
             <p class="auth-card__footer">
-                Do not have an account?
+                {{ text().auth.login.noAccount }}
 
                 <a routerLink="/register">
-                    Create one
+                    {{ text().auth.login.createOne }}
                 </a>
             </p>
         </div>

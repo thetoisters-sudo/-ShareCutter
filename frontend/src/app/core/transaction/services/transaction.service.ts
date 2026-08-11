@@ -6,7 +6,10 @@ import {
     Injectable,
     inject,
 } from '@angular/core';
-import { Observable } from 'rxjs';
+import {
+    Observable,
+    tap,
+} from 'rxjs';
 
 import {
     environment,
@@ -14,6 +17,9 @@ import {
 import {
     PagedResponse,
 } from '../../portfolio/models/portfolio.models';
+import {
+    PortfolioService,
+} from '../../portfolio/services/portfolio.service';
 import {
     TransactionCreateRequest,
     TransactionResponse,
@@ -27,6 +33,9 @@ import {
 export class TransactionService {
     private readonly http =
         inject(HttpClient);
+
+    private readonly portfolioService =
+        inject(PortfolioService);
 
     getTransactions(
         portfolioId: string,
@@ -56,10 +65,11 @@ export class TransactionService {
         return this.http.get<
             TransactionResponse
         >(
-            `${this.buildTransactionsUrl(
-                portfolioId,
-            )
-            }/${transactionId}`,
+            (
+                `${this.buildTransactionsUrl(
+                    portfolioId,
+                )}/${transactionId}`
+            ),
         );
     }
 
@@ -74,7 +84,17 @@ export class TransactionService {
                 portfolioId,
             ),
             request,
-        );
+        )
+            .pipe(
+                tap(() => {
+                    this.portfolioService
+                        .notifyPortfolioChanged({
+                            portfolioId,
+                            reason:
+                                'transaction-created',
+                        });
+                }),
+            );
     }
 
     updateTransaction(
@@ -85,12 +105,23 @@ export class TransactionService {
         return this.http.put<
             TransactionResponse
         >(
-            `${this.buildTransactionsUrl(
-                portfolioId,
-            )
-            }/${transactionId}`,
+            (
+                `${this.buildTransactionsUrl(
+                    portfolioId,
+                )}/${transactionId}`
+            ),
             request,
-        );
+        )
+            .pipe(
+                tap(() => {
+                    this.portfolioService
+                        .notifyPortfolioChanged({
+                            portfolioId,
+                            reason:
+                                'transaction-updated',
+                        });
+                }),
+            );
     }
 
     deleteTransaction(
@@ -98,11 +129,22 @@ export class TransactionService {
         transactionId: string,
     ): Observable<void> {
         return this.http.delete<void>(
-            `${this.buildTransactionsUrl(
-                portfolioId,
-            )
-            }/${transactionId}`,
-        );
+            (
+                `${this.buildTransactionsUrl(
+                    portfolioId,
+                )}/${transactionId}`
+            ),
+        )
+            .pipe(
+                tap(() => {
+                    this.portfolioService
+                        .notifyPortfolioChanged({
+                            portfolioId,
+                            reason:
+                                'transaction-deleted',
+                        });
+                }),
+            );
     }
 
     private buildTransactionsUrl(

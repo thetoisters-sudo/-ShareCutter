@@ -24,6 +24,9 @@ import {
     RegisterRequest,
 } from '../../../../core/auth/models/auth.models';
 import { AuthService } from '../../../../core/auth/services/auth.service';
+import {
+    TranslationService,
+} from '../../../../core/i18n/services/translation.service';
 
 const matchingPasswordsValidator: ValidatorFn = (
     control: AbstractControl,
@@ -58,6 +61,11 @@ export class RegisterPage {
     private readonly formBuilder = inject(FormBuilder);
     private readonly authService = inject(AuthService);
     private readonly router = inject(Router);
+    private readonly translationService =
+        inject(TranslationService);
+
+    protected readonly text =
+        this.translationService.text;
 
     protected readonly isSubmitting = signal(false);
 
@@ -129,8 +137,8 @@ export class RegisterPage {
 
     protected readonly submitButtonLabel = computed(() =>
         this.isSubmitting()
-            ? 'Creating account...'
-            : 'Create account',
+            ? this.text().auth.register.creatingAccount
+            : this.text().auth.register.createAccount,
     );
 
     protected submit(): void {
@@ -284,15 +292,15 @@ export class RegisterPage {
     private resolveErrorMessage(
         error: unknown,
     ): string {
+        const translations =
+            this.text().auth.register;
+
         if (!(error instanceof HttpErrorResponse)) {
-            return 'Something went wrong. Please try again.';
+            return translations.genericError;
         }
 
         if (error.status === 0) {
-            return (
-                'The ShareCutter server is unavailable. ' +
-                'Make sure the backend is running.'
-            );
+            return translations.serverUnavailable;
         }
 
         const response =
@@ -302,10 +310,7 @@ export class RegisterPage {
             error.status === 409 ||
             this.containsExistingEmailMessage(response)
         ) {
-            return (
-                'An account with this email address ' +
-                'already exists.'
-            );
+            return translations.duplicateEmail;
         }
 
         const validationMessage =
@@ -323,7 +328,7 @@ export class RegisterPage {
             return response.message;
         }
 
-        return 'Unable to create the account. Please try again.';
+        return translations.createFailed;
     }
 
     private containsExistingEmailMessage(

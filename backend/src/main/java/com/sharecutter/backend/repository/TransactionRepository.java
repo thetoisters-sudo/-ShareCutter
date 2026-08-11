@@ -19,9 +19,7 @@ public interface TransactionRepository
         JpaSpecificationExecutor<TransactionEntity> {
 
     Optional<TransactionEntity>
-    findByIdAndDeletedAtIsNull(
-            UUID id
-    );
+    findByIdAndDeletedAtIsNull(UUID id);
 
     Optional<TransactionEntity>
     findByIdAndPortfolioIdAndDeletedAtIsNull(
@@ -58,6 +56,11 @@ public interface TransactionRepository
             UUID portfolioId
     );
 
+    boolean
+    existsByAssetIdAndDeletedAtIsNull(
+            UUID assetId
+    );
+
     long countByPortfolioIdAndDeletedAtIsNull(
             UUID portfolioId
     );
@@ -70,9 +73,7 @@ public interface TransactionRepository
               and transaction.deletedAt is null
             """)
     BigDecimal sumTotalAmountByPortfolioIdAndTransactionType(
-            @Param("portfolioId")
-            UUID portfolioId,
-
+            @Param("portfolioId") UUID portfolioId,
             @Param("transactionType")
             TransactionType transactionType
     );
@@ -156,7 +157,6 @@ public interface TransactionRepository
             """)
     List<AssetAllocationProjection>
     findAssetAllocationByPortfolioId(
-            @Param("portfolioId")
-            UUID portfolioId
+            @Param("portfolioId") UUID portfolioId
     );
 }

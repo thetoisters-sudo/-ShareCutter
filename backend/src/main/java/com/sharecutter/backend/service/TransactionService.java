@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -23,10 +24,15 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class TransactionService {
 
+    private static final int MONEY_SCALE = 8;
+
     private final TransactionRepository transactionRepository;
     private final PortfolioService portfolioService;
     private final AssetService assetService;
     private final TransactionSearchService transactionSearchService;
+
+    private final PortfolioHoldingCalculationService
+            portfolioHoldingCalculationService;
 
     public TransactionService(
             TransactionRepository transactionRepository,
@@ -37,6 +43,7 @@ public class TransactionService {
                 transactionRepository,
                 portfolioService,
                 assetService,
+                null,
                 null
         );
     }
@@ -46,7 +53,9 @@ public class TransactionService {
             TransactionRepository transactionRepository,
             PortfolioService portfolioService,
             AssetService assetService,
-            TransactionSearchService transactionSearchService
+            TransactionSearchService transactionSearchService,
+            PortfolioHoldingCalculationService
+                    portfolioHoldingCalculationService
     ) {
         this.transactionRepository =
                 transactionRepository;
@@ -59,6 +68,9 @@ public class TransactionService {
 
         this.transactionSearchService =
                 transactionSearchService;
+
+        this.portfolioHoldingCalculationService =
+                portfolioHoldingCalculationService;
     }
 
     @Transactional
@@ -88,13 +100,21 @@ public class TransactionService {
                         assetId
                 );
 
+        BigDecimal effectiveTotalAmount =
+                resolveEffectiveTotalAmount(
+                        transactionType,
+                        quantity,
+                        unitPrice,
+                        totalAmount
+                );
+
         validateTransaction(
                 transactionType,
                 asset,
                 quantity,
                 unitPrice,
                 fee,
-                totalAmount,
+                effectiveTotalAmount,
                 executedAt
         );
 
@@ -106,15 +126,24 @@ public class TransactionService {
                         quantity,
                         unitPrice,
                         fee,
-                        totalAmount,
+                        effectiveTotalAmount,
                         currency,
                         executedAt,
                         notes
                 );
 
-        return transactionRepository.save(
-                transaction
+        TransactionEntity savedTransaction =
+                transactionRepository.save(
+                        transaction
+                );
+
+        synchronizePortfolioState(
+                userId,
+                portfolioId,
+                asset
         );
+
+        return savedTransaction;
     }
 
     public TransactionEntity getTransaction(
@@ -319,42 +348,83 @@ public class TransactionService {
                         transactionId
                 );
 
-        AssetEntity asset =
+        AssetEntity previousAsset =
+                transaction.getAsset();
+
+        AssetEntity updatedAsset =
                 resolveAsset(
                         userId,
                         portfolioId,
                         assetId
                 );
 
+        BigDecimal effectiveTotalAmount =
+                resolveEffectiveTotalAmount(
+                        transactionType,
+                        quantity,
+                        unitPrice,
+                        totalAmount
+                );
+
         validateTransaction(
                 transactionType,
-                asset,
+                updatedAsset,
                 quantity,
                 unitPrice,
                 fee,
-                totalAmount,
+                effectiveTotalAmount,
                 executedAt
         );
 
-        transaction.setAsset(asset);
+        transaction.setAsset(
+                updatedAsset
+        );
+
         transaction.setTransactionType(
                 transactionType
         );
-        transaction.setQuantity(quantity);
-        transaction.setUnitPrice(unitPrice);
-        transaction.setFee(fee);
-        transaction.setTotalAmount(
-                totalAmount
+
+        transaction.setQuantity(
+                quantity
         );
-        transaction.setCurrency(currency);
+
+        transaction.setUnitPrice(
+                unitPrice
+        );
+
+        transaction.setFee(
+                fee
+        );
+
+        transaction.setTotalAmount(
+                effectiveTotalAmount
+        );
+
+        transaction.setCurrency(
+                currency
+        );
+
         transaction.setExecutedAt(
                 executedAt
         );
-        transaction.setNotes(notes);
 
-        return transactionRepository.save(
-                transaction
+        transaction.setNotes(
+                notes
         );
+
+        TransactionEntity savedTransaction =
+                transactionRepository.save(
+                        transaction
+                );
+
+        synchronizeUpdatedTransaction(
+                userId,
+                portfolioId,
+                previousAsset,
+                updatedAsset
+        );
+
+        return savedTransaction;
     }
 
     @Transactional
@@ -370,11 +440,122 @@ public class TransactionService {
                         transactionId
                 );
 
+        AssetEntity affectedAsset =
+                transaction.getAsset();
+
         transaction.softDelete();
 
         transactionRepository.save(
                 transaction
         );
+
+        synchronizePortfolioState(
+                userId,
+                portfolioId,
+                affectedAsset
+        );
+    }
+
+    @Transactional
+    public PortfolioEntity rebuildPortfolioState(
+            UUID userId,
+            UUID portfolioId
+    ) {
+        if (portfolioHoldingCalculationService == null) {
+            throw new IllegalStateException(
+                    "Portfolio holding calculation service "
+                            + "is not configured"
+            );
+        }
+
+        return portfolioHoldingCalculationService
+                .rebuildPortfolioState(
+                        userId,
+                        portfolioId
+                );
+    }
+
+    private void synchronizeUpdatedTransaction(
+            UUID userId,
+            UUID portfolioId,
+            AssetEntity previousAsset,
+            AssetEntity updatedAsset
+    ) {
+        if (
+                previousAsset != null
+                        && updatedAsset != null
+                        && !previousAsset.getId().equals(
+                                updatedAsset.getId()
+                        )
+        ) {
+            recalculateAssetHolding(
+                    userId,
+                    portfolioId,
+                    previousAsset
+            );
+
+            recalculateAssetHolding(
+                    userId,
+                    portfolioId,
+                    updatedAsset
+            );
+
+            return;
+        }
+
+        AssetEntity affectedAsset =
+                updatedAsset != null
+                        ? updatedAsset
+                        : previousAsset;
+
+        synchronizePortfolioState(
+                userId,
+                portfolioId,
+                affectedAsset
+        );
+    }
+
+    private void synchronizePortfolioState(
+            UUID userId,
+            UUID portfolioId,
+            AssetEntity affectedAsset
+    ) {
+        if (portfolioHoldingCalculationService == null) {
+            return;
+        }
+
+        if (affectedAsset != null) {
+            recalculateAssetHolding(
+                    userId,
+                    portfolioId,
+                    affectedAsset
+            );
+
+            return;
+        }
+
+        portfolioHoldingCalculationService
+                .recalculatePortfolio(
+                        userId,
+                        portfolioId
+                );
+    }
+
+    private void recalculateAssetHolding(
+            UUID userId,
+            UUID portfolioId,
+            AssetEntity asset
+    ) {
+        if (portfolioHoldingCalculationService == null) {
+            return;
+        }
+
+        portfolioHoldingCalculationService
+                .recalculateAssetHolding(
+                        userId,
+                        portfolioId,
+                        asset
+                );
     }
 
     private AssetEntity resolveAsset(
@@ -391,6 +572,37 @@ public class TransactionService {
                 portfolioId,
                 assetId
         );
+    }
+
+    private BigDecimal resolveEffectiveTotalAmount(
+            TransactionType transactionType,
+            BigDecimal quantity,
+            BigDecimal unitPrice,
+            BigDecimal suppliedTotalAmount
+    ) {
+        if (
+                transactionType == TransactionType.BUY
+                        || transactionType
+                        == TransactionType.SELL
+        ) {
+            if (
+                    quantity == null
+                            || unitPrice == null
+            ) {
+                return suppliedTotalAmount;
+            }
+
+            return quantity
+                    .multiply(
+                            unitPrice
+                    )
+                    .setScale(
+                            MONEY_SCALE,
+                            RoundingMode.HALF_UP
+                    );
+        }
+
+        return suppliedTotalAmount;
     }
 
     private boolean matchesAsset(
@@ -434,8 +646,12 @@ public class TransactionService {
         OffsetDateTime executedAt =
                 transaction.getExecutedAt();
 
-        return !executedAt.isBefore(startDate)
-                && !executedAt.isAfter(endDate);
+        return !executedAt.isBefore(
+                startDate
+        )
+                && !executedAt.isAfter(
+                        endDate
+                );
     }
 
     private void validateTransaction(
@@ -490,7 +706,11 @@ public class TransactionService {
                             asset
                     );
 
-            case FEE, DEPOSIT, WITHDRAWAL ->
+            case FEE,
+                 DEPOSIT,
+                 WITHDRAWAL,
+                 TRANSFER_IN,
+                 TRANSFER_OUT ->
                     validateCashTransaction(
                             transactionType,
                             asset
@@ -511,17 +731,29 @@ public class TransactionService {
             );
         }
 
-        if (quantity == null) {
+        if (
+                quantity == null
+                        || quantity.compareTo(
+                                BigDecimal.ZERO
+                        ) <= 0
+        ) {
             throw new InvalidTransactionException(
                     transactionType
-                            + " transaction must include a quantity"
+                            + " transaction quantity "
+                            + "must be greater than zero"
             );
         }
 
-        if (unitPrice == null) {
+        if (
+                unitPrice == null
+                        || unitPrice.compareTo(
+                                BigDecimal.ZERO
+                        ) < 0
+        ) {
             throw new InvalidTransactionException(
                     transactionType
-                            + " transaction must include a unit price"
+                            + " transaction unit price "
+                            + "must not be negative"
             );
         }
     }
@@ -559,7 +791,11 @@ public class TransactionService {
             return;
         }
 
-        if (fee.compareTo(totalAmount) > 0) {
+        if (
+                fee.compareTo(
+                        totalAmount
+                ) > 0
+        ) {
             throw new InvalidTransactionException(
                     "Transaction fee must not exceed total amount"
             );
@@ -578,7 +814,11 @@ public class TransactionService {
                         ZoneOffset.UTC
                 );
 
-        if (executedAt.isAfter(currentTime)) {
+        if (
+                executedAt.isAfter(
+                        currentTime
+                )
+        ) {
             throw new InvalidTransactionException(
                     "Transaction execution time must not be in the future"
             );
@@ -628,7 +868,11 @@ public class TransactionService {
             );
         }
 
-        if (startDate.isAfter(endDate)) {
+        if (
+                startDate.isAfter(
+                        endDate
+                )
+        ) {
             throw new InvalidTransactionException(
                     "Transaction start date must not be after end date"
             );

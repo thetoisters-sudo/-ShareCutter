@@ -482,3 +482,109 @@ button:disabled {
         width: 100%;
     }
 }
+
+.market-price-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    background: var(--color-primary-subtle);
+}
+
+.market-price-panel__status {
+    display: grid;
+    gap: 0.3rem;
+}
+
+.market-price-panel__status strong {
+    color: var(--color-text-primary);
+    font-size: 0.88rem;
+}
+
+.market-price-panel__status small {
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+}
+
+.market-price-panel__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.market-price-panel__actions button {
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.65rem;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.market-price-panel__actions button:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.manual-price-toggle {
+    display: flex !important;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.45rem !important;
+    cursor: pointer;
+}
+
+.manual-price-toggle input {
+    width: auto;
+    min-height: auto;
+    margin: 0;
+}
+
+.manual-price-toggle span {
+    color: var(--color-text-primary);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.market-price-error {
+    margin: 0;
+    padding: 0.85rem;
+    border-radius: 0.7rem;
+    background: #fff1d6;
+    color: #7a4b00;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.transaction-form input[readonly] {
+    cursor: default;
+    background: var(--color-primary-subtle);
+    color: var(--color-text-primary);
+}
+
+@media (max-width: 40rem) {
+
+    .market-price-panel {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .market-price-panel__actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .market-price-panel__actions button {
+        width: 100%;
+    }
+}

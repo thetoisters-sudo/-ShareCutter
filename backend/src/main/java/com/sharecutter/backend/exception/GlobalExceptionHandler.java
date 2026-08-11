@@ -1,6 +1,8 @@
 package com.sharecutter.backend.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -14,6 +16,11 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(
+                    GlobalExceptionHandler.class
+            );
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ApiError> handleUserNotFound(
@@ -52,8 +59,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(PortfolioAlreadyExistsException.class)
-    public ResponseEntity<ApiError>
-    handlePortfolioAlreadyExists(
+    public ResponseEntity<ApiError> handlePortfolioAlreadyExists(
             PortfolioAlreadyExistsException exception,
             HttpServletRequest request
     ) {
@@ -77,8 +83,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AssetAlreadyExistsException.class)
-    public ResponseEntity<ApiError>
-    handleAssetAlreadyExists(
+    public ResponseEntity<ApiError> handleAssetAlreadyExists(
             AssetAlreadyExistsException exception,
             HttpServletRequest request
     ) {
@@ -89,9 +94,20 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(AssetInUseException.class)
+    public ResponseEntity<ApiError> handleAssetInUse(
+            AssetInUseException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                exception.getMessage(),
+                request
+        );
+    }
+
     @ExceptionHandler(TransactionNotFoundException.class)
-    public ResponseEntity<ApiError>
-    handleTransactionNotFound(
+    public ResponseEntity<ApiError> handleTransactionNotFound(
             TransactionNotFoundException exception,
             HttpServletRequest request
     ) {
@@ -103,8 +119,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InvalidTransactionException.class)
-    public ResponseEntity<ApiError>
-    handleInvalidTransaction(
+    public ResponseEntity<ApiError> handleInvalidTransaction(
             InvalidTransactionException exception,
             HttpServletRequest request
     ) {
@@ -115,9 +130,7 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(
-            WeeklyPortfolioTargetNotFoundException.class
-    )
+    @ExceptionHandler(WeeklyPortfolioTargetNotFoundException.class)
     public ResponseEntity<ApiError>
     handleWeeklyPortfolioTargetNotFound(
             WeeklyPortfolioTargetNotFoundException exception,
@@ -130,9 +143,7 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(
-            InvalidWeeklyPortfolioTargetException.class
-    )
+    @ExceptionHandler(InvalidWeeklyPortfolioTargetException.class)
     public ResponseEntity<ApiError>
     handleInvalidWeeklyPortfolioTarget(
             InvalidWeeklyPortfolioTargetException exception,
@@ -146,8 +157,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ApiError>
-    handleInvalidCredentials(
+    public ResponseEntity<ApiError> handleInvalidCredentials(
             InvalidCredentialsException exception,
             HttpServletRequest request
     ) {
@@ -171,8 +181,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError>
-    handleValidationException(
+    public ResponseEntity<ApiError> handleValidationException(
             MethodArgumentNotValidException exception,
             HttpServletRequest request
     ) {
@@ -182,10 +191,13 @@ public class GlobalExceptionHandler {
                 .stream()
                 .map(this::formatFieldError)
                 .distinct()
-                .collect(Collectors.joining("; "));
+                .collect(
+                        Collectors.joining("; ")
+                );
 
         if (message.isBlank()) {
-            message = "Request validation failed";
+            message =
+                    "Request validation failed";
         }
 
         return buildResponse(
@@ -201,13 +213,15 @@ public class GlobalExceptionHandler {
             IllegalArgumentException exception,
             HttpServletRequest request
     ) {
-        String message = exception.getMessage();
+        String message =
+                exception.getMessage();
 
         if (
                 message == null
                         || message.isBlank()
         ) {
-            message = "Invalid request argument";
+            message =
+                    "Invalid request argument";
         }
 
         return buildResponse(
@@ -223,6 +237,13 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
+        LOGGER.error(
+                "Unexpected exception while handling {} {}",
+                request.getMethod(),
+                request.getRequestURI(),
+                exception
+        );
+
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred",
@@ -235,11 +256,12 @@ public class GlobalExceptionHandler {
             String message,
             HttpServletRequest request
     ) {
-        ApiError apiError = createApiError(
-                status,
-                message,
-                request.getRequestURI()
-        );
+        ApiError apiError =
+                createApiError(
+                        status,
+                        message,
+                        request.getRequestURI()
+                );
 
         return ResponseEntity
                 .status(status)
@@ -252,7 +274,9 @@ public class GlobalExceptionHandler {
             String path
     ) {
         return new ApiError(
-                OffsetDateTime.now(ZoneOffset.UTC),
+                OffsetDateTime.now(
+                        ZoneOffset.UTC
+                ),
                 status.value(),
                 status.getReasonPhrase(),
                 message,
@@ -270,7 +294,8 @@ public class GlobalExceptionHandler {
                 defaultMessage == null
                         || defaultMessage.isBlank()
         ) {
-            defaultMessage = "is invalid";
+            defaultMessage =
+                    "is invalid";
         }
 
         return fieldError.getField()

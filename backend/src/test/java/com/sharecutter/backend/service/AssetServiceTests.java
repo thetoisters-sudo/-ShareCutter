@@ -2,12 +2,16 @@ package com.sharecutter.backend.service;
 
 import com.sharecutter.backend.domain.entity.AssetEntity;
 import com.sharecutter.backend.domain.entity.PortfolioEntity;
+import com.sharecutter.backend.domain.entity.PortfolioHoldingEntity;
 import com.sharecutter.backend.domain.entity.UserEntity;
 import com.sharecutter.backend.domain.enums.AssetType;
 import com.sharecutter.backend.domain.enums.PortfolioCreationMethod;
 import com.sharecutter.backend.exception.AssetAlreadyExistsException;
+import com.sharecutter.backend.exception.AssetInUseException;
 import com.sharecutter.backend.exception.AssetNotFoundException;
 import com.sharecutter.backend.repository.AssetRepository;
+import com.sharecutter.backend.repository.PortfolioHoldingRepository;
+import com.sharecutter.backend.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,7 +40,17 @@ class AssetServiceTests {
     private AssetRepository assetRepository;
 
     @Mock
+    private PortfolioHoldingRepository portfolioHoldingRepository;
+
+    @Mock
+    private TransactionRepository transactionRepository;
+
+    @Mock
     private PortfolioService portfolioService;
+
+    @Mock
+    private PortfolioHoldingCalculationService
+            portfolioHoldingCalculationService;
 
     private AssetService assetService;
 
@@ -43,7 +58,10 @@ class AssetServiceTests {
     void setUp() {
         assetService = new AssetService(
                 assetRepository,
-                portfolioService
+                portfolioHoldingRepository,
+                transactionRepository,
+                portfolioService,
+                portfolioHoldingCalculationService
         );
     }
 
@@ -635,7 +653,7 @@ class AssetServiceTests {
     }
 
     @Test
-    void shouldSoftDeleteOwnedActiveAsset() {
+    void shouldSoftDeleteOwnedActiveAssetAndItsHoldings() {
         UUID userId = UUID.randomUUID();
         UUID portfolioId = UUID.randomUUID();
         UUID assetId = UUID.randomUUID();
@@ -651,6 +669,12 @@ class AssetServiceTests {
                 "Bitcoin"
         );
 
+        PortfolioHoldingEntity holding =
+                mock(PortfolioHoldingEntity.class);
+
+        when(holding.getQuantity())
+                .thenReturn(BigDecimal.ZERO);
+
         when(portfolioService.getPortfolio(
                 userId,
                 portfolioId
@@ -662,6 +686,18 @@ class AssetServiceTests {
                         portfolioId
                 ))
                 .thenReturn(Optional.of(asset));
+
+        when(transactionRepository
+                .existsByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(false);
+
+        when(portfolioHoldingRepository
+                .findAllByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(List.of(holding));
 
         when(assetRepository.save(asset))
                 .thenReturn(asset);
@@ -684,10 +720,245 @@ class AssetServiceTests {
                         portfolioId
                 );
 
+        verify(portfolioHoldingRepository)
+                .findAllByAssetIdAndDeletedAtIsNull(
+                        assetId
+                );
+
+        verify(holding).softDelete();
+
+        verify(portfolioHoldingRepository)
+                .saveAll(List.of(holding));
+
         verify(assetRepository).save(asset);
+
+        verify(portfolioHoldingCalculationService)
+                .recalculatePortfolio(
+                        userId,
+                        portfolioId
+                );
 
         verify(assetRepository, never())
                 .delete(asset);
+    }
+
+    @Test
+    void shouldSoftDeleteAssetWithoutHoldings() {
+        UUID userId = UUID.randomUUID();
+        UUID portfolioId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+
+        PortfolioEntity portfolio = createPortfolio(
+                "asset.delete.empty@example.com",
+                "Delete Empty Asset Portfolio"
+        );
+
+        AssetEntity asset = createAsset(
+                portfolio,
+                "MSFT",
+                "Microsoft Corporation"
+        );
+
+        when(portfolioService.getPortfolio(
+                userId,
+                portfolioId
+        )).thenReturn(portfolio);
+
+        when(assetRepository
+                .findByIdAndPortfolioIdAndDeletedAtIsNull(
+                        assetId,
+                        portfolioId
+                ))
+                .thenReturn(Optional.of(asset));
+
+        when(transactionRepository
+                .existsByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(false);
+
+        when(portfolioHoldingRepository
+                .findAllByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(List.of());
+
+        when(assetRepository.save(asset))
+                .thenReturn(asset);
+
+        assetService.deleteAsset(
+                userId,
+                portfolioId,
+                assetId
+        );
+
+        assertThat(asset.isDeleted()).isTrue();
+
+        verify(portfolioHoldingRepository, never())
+                .saveAll(any());
+
+        verify(assetRepository).save(asset);
+
+        verify(portfolioHoldingCalculationService)
+                .recalculatePortfolio(
+                        userId,
+                        portfolioId
+                );
+    }
+
+
+    @Test
+    void shouldRejectDeletingAssetWithActiveTransactions() {
+        UUID userId = UUID.randomUUID();
+        UUID portfolioId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+
+        PortfolioEntity portfolio = createPortfolio(
+                "asset.delete.transactions@example.com",
+                "Protected Transaction Portfolio"
+        );
+
+        AssetEntity asset = createAsset(
+                portfolio,
+                "AAPL",
+                "Apple Inc."
+        );
+
+        when(portfolioService.getPortfolio(
+                userId,
+                portfolioId
+        )).thenReturn(portfolio);
+
+        when(assetRepository
+                .findByIdAndPortfolioIdAndDeletedAtIsNull(
+                        assetId,
+                        portfolioId
+                ))
+                .thenReturn(Optional.of(asset));
+
+        when(transactionRepository
+                .existsByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(true);
+
+        assertThatThrownBy(
+                () -> assetService.deleteAsset(
+                        userId,
+                        portfolioId,
+                        assetId
+                )
+        )
+                .isInstanceOf(
+                        AssetInUseException.class
+                )
+                .hasMessageContaining(
+                        assetId.toString()
+                )
+                .hasMessageContaining(
+                        "active transactions still exist"
+                );
+
+        assertThat(asset.isDeleted()).isFalse();
+
+        verify(transactionRepository)
+                .existsByAssetIdAndDeletedAtIsNull(
+                        assetId
+                );
+
+        verifyNoInteractions(
+                portfolioHoldingRepository,
+                portfolioHoldingCalculationService
+        );
+
+        verify(assetRepository, never())
+                .save(asset);
+    }
+
+    @Test
+    void shouldRejectDeletingAssetWithPositiveHolding() {
+        UUID userId = UUID.randomUUID();
+        UUID portfolioId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+
+        PortfolioEntity portfolio = createPortfolio(
+                "asset.delete.holding@example.com",
+                "Protected Holding Portfolio"
+        );
+
+        AssetEntity asset = createAsset(
+                portfolio,
+                "MSFT",
+                "Microsoft Corporation"
+        );
+
+        PortfolioHoldingEntity holding =
+                mock(PortfolioHoldingEntity.class);
+
+        when(holding.getQuantity())
+                .thenReturn(
+                        new BigDecimal(
+                                "2.50000000"
+                        )
+                );
+
+        when(portfolioService.getPortfolio(
+                userId,
+                portfolioId
+        )).thenReturn(portfolio);
+
+        when(assetRepository
+                .findByIdAndPortfolioIdAndDeletedAtIsNull(
+                        assetId,
+                        portfolioId
+                ))
+                .thenReturn(Optional.of(asset));
+
+        when(transactionRepository
+                .existsByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(false);
+
+        when(portfolioHoldingRepository
+                .findAllByAssetIdAndDeletedAtIsNull(
+                        assetId
+                ))
+                .thenReturn(
+                        List.of(holding)
+                );
+
+        assertThatThrownBy(
+                () -> assetService.deleteAsset(
+                        userId,
+                        portfolioId,
+                        assetId
+                )
+        )
+                .isInstanceOf(
+                        AssetInUseException.class
+                )
+                .hasMessageContaining(
+                        assetId.toString()
+                )
+                .hasMessageContaining(
+                        "positive quantity"
+                );
+
+        assertThat(asset.isDeleted()).isFalse();
+
+        verify(holding, never())
+                .softDelete();
+
+        verify(portfolioHoldingRepository, never())
+                .saveAll(any());
+
+        verify(assetRepository, never())
+                .save(asset);
+
+        verifyNoInteractions(
+                portfolioHoldingCalculationService
+        );
     }
 
     @Test
@@ -732,6 +1003,12 @@ class AssetServiceTests {
 
         verify(assetRepository, never())
                 .delete(any(AssetEntity.class));
+
+        verifyNoInteractions(
+                transactionRepository,
+                portfolioHoldingRepository,
+                portfolioHoldingCalculationService
+        );
     }
 
     private UserEntity createUser(String email) {
