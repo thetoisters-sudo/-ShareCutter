@@ -29,6 +29,10 @@ public class PortfolioHoldingCalculationService {
 
     private static final int CALCULATION_SCALE = 8;
 
+    private static final String
+            INITIAL_CASH_IMPORT_NOTE =
+            "Initial cash balance imported during portfolio creation";
+
     private final PortfolioHoldingRepository
             portfolioHoldingRepository;
 
@@ -647,9 +651,24 @@ public class PortfolioHoldingCalculationService {
         );
     }
 
-        private BigDecimal calculatePortfolioCashBalance(
+    private BigDecimal calculatePortfolioCashBalance(
             PortfolioEntity portfolio
     ) {
+        /*
+         * initialValue represents the portfolio's opening economic
+         * value.
+         *
+         * For portfolios imported from holdings, that value already
+         * contains both the imported cash and the imported holdings.
+         *
+         * The imported BUY transactions must therefore reduce the
+         * opening value to the actual opening cash balance, while the
+         * automatically generated initial DEPOSIT must NOT be added
+         * again.
+         *
+         * Normal DEPOSIT transactions created after portfolio
+         * creation continue to affect cash normally.
+         */
         BigDecimal cashBalance =
                 zeroIfNull(
                         portfolio
@@ -672,6 +691,14 @@ public class PortfolioHoldingCalculationService {
             if (
                     transactionAsset != null
                             && transactionAsset.isDeleted()
+            ) {
+                continue;
+            }
+
+            if (
+                    isInitialImportedCashTransaction(
+                            transaction
+                    )
             ) {
                 continue;
             }
@@ -756,6 +783,27 @@ public class PortfolioHoldingCalculationService {
         return normalize(
                 cashBalance
         );
+    }
+
+    private boolean isInitialImportedCashTransaction(
+            TransactionEntity transaction
+    ) {
+        if (
+                transaction == null
+                        || transaction
+                                .getTransactionType()
+                                != TransactionType.DEPOSIT
+        ) {
+            return false;
+        }
+
+        String notes =
+                transaction.getNotes();
+
+        return notes != null
+                && INITIAL_CASH_IMPORT_NOTE.equals(
+                        notes.trim()
+                );
     }
 
     private BigDecimal resolveEffectiveTotalAmount(
@@ -886,7 +934,7 @@ public class PortfolioHoldingCalculationService {
         if (
                 asset.getPortfolio() == null
                         || asset.getPortfolio()
-                        .getId() == null
+                                .getId() == null
                         || !portfolioId.equals(
                                 asset.getPortfolio()
                                         .getId()

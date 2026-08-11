@@ -141,6 +141,14 @@ class PortfolioAllocationPurchaseServiceTests {
         );
 
         when(
+                portfolio.getCurrentValue()
+        ).thenReturn(
+                new BigDecimal(
+                        "10000.0000"
+                )
+        );
+
+        when(
                 assetService.getAsset(
                         userId,
                         portfolioId,
@@ -223,7 +231,7 @@ class PortfolioAllocationPurchaseServiceTests {
                 );
 
         assertThat(
-                response.portfolioInitialValue()
+                response.portfolioCurrentValue()
         ).isEqualByComparingTo(
                 "10000.00000000"
         );
@@ -265,13 +273,13 @@ class PortfolioAllocationPurchaseServiceTests {
         );
 
         assertThat(
-                response.estimatedPurchaseAmount()
+                response.estimatedTradeAmount()
         ).isEqualByComparingTo(
                 "1249.99999814"
         );
 
         assertThat(
-                response.remainingAssignableWeightPercent()
+                response.allocationDifferencePercent()
         ).isEqualByComparingTo(
                 "87.500000"
         );
@@ -341,7 +349,7 @@ class PortfolioAllocationPurchaseServiceTests {
         );
 
         assertThat(
-                response.estimatedPurchaseAmount()
+                response.estimatedTradeAmount()
         ).isEqualByComparingTo(
                 "838.89999814"
         );
@@ -399,13 +407,13 @@ class PortfolioAllocationPurchaseServiceTests {
                 );
 
         assertThat(
-                response.currentlyAssignedWeightPercent()
+                response.weightAssignedToOtherAssetsPercent()
         ).isEqualByComparingTo(
                 "35.000000"
         );
 
         assertThat(
-                response.remainingAssignableWeightPercent()
+                response.allocationDifferencePercent()
         ).isEqualByComparingTo(
                 "40.000000"
         );
@@ -466,32 +474,45 @@ class PortfolioAllocationPurchaseServiceTests {
     }
 
     @Test
-    void shouldRejectPortfolioCreatedByHoldings() {
+    void shouldSupportPortfolioCreatedByHoldings() {
         when(
                 portfolio.getCreationMethod()
         ).thenReturn(
                 PortfolioCreationMethod.BY_HOLDINGS
         );
 
-        assertThatThrownBy(
-                () ->
-                        service.previewPurchase(
-                                userId,
-                                portfolioId,
-                                new AllocationPurchasePreviewRequest(
-                                        selectedAssetId,
-                                        new BigDecimal(
-                                                "10"
-                                        )
+        when(
+                portfolioHoldingRepository
+                        .findAllByPortfolioIdAndDeletedAtIsNullOrderByAssetSymbolAsc(
+                                portfolioId
+                        )
+        ).thenReturn(
+                List.of()
+        );
+
+        AllocationPurchasePreviewResponse response =
+                service.previewPurchase(
+                        userId,
+                        portfolioId,
+                        new AllocationPurchasePreviewRequest(
+                                selectedAssetId,
+                                new BigDecimal(
+                                        "10"
                                 )
                         )
-        )
-                .isInstanceOf(
-                        InvalidTransactionException.class
-                )
-                .hasMessageContaining(
-                        "available only for portfolios created by amount"
                 );
+
+        assertThat(
+                response.targetWeightPercent()
+        ).isEqualByComparingTo(
+                "10.000000"
+        );
+
+        assertThat(
+                response.suggestedAction()
+        ).isEqualTo(
+                "BUY"
+        );
     }
 
     @Test
@@ -594,15 +615,21 @@ class PortfolioAllocationPurchaseServiceTests {
         );
 
         assertThat(
-                response.estimatedPurchaseAmount()
+                response.quantityToSell()
         ).isEqualByComparingTo(
-                "0.00000000"
+                "5.13500365"
+        );
+
+        assertThat(
+                response.estimatedTradeAmount()
+        ).isEqualByComparingTo(
+                "1055.50000026"
         );
 
         assertThat(
                 response.suggestedAction()
         ).isEqualTo(
-                "SELL_REQUIRED"
+                "SELL"
         );
     }
 
@@ -757,7 +784,7 @@ class PortfolioAllocationPurchaseServiceTests {
         );
 
         assertThat(
-                response.purchasedQuantity()
+                response.tradedQuantity()
         ).isEqualByComparingTo(
                 "6.08124543"
         );
@@ -769,7 +796,7 @@ class PortfolioAllocationPurchaseServiceTests {
         );
 
         assertThat(
-                response.purchaseAmount()
+                response.tradeAmount()
         ).isEqualByComparingTo(
                 "1249.99999814"
         );
@@ -781,9 +808,9 @@ class PortfolioAllocationPurchaseServiceTests {
         );
 
         assertThat(
-                response.totalCashUsed()
+                response.cashImpact()
         ).isEqualByComparingTo(
-                "1251.24999814"
+                "-1251.24999814"
         );
 
         assertThat(
@@ -918,9 +945,9 @@ class PortfolioAllocationPurchaseServiceTests {
         );
 
         assertThat(
-                response.totalCashUsed()
+                response.cashImpact()
         ).isEqualByComparingTo(
-                response.purchaseAmount()
+                response.tradeAmount().negate()
         );
     }
 
@@ -1006,7 +1033,10 @@ class PortfolioAllocationPurchaseServiceTests {
     }
 
     @Test
-    void shouldRejectExecutionWhenTargetRequiresSelling() {
+    void shouldExecuteSellWhenExistingQuantityExceedsTarget() {
+        UUID transactionId =
+                UUID.randomUUID();
+
         when(
                 selectedHolding.getAsset()
         ).thenReturn(
@@ -1022,6 +1052,14 @@ class PortfolioAllocationPurchaseServiceTests {
         );
 
         when(
+                portfolio.getCurrentValue()
+        ).thenReturn(
+                new BigDecimal(
+                        "10000.0000"
+                )
+        );
+
+        when(
                 portfolioHoldingRepository
                         .findAllByPortfolioIdAndDeletedAtIsNullOrderByAssetSymbolAsc(
                                 portfolioId
@@ -1032,45 +1070,120 @@ class PortfolioAllocationPurchaseServiceTests {
                 )
         );
 
-        assertThatThrownBy(
-                () ->
-                        service.executePurchase(
-                                userId,
-                                portfolioId,
-                                new AllocationPurchaseExecuteRequest(
-                                        selectedAssetId,
-                                        new BigDecimal(
-                                                "10"
-                                        ),
-                                        BigDecimal.ZERO
-                                )
+        when(
+                portfolioHoldingRepository
+                        .sumMarketValueByPortfolioId(
+                                portfolioId
                         )
-        )
-                .isInstanceOf(
-                        InvalidTransactionException.class
+        ).thenReturn(
+                new BigDecimal(
+                        "2055.50000000"
                 )
-                .hasMessageContaining(
-                        "does not require an additional purchase"
+        );
+
+        when(
+                transactionService.createTransaction(
+                        eq(userId),
+                        eq(portfolioId),
+                        eq(selectedAssetId),
+                        eq(TransactionType.SELL),
+                        any(BigDecimal.class),
+                        any(BigDecimal.class),
+                        any(BigDecimal.class),
+                        any(BigDecimal.class),
+                        eq("USD"),
+                        any(OffsetDateTime.class),
+                        anyString()
                 )
-                .hasMessageContaining(
-                        "SELL_REQUIRED"
+        ).thenReturn(
+                createdTransaction
+        );
+
+        when(
+                createdTransaction.getId()
+        ).thenReturn(
+                transactionId
+        );
+
+        when(
+                portfolioHoldingRepository
+                        .findByPortfolioIdAndAssetIdAndDeletedAtIsNull(
+                                portfolioId,
+                                selectedAssetId
+                        )
+        ).thenReturn(
+                Optional.of(
+                        selectedHolding
+                )
+        );
+
+        AllocationPurchaseExecutionResponse response =
+                service.executePurchase(
+                        userId,
+                        portfolioId,
+                        new AllocationPurchaseExecuteRequest(
+                                selectedAssetId,
+                                new BigDecimal(
+                                        "10"
+                                ),
+                                BigDecimal.ZERO
+                        )
                 );
 
+        assertThat(
+                response.action()
+        ).isEqualTo(
+                "SELL"
+        );
+
+        assertThat(
+                response.tradedQuantity()
+        ).isEqualByComparingTo(
+                "5.13500365"
+        );
+
+        assertThat(
+                response.tradeAmount()
+        ).isEqualByComparingTo(
+                "1055.50000026"
+        );
+
+        assertThat(
+                response.cashImpact()
+        ).isEqualByComparingTo(
+                "1055.50000026"
+        );
+
+        assertThat(
+                response.availableCashBefore()
+        ).isEqualByComparingTo(
+                "7944.50000000"
+        );
+
+        assertThat(
+                response.availableCashAfter()
+        ).isEqualByComparingTo(
+                "9000.00000026"
+        );
+
         verify(
-                transactionService,
-                never()
-        ).createTransaction(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any()
+                selectedHolding
+        ).updateTargetWeightPercent(
+                argThat(
+                        value ->
+                                value != null
+                                        && value.compareTo(
+                                        new BigDecimal(
+                                                "10.000000"
+                                        )
+                                ) == 0
+                )
+        );
+
+        verify(
+                portfolioHoldingRepository
+        ).save(
+                selectedHolding
         );
     }
 
@@ -1148,7 +1261,7 @@ class PortfolioAllocationPurchaseServiceTests {
                         InvalidTransactionException.class
                 )
                 .hasMessageContaining(
-                        "Portfolio holding was not created"
+                        "Portfolio holding was not available"
                 );
 
         verify(

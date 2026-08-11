@@ -10,6 +10,7 @@ import com.sharecutter.backend.mapper.PortfolioMapper;
 import com.sharecutter.backend.security.JwtAuthenticationFilter;
 import com.sharecutter.backend.service.PortfolioMarketRefreshService;
 import com.sharecutter.backend.service.PortfolioService;
+import com.sharecutter.backend.service.PortfolioSnapshotService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import com.sharecutter.backend.service.PortfolioHoldingsCreationService;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -68,7 +70,14 @@ class PortfolioControllerTests {
             portfolioMarketRefreshService;
 
     @MockitoBean
+    private PortfolioSnapshotService portfolioSnapshotService;
+
+    @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    private PortfolioHoldingsCreationService
+            portfolioHoldingsCreationService;
 
     @AfterEach
     void clearSecurityContext() {

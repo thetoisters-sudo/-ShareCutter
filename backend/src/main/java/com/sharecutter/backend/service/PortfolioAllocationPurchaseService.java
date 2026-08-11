@@ -222,19 +222,21 @@ public class PortfolioAllocationPurchaseService {
                                 portfolioId,
                                 asset.getId()
                         )
-                        .orElse(null);
+                        .orElseThrow(
+                                () ->
+                                        new InvalidTransactionException(
+                                                "Portfolio holding was not available "
+                                                        + "after allocation transaction"
+                                        )
+                        );
 
-        if (
-                holding != null
-        ) {
-            holding.updateTargetWeightPercent(
-                    preview.targetWeightPercent()
-            );
+        holding.updateTargetWeightPercent(
+                preview.targetWeightPercent()
+        );
 
-            portfolioHoldingRepository.save(
-                    holding
-            );
-        }
+        portfolioHoldingRepository.save(
+                holding
+        );
 
         return new AllocationPurchaseExecutionResponse(
                 portfolio.getId(),
@@ -406,6 +408,11 @@ public class PortfolioAllocationPurchaseService {
                                 WEIGHT_SCALE,
                                 RoundingMode.HALF_UP
                         );
+
+        validateTotalTargetWeight(
+                weightAssignedToOtherAssets,
+                totalTargetWeight
+        );
 
         BigDecimal allocationDifference =
                 ONE_HUNDRED
@@ -743,6 +750,36 @@ public class PortfolioAllocationPurchaseService {
                 .orElse(
                         null
                 );
+    }
+
+    private void validateTotalTargetWeight(
+            BigDecimal weightAssignedToOtherAssets,
+            BigDecimal totalTargetWeight
+    ) {
+        if (
+                totalTargetWeight.compareTo(
+                        ONE_HUNDRED
+                ) <= 0
+        ) {
+            return;
+        }
+
+        BigDecimal remainingWeight =
+                ONE_HUNDRED
+                        .subtract(
+                                weightAssignedToOtherAssets
+                        )
+                        .setScale(
+                                WEIGHT_SCALE,
+                                RoundingMode.HALF_UP
+                        );
+
+        throw new InvalidTransactionException(
+                "Target weight exceeds the remaining allocation. "
+                        + "Remaining weight: "
+                        + remainingWeight
+                        + "%"
+        );
     }
 
     private BigDecimal normalizeTargetWeight(

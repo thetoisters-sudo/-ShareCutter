@@ -141,7 +141,7 @@ class PortfolioAllocationPurchaseControllerTests {
                                 .value("USD")
                 )
                 .andExpect(
-                        jsonPath("$.portfolioInitialValue")
+                        jsonPath("$.portfolioCurrentValue")
                                 .value(10000.0)
                 )
                 .andExpect(
@@ -154,12 +154,12 @@ class PortfolioAllocationPurchaseControllerTests {
                 )
                 .andExpect(
                         jsonPath(
-                                "$.currentlyAssignedWeightPercent"
+                                "$.weightAssignedToOtherAssetsPercent"
                         ).value(25.0)
                 )
                 .andExpect(
                         jsonPath(
-                                "$.remainingAssignableWeightPercent"
+                                "$.allocationDifferencePercent"
                         ).value(62.5)
                 )
                 .andExpect(
@@ -179,7 +179,7 @@ class PortfolioAllocationPurchaseControllerTests {
                                 .value(4.08124543)
                 )
                 .andExpect(
-                        jsonPath("$.estimatedPurchaseAmount")
+                        jsonPath("$.estimatedTradeAmount")
                                 .value(838.89999814)
                 )
                 .andExpect(
@@ -289,11 +289,11 @@ class PortfolioAllocationPurchaseControllerTests {
                                 .value(205.55)
                 )
                 .andExpect(
-                        jsonPath("$.purchasedQuantity")
+                        jsonPath("$.tradedQuantity")
                                 .value(6.08124543)
                 )
                 .andExpect(
-                        jsonPath("$.purchaseAmount")
+                        jsonPath("$.tradeAmount")
                                 .value(1249.99999814)
                 )
                 .andExpect(
@@ -301,8 +301,8 @@ class PortfolioAllocationPurchaseControllerTests {
                                 .value(1.25)
                 )
                 .andExpect(
-                        jsonPath("$.totalCashUsed")
-                                .value(1251.24999814)
+                        jsonPath("$.cashImpact")
+                                .value(-1251.24999814)
                 )
                 .andExpect(
                         jsonPath("$.availableCashBefore")
@@ -314,7 +314,7 @@ class PortfolioAllocationPurchaseControllerTests {
                 )
                 .andExpect(
                         jsonPath(
-                                "$.remainingAssignableWeightPercent"
+                                "$.allocationDifferencePercent"
                         ).value(87.5)
                 )
                 .andExpect(
@@ -392,15 +392,31 @@ class PortfolioAllocationPurchaseControllerTests {
     }
 
     @Test
-    void previewPurchaseRejectsZeroTargetWeight()
+    void previewPurchaseAllowsZeroTargetWeight()
             throws Exception {
 
+        UUID userId = UUID.randomUUID();
         UUID portfolioId = UUID.randomUUID();
         UUID assetId = UUID.randomUUID();
 
-        mockAuthenticatedUser(
-                UUID.randomUUID()
-        );
+        mockAuthenticatedUser(userId);
+
+        AllocationPurchasePreviewResponse response =
+                createPreviewResponse(
+                        portfolioId,
+                        assetId
+                );
+
+        when(
+                portfolioAllocationPurchaseService
+                        .previewPurchase(
+                                eq(userId),
+                                eq(portfolioId),
+                                any(
+                                        AllocationPurchasePreviewRequest.class
+                                )
+                        )
+        ).thenReturn(response);
 
         String requestPath =
                 allocationPath(portfolioId)
@@ -420,22 +436,16 @@ class PortfolioAllocationPurchaseControllerTests {
                                         """.formatted(assetId)
                                 )
                 )
-                .andExpect(status().isBadRequest())
-                .andExpect(
-                        jsonPath("$.status")
-                                .value(400)
-                )
-                .andExpect(
-                        jsonPath("$.error")
-                                .value("Bad Request")
-                )
-                .andExpect(
-                        jsonPath("$.path")
-                                .value(requestPath)
-                );
+                .andExpect(status().isOk());
 
-        verifyNoInteractions(
+        verify(
                 portfolioAllocationPurchaseService
+        ).previewPurchase(
+                eq(userId),
+                eq(portfolioId),
+                any(
+                        AllocationPurchasePreviewRequest.class
+                )
         );
     }
 
@@ -659,7 +669,13 @@ class PortfolioAllocationPurchaseControllerTests {
                         "25.000000"
                 ),
                 new BigDecimal(
+                        "37.500000"
+                ),
+                new BigDecimal(
                         "62.500000"
+                ),
+                new BigDecimal(
+                        "411.10000000"
                 ),
                 new BigDecimal(
                         "1250.00000000"
@@ -672,6 +688,12 @@ class PortfolioAllocationPurchaseControllerTests {
                 ),
                 new BigDecimal(
                         "4.08124543"
+                ),
+                new BigDecimal(
+                        "4.08124543"
+                ),
+                new BigDecimal(
+                        "0.00000000"
                 ),
                 new BigDecimal(
                         "838.89999814"
@@ -703,6 +725,7 @@ class PortfolioAllocationPurchaseControllerTests {
                 "TTWO",
                 "Take-Two Interactive Software, Inc.",
                 transactionId,
+                "BUY",
                 new BigDecimal(
                         "12.500000"
                 ),
@@ -719,13 +742,16 @@ class PortfolioAllocationPurchaseControllerTests {
                         "1.25000000"
                 ),
                 new BigDecimal(
-                        "1251.24999814"
+                        "-1251.24999814"
                 ),
                 new BigDecimal(
                         "10000.00000000"
                 ),
                 new BigDecimal(
                         "8748.75000186"
+                ),
+                new BigDecimal(
+                        "12.500000"
                 ),
                 new BigDecimal(
                         "87.500000"

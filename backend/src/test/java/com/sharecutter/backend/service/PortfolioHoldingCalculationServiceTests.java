@@ -57,8 +57,11 @@ class PortfolioHoldingCalculationServiceTests {
             portfolioService;
 
     @Mock
-    private PortfolioEntity portfolio;
+    private PortfolioSnapshotService
+            portfolioSnapshotService;
 
+    @Mock
+    private PortfolioEntity portfolio;
     @Mock
     private AssetEntity asset;
 
@@ -71,7 +74,8 @@ class PortfolioHoldingCalculationServiceTests {
                 new PortfolioHoldingCalculationService(
                         portfolioHoldingRepository,
                         transactionRepository,
-                        portfolioService
+                        portfolioService,
+                        portfolioSnapshotService
                 );
 
         when(portfolioService.getPortfolio(
@@ -938,6 +942,142 @@ class PortfolioHoldingCalculationServiceTests {
                         "1298.00000000"
                 );
     }
+
+    @Test
+    void shouldNotDoubleCountInitialImportedCashForHoldingsPortfolio() {
+    PortfolioHoldingEntity importedHolding =
+            holdingWithState(
+                    "2.50000000",
+                    "308.19000244",
+                    "308.19000244",
+                    "0.00000000"
+            );
+
+    TransactionEntity initialDeposit =
+            createCashTransaction(
+                    TransactionType.DEPOSIT,
+                    "10000.00000000",
+                    "0.00000000",
+                    2
+            );
+
+    when(initialDeposit.getNotes())
+            .thenReturn(
+                    "Initial cash balance imported during portfolio creation"
+            );
+
+    TransactionEntity initialBuy =
+            createTradeTransaction(
+                    TransactionType.BUY,
+                    "2.50000000",
+                    "308.19000244",
+                    "0.00000000",
+                    "770.47500610",
+                    1
+            );
+
+    when(portfolio.getInitialValue())
+            .thenReturn(
+                    new BigDecimal(
+                            "10770.47500610"
+                    )
+            );
+
+    when(portfolioHoldingRepository
+            .findAllByPortfolioIdAndDeletedAtIsNullOrderByAssetSymbolAsc(
+                    PORTFOLIO_ID
+            ))
+            .thenReturn(
+                    List.of(
+                            importedHolding
+                    )
+            );
+
+    when(transactionRepository
+            .findAllByPortfolioIdAndDeletedAtIsNullOrderByExecutedAtDesc(
+                    PORTFOLIO_ID
+            ))
+            .thenReturn(
+                    List.of(
+                            initialBuy,
+                            initialDeposit
+                    )
+            );
+
+    calculationService
+            .recalculatePortfolio(
+                    USER_ID,
+                    PORTFOLIO_ID
+            );
+
+    ArgumentCaptor<BigDecimal>
+            currentValueCaptor =
+            ArgumentCaptor.forClass(
+                    BigDecimal.class
+            );
+
+    verify(portfolio)
+            .updateCurrentValue(
+                    currentValueCaptor.capture()
+            );
+
+    /*
+     * Opening economic value:
+     *
+     * Initial cash:             10,000.00000000
+     * Imported AAPL holding:       770.47500610
+     *
+     * initialValue:             10,770.47500610
+     *
+     * The automatically generated initial DEPOSIT
+     * must not be added again.
+     *
+     * Cash after imported BUY:
+     *
+     * 10,770.47500610
+     * - 770.47500610
+     * = 10,000.00000000
+     *
+     * Current portfolio value:
+     *
+     * Cash:                     10,000.00000000
+     * Holding:                     770.47500610
+     *
+     * Total:                    10,770.47500610
+     */
+
+    assertThat(
+            currentValueCaptor.getValue()
+    )
+            .isEqualByComparingTo(
+                    "10770.47500610"
+            );
+
+    verify(portfolioSnapshotService)
+            .recordSnapshot(
+                    org.mockito.ArgumentMatchers.eq(
+                            portfolio
+                    ),
+                    org.mockito.ArgumentMatchers.argThat(
+                            value ->
+                                    value != null
+                                            && value.compareTo(
+                                            new BigDecimal(
+                                                    "10000.00000000"
+                                            )
+                                    ) == 0
+                    ),
+                    org.mockito.ArgumentMatchers.argThat(
+                            value ->
+                                    value != null
+                                            && value.compareTo(
+                                            new BigDecimal(
+                                                    "770.47500610"
+                                            )
+                                    ) == 0
+                    )
+            );
+}
 
     private void prepareAssetTransactions(
             List<TransactionEntity> transactions
