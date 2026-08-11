@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 
@@ -9,6 +9,7 @@ set "BACKEND_DIR=%ROOT%backend"
 set "FRONTEND_DIR=%ROOT%frontend"
 set "APP_URL=http://localhost:4200"
 set "BACKEND_HEALTH=http://localhost:8080/actuator/health"
+set "PGADMIN_URL=http://localhost:5050"
 
 echo.
 echo ==========================================
@@ -19,6 +20,8 @@ echo.
 if not exist "%ROOT%.env" (
     echo [ERROR] Missing .env file:
     echo         %ROOT%.env
+    echo.
+    echo Copy .env.example to .env and configure the required values.
     echo.
     pause
     exit /b 1
@@ -50,16 +53,43 @@ if not exist "%FRONTEND_DIR%\package.json" (
     exit /b 1
 )
 
-where docker >nul 2>&1
+where java >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Docker command was not found.
-    echo         Install or start Docker Desktop and try again.
+    echo [ERROR] Java was not found in PATH.
+    echo         ShareCutter requires Java 21.
     echo.
     pause
     exit /b 1
 )
 
-echo [1/6] Checking Docker...
+where node >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Node.js was not found in PATH.
+    echo         Install Node.js and run this launcher again.
+    echo.
+    pause
+    exit /b 1
+)
+
+where npm.cmd >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] npm was not found in PATH.
+    echo         Install Node.js/npm and run this launcher again.
+    echo.
+    pause
+    exit /b 1
+)
+
+where docker >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Docker command was not found.
+    echo         Install Docker Desktop and run this launcher again.
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [1/7] Checking Docker...
 
 docker info >nul 2>&1
 if errorlevel 1 (
@@ -103,7 +133,7 @@ if errorlevel 1 (
 echo Docker is ready.
 echo.
 
-echo [2/6] Starting PostgreSQL and pgAdmin...
+echo [2/7] Starting PostgreSQL and pgAdmin...
 pushd "%ROOT%"
 docker compose up -d
 if errorlevel 1 (
@@ -117,9 +147,9 @@ if errorlevel 1 (
 popd
 
 echo.
-echo [3/6] Waiting for PostgreSQL health...
-
+echo [3/7] Waiting for PostgreSQL health...
 set /a DB_WAIT=0
+set "DB_STATUS="
 
 :WAIT_FOR_DB
 for /f "usebackq delims=" %%S in (`docker inspect -f "{{.State.Health.Status}}" sharecutter-postgres 2^>nul`) do (
@@ -134,7 +164,9 @@ set /a DB_WAIT+=2
 if !DB_WAIT! GEQ 90 (
     echo [ERROR] PostgreSQL did not become healthy within 90 seconds.
     echo.
+    pushd "%ROOT%"
     docker compose ps
+    popd
     echo.
     pause
     exit /b 1
@@ -147,26 +179,48 @@ goto WAIT_FOR_DB
 echo PostgreSQL is healthy.
 echo.
 
-echo [4/6] Starting Spring Boot backend...
+echo [4/7] Checking frontend dependencies...
+if not exist "%FRONTEND_DIR%\node_modules" (
+    echo node_modules was not found.
+    echo Installing frontend dependencies. This can take a few minutes...
+    echo.
+
+    pushd "%FRONTEND_DIR%"
+    call npm.cmd ci
+    if errorlevel 1 (
+        popd
+        echo.
+        echo [ERROR] npm ci failed.
+        echo.
+        pause
+        exit /b 1
+    )
+    popd
+) else (
+    echo Frontend dependencies are already installed.
+)
+
+echo.
+echo [5/7] Starting Spring Boot backend...
 
 powershell -NoProfile -Command ^
-  "try { $r = Invoke-RestMethod -Uri '%BACKEND_HEALTH%' -TimeoutSec 2; if ($r.status -eq 'UP') { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+"try { $r = Invoke-RestMethod -Uri '%BACKEND_HEALTH%' -TimeoutSec 2; if ($r.status -eq 'UP') { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
 
 if errorlevel 1 (
     start "ShareCutter Backend" /min powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-      "$ErrorActionPreference='Stop'; " ^
-      "$envFile='%ROOT%.env'; " ^
-      "Get-Content -LiteralPath $envFile | ForEach-Object { " ^
-      "  $line=$_.Trim(); " ^
-      "  if (-not $line -or $line.StartsWith('#') -or -not $line.Contains('=')) { return }; " ^
-      "  $parts=$line -split '=',2; " ^
-      "  $name=$parts[0].Trim(); " ^
-      "  $value=$parts[1].Trim(); " ^
-      "  if (($value.StartsWith([char]34) -and $value.EndsWith([char]34)) -or ($value.StartsWith([char]39) -and $value.EndsWith([char]39))) { $value=$value.Substring(1,$value.Length-2) }; " ^
-      "  [Environment]::SetEnvironmentVariable($name,$value,'Process'); " ^
-      "}; " ^
-      "Set-Location -LiteralPath '%BACKEND_DIR%'; " ^
-      "& '.\mvnw.cmd' 'spring-boot:run'"
+    "$ErrorActionPreference='Stop'; " ^
+    "$envFile='%ROOT%.env'; " ^
+    "Get-Content -LiteralPath $envFile | ForEach-Object { " ^
+    "  $line=$_.Trim(); " ^
+    "  if (-not $line -or $line.StartsWith('#') -or -not $line.Contains('=')) { return }; " ^
+    "  $parts=$line -split '=',2; " ^
+    "  $name=$parts[0].Trim(); " ^
+    "  $value=$parts[1].Trim(); " ^
+    "  if (($value.StartsWith([char]34) -and $value.EndsWith([char]34)) -or ($value.StartsWith([char]39) -and $value.EndsWith([char]39))) { $value=$value.Substring(1,$value.Length-2) }; " ^
+    "  [Environment]::SetEnvironmentVariable($name,$value,'Process'); " ^
+    "}; " ^
+    "Set-Location -LiteralPath '%BACKEND_DIR%'; " ^
+    "& '.\mvnw.cmd' 'spring-boot:run'"
 ) else (
     echo Backend is already running.
 )
@@ -175,7 +229,7 @@ set /a BACKEND_WAIT=0
 
 :WAIT_FOR_BACKEND
 powershell -NoProfile -Command ^
-  "try { $r = Invoke-RestMethod -Uri '%BACKEND_HEALTH%' -TimeoutSec 2; if ($r.status -eq 'UP') { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+"try { $r = Invoke-RestMethod -Uri '%BACKEND_HEALTH%' -TimeoutSec 2; if ($r.status -eq 'UP') { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
 
 if not errorlevel 1 goto BACKEND_READY
 
@@ -197,13 +251,13 @@ goto WAIT_FOR_BACKEND
 echo Backend is UP.
 echo.
 
-echo [5/6] Starting Angular frontend...
+echo [6/7] Starting Angular frontend...
 
 powershell -NoProfile -Command ^
-  "try { $r = Invoke-WebRequest -Uri '%APP_URL%' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+"try { $r = Invoke-WebRequest -Uri '%APP_URL%' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
 
 if errorlevel 1 (
-    start "ShareCutter Frontend" /min cmd /k "cd /d "%FRONTEND_DIR%" && call npm.cmd start"
+    start "ShareCutter Frontend" /min cmd /k "cd /d ""%FRONTEND_DIR%"" && call npm.cmd start"
 ) else (
     echo Frontend is already running.
 )
@@ -212,7 +266,7 @@ set /a FRONTEND_WAIT=0
 
 :WAIT_FOR_FRONTEND
 powershell -NoProfile -Command ^
-  "try { $r = Invoke-WebRequest -Uri '%APP_URL%' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+"try { $r = Invoke-WebRequest -Uri '%APP_URL%' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
 
 if not errorlevel 1 goto FRONTEND_READY
 
@@ -234,8 +288,7 @@ goto WAIT_FOR_FRONTEND
 echo Frontend is ready.
 echo.
 
-echo [6/6] Opening ShareCutter in Google Chrome...
-
+echo [7/7] Opening ShareCutter...
 set "CHROME_PATH="
 
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
@@ -264,11 +317,11 @@ echo ShareCutter is running.
 echo.
 echo App:      %APP_URL%
 echo Backend: %BACKEND_HEALTH%
-echo pgAdmin:  http://localhost:5050
+echo pgAdmin:  %PGADMIN_URL%
 echo ==========================================
 echo.
-echo You can close this launcher window.
-echo The Backend and Frontend windows must remain running.
+echo You may close this launcher window.
+echo The Backend and Frontend processes must remain running.
 echo.
 
 timeout /t 5 /nobreak >nul
