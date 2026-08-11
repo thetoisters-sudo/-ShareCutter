@@ -1,0 +1,15 @@
+:{$PORT:8080} {
+    encode zstd gzip
+
+    handle /api/* {
+        reverse_proxy backend.railway.internal:8080 {
+            header_up -Origin
+        }
+    }
+
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
+}
