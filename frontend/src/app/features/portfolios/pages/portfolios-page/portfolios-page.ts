@@ -21,6 +21,9 @@ import {
     FormsModule,
 } from '@angular/forms';
 import {
+    Router,
+} from '@angular/router';
+import {
     Observable,
     catchError,
     forkJoin,
@@ -30,8 +33,13 @@ import {
 } from 'rxjs';
 
 import {
+    AssetCreateRequest,
+    AssetResponse,
     AssetType,
 } from '../../../../core/asset/models/asset.models';
+import {
+    AssetService,
+} from '../../../../core/asset/services/asset.service';
 import {
     TranslationService,
 } from '../../../../core/i18n/services/translation.service';
@@ -55,10 +63,16 @@ import {
     PortfolioChangeEvent,
     PortfolioService,
 } from '../../../../core/portfolio/services/portfolio.service';
+import {
+    TransactionCreateRequest,
+} from '../../../../core/transaction/models/transaction.models';
+import {
+    TransactionService,
+} from '../../../../core/transaction/services/transaction.service';
 
 type PortfolioDialogMode =
     | 'create'
-    | 'rename'
+    | 'edit'
     | 'delete'
     | null;
 
@@ -102,6 +116,23 @@ interface HoldingDraft {
     quantity: number;
 }
 
+interface EditHolding {
+    assetId: string;
+    symbol: string;
+    displayName: string;
+    assetType: string;
+    currency: string;
+    quantity: number;
+    desiredQuantity: number | string | null;
+    currentPrice: number;
+    isSubmitting: boolean;
+    errorMessage: string;
+}
+
+type EditAssetInputMode =
+    | 'BY_QUANTITY'
+    | 'BY_AMOUNT';
+
 @Component({
     selector: 'app-portfolios-page',
     imports: [
@@ -125,6 +156,15 @@ export class PortfoliosPage
 
     private readonly marketDataService =
         inject(MarketDataService);
+
+    private readonly assetService =
+        inject(AssetService);
+
+    private readonly transactionService =
+        inject(TransactionService);
+
+    private readonly router =
+        inject(Router);
 
     private readonly translationService =
         inject(TranslationService);
@@ -191,7 +231,48 @@ export class PortfoliosPage
     protected holdingDrafts:
         HoldingDraft[] = [];
 
-    protected renameValue = '';
+    protected editName = '';
+
+    protected editAssets:
+        AssetResponse[] = [];
+
+    protected editHoldings:
+        EditHolding[] = [];
+
+    protected editAvailableCash = 0;
+
+    protected isLoadingEditPortfolio = false;
+
+    protected editSearchQuery = '';
+
+    protected editSearchResults:
+        MarketSymbolSearchResponse[] = [];
+
+    protected editSearchError = '';
+
+    protected isSearchingEditAssets = false;
+
+    protected editSelectedMarketAsset:
+        MarketSymbolSearchResponse | null =
+        null;
+
+    protected editNewAssetQuantity:
+        number | string | null = null;
+
+    protected editNewAssetAmount:
+        number | string | null = null;
+
+    protected editAssetInputMode:
+        EditAssetInputMode =
+        'BY_QUANTITY';
+
+    protected editSelectedAssetPrice:
+        number | null = null;
+
+    protected isLoadingEditAssetPrice =
+        false;
+
+    protected isAddingEditAsset = false;
 
     protected expandedPortfolioId:
         string | null = null;
@@ -341,6 +422,7 @@ export class PortfoliosPage
         this.createInitialCash = 0;
 
         this.resetHoldingCreationState();
+        this.resetEditState();
 
         this.dialogMode = 'create';
     }
@@ -610,7 +692,19 @@ export class PortfoliosPage
             .markForCheck();
     }
 
-    protected openRenameDialog(
+    protected openPortfolioHistory(
+        portfolioId: string,
+    ): void {
+        void this.router.navigate(
+            [
+                '/portfolios',
+                portfolioId,
+                'history',
+            ],
+        );
+    }
+
+    protected openEditDialog(
         portfolio: PortfolioListItem,
     ): void {
         this.clearMessages();
@@ -618,11 +712,17 @@ export class PortfoliosPage
         this.selectedPortfolio =
             portfolio;
 
-        this.renameValue =
+        this.editName =
             portfolio.name;
 
+        this.resetEditState();
+
         this.dialogMode =
-            'rename';
+            'edit';
+
+        this.loadEditPortfolioData(
+            portfolio.id,
+        );
     }
 
     protected openDeleteDialog(
@@ -647,6 +747,7 @@ export class PortfoliosPage
         this.actionErrorMessage = '';
 
         this.resetHoldingCreationState();
+        this.resetEditState();
     }
 
     protected submitCreate(): void {
@@ -725,12 +826,121 @@ export class PortfoliosPage
             });
     }
 
-    protected submitRename(): void {
+    protected setEditAssetInputMode(
+        mode: EditAssetInputMode,
+    ): void {
+        this.editAssetInputMode =
+            mode;
+
+        this.editSearchError = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected get editDialogTitleLabel():
+        string {
+        return (
+            this.text()
+                .portfolios
+                .cancel ===
+            'ביטול'
+        )
+            ? 'עריכת תיק'
+            : 'Edit portfolio';
+    }
+
+    protected get finishEditLabel():
+        string {
+        return (
+            this.text()
+                .portfolios
+                .cancel ===
+            'ביטול'
+        )
+            ? 'אישור וסיום'
+            : 'Confirm & finish';
+    }
+
+    protected get removeHoldingLabel():
+        string {
+        return (
+            this.text()
+                .portfolios
+                .cancel ===
+            'ביטול'
+        )
+            ? 'הוצאה מהתיק'
+            : 'Remove from portfolio';
+    }
+
+    protected get isEditOperationInProgress():
+        boolean {
+        return (
+            this.isSubmitting ||
+            this.isAddingEditAsset ||
+            this.editHoldings.some(
+                (holding) =>
+                    holding.isSubmitting,
+            )
+        );
+    }
+
+    protected get calculatedEditAssetQuantity():
+        number | null {
+        if (
+            this.editAssetInputMode !==
+            'BY_AMOUNT' ||
+            this.editSelectedAssetPrice ===
+            null ||
+            this.editSelectedAssetPrice <= 0
+        ) {
+            return null;
+        }
+
+        const amount =
+            Number(
+                this.editNewAssetAmount,
+            );
+
+        if (
+            !Number.isFinite(amount) ||
+            amount <= 0
+        ) {
+            return null;
+        }
+
+        return this.floorToEight(
+            amount /
+            this.editSelectedAssetPrice,
+        );
+    }
+
+    protected finishEdit(): void {
+        const portfolioId =
+            this.selectedPortfolio?.id ??
+            null;
+
+        this.closeDialog();
+
+        if (portfolioId) {
+            this.portfolioService
+                .notifyPortfolioChanged({
+                    portfolioId,
+                    reason:
+                        'rebuilt',
+                });
+        }
+
+        this.loadPortfolios();
+    }
+
+    protected saveEditName(): void {
         const portfolio =
             this.selectedPortfolio;
 
         const normalizedName =
-            this.renameValue.trim();
+            this.editName.trim();
 
         if (!portfolio) {
             return;
@@ -742,6 +952,13 @@ export class PortfoliosPage
                     .portfolios
                     .portfolioNameRequired;
 
+            return;
+        }
+
+        if (
+            normalizedName ===
+            portfolio.name
+        ) {
             return;
         }
 
@@ -757,6 +974,12 @@ export class PortfoliosPage
             )
             .subscribe({
                 next: () => {
+                    portfolio.name =
+                        normalizedName;
+
+                    this.editName =
+                        normalizedName;
+
                     this.portfolioService
                         .notifyPortfolioChanged({
                             portfolioId:
@@ -765,15 +988,15 @@ export class PortfoliosPage
                                 'renamed',
                         });
 
-                    this.finishSuccessfulSubmission(
+                    this.isSubmitting = false;
+
+                    this.successMessage =
                         this.text()
                             .portfolios
-                            .renamedSuccess,
-                    );
+                            .renamedSuccess;
 
-                    this.loadPortfolios(
-                        false,
-                    );
+                    this.changeDetectorRef
+                        .markForCheck();
                 },
 
                 error: (
@@ -785,6 +1008,615 @@ export class PortfoliosPage
                             'rename',
                         ),
                     );
+                },
+            });
+    }
+
+    protected updateEditHolding(
+        holding: EditHolding,
+    ): void {
+        const portfolio =
+            this.selectedPortfolio;
+
+        if (
+            !portfolio ||
+            holding.isSubmitting
+        ) {
+            return;
+        }
+
+        const desiredQuantity =
+            Number(
+                holding.desiredQuantity,
+            );
+
+        if (
+            !Number.isFinite(
+                desiredQuantity,
+            ) ||
+            desiredQuantity < 0
+        ) {
+            holding.errorMessage =
+                this.text()
+                    .transactions
+                    .quantityInvalid;
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        const normalizedDesiredQuantity =
+            this.roundToEight(
+                desiredQuantity,
+            );
+
+        const difference =
+            this.roundToEight(
+                normalizedDesiredQuantity -
+                holding.quantity,
+            );
+
+        if (
+            Math.abs(difference) <
+            0.000000005
+        ) {
+            holding.errorMessage = '';
+
+            return;
+        }
+
+        holding.isSubmitting = true;
+        holding.errorMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+
+        this.marketDataService
+            .getLatestPrice({
+                symbol:
+                    holding.symbol,
+                exchange:
+                    this.findEditAsset(
+                        holding.assetId,
+                    )?.exchange ?? null,
+            })
+            .pipe(
+                switchMap(
+                    (marketPrice) => {
+                        const quantity =
+                            this.roundToEight(
+                                Math.abs(
+                                    difference,
+                                ),
+                            );
+
+                        const totalAmount =
+                            this.roundToEight(
+                                quantity *
+                                marketPrice.price,
+                            );
+
+                        const request:
+                            TransactionCreateRequest =
+                        {
+                            assetId:
+                                holding.assetId,
+
+                            transactionType:
+                                difference > 0
+                                    ? 'BUY'
+                                    : 'SELL',
+
+                            quantity,
+
+                            unitPrice:
+                                this.roundToEight(
+                                    marketPrice.price,
+                                ),
+
+                            fee:
+                                0,
+
+                            totalAmount,
+
+                            currency:
+                                holding.currency,
+
+                            executedAt:
+                                new Date()
+                                    .toISOString(),
+
+                            notes:
+                                normalizedDesiredQuantity ===
+                                    0
+                                    ? (
+                                        'Portfolio edit: close holding'
+                                    )
+                                    : (
+                                        'Portfolio edit quantity adjustment'
+                                    ),
+                        };
+
+                        return this.transactionService
+                            .createTransaction(
+                                portfolio.id,
+                                request,
+                            );
+                    },
+                ),
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: () => {
+                    holding.isSubmitting =
+                        false;
+
+                    this.successMessage =
+                        this.text()
+                            .transactions
+                            .updatedSuccess;
+
+                    this.loadEditPortfolioData(
+                        portfolio.id,
+                    );
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+
+                error: (
+                    error: unknown,
+                ) => {
+                    holding.isSubmitting =
+                        false;
+
+                    holding.errorMessage =
+                        this.resolveEditTransactionError(
+                            error,
+                        );
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            });
+    }
+
+    protected removeEditHolding(
+        holding: EditHolding,
+    ): void {
+        holding.desiredQuantity = 0;
+
+        this.updateEditHolding(
+            holding,
+        );
+    }
+
+    protected searchEditAssets(): void {
+        const query =
+            this.editSearchQuery.trim();
+
+        this.editSearchError = '';
+        this.editSelectedMarketAsset =
+            null;
+
+        if (query.length < 2) {
+            this.editSearchResults = [];
+
+            this.editSearchError =
+                this.text()
+                    .assets
+                    .enterAtLeastTwoCharacters;
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        this.isSearchingEditAssets =
+            true;
+
+        this.editSearchResults = [];
+
+        this.changeDetectorRef
+            .markForCheck();
+
+        this.marketDataService
+            .searchSymbols({
+                query,
+                limit: 15,
+            })
+            .pipe(
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: (results) => {
+                    this.editSearchResults =
+                        results;
+
+                    this.isSearchingEditAssets =
+                        false;
+
+                    if (
+                        results.length === 0
+                    ) {
+                        this.editSearchError =
+                            this.text()
+                                .assets
+                                .noMarketMatches;
+                    }
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+
+                error: (
+                    error: unknown,
+                ) => {
+                    this.isSearchingEditAssets =
+                        false;
+
+                    this.editSearchError =
+                        this.resolveMarketSearchError(
+                            error,
+                        );
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            });
+    }
+
+    protected selectEditAsset(
+        asset:
+            MarketSymbolSearchResponse,
+    ): void {
+        this.editSelectedMarketAsset =
+            asset;
+
+        this.editNewAssetQuantity =
+            null;
+
+        this.editNewAssetAmount =
+            null;
+
+        this.editSelectedAssetPrice =
+            null;
+
+        this.editSearchError = '';
+
+        this.isLoadingEditAssetPrice =
+            true;
+
+        this.changeDetectorRef
+            .markForCheck();
+
+        this.marketDataService
+            .getLatestPrice({
+                symbol:
+                    asset.symbol,
+                exchange:
+                    asset.exchange,
+            })
+            .pipe(
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: (response) => {
+                    this.editSelectedAssetPrice =
+                        response.price;
+
+                    this.isLoadingEditAssetPrice =
+                        false;
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+
+                error: (
+                    error: unknown,
+                ) => {
+                    this.isLoadingEditAssetPrice =
+                        false;
+
+                    this.editSearchError =
+                        this.resolveMarketSearchError(
+                            error,
+                        );
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            });
+    }
+
+    protected clearEditSelectedAsset():
+        void {
+        this.editSelectedMarketAsset =
+            null;
+
+        this.editNewAssetQuantity =
+            null;
+
+        this.editNewAssetAmount =
+            null;
+
+        this.editSelectedAssetPrice =
+            null;
+
+        this.isLoadingEditAssetPrice =
+            false;
+
+        this.editSearchError = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    protected addEditAsset(): void {
+        const portfolio =
+            this.selectedPortfolio;
+
+        const marketAsset =
+            this.editSelectedMarketAsset;
+
+        if (
+            !portfolio ||
+            !marketAsset
+        ) {
+            return;
+        }
+
+        const marketPrice =
+            this.editSelectedAssetPrice;
+
+        if (
+            marketPrice === null ||
+            marketPrice <= 0
+        ) {
+            this.editSearchError =
+                this.text()
+                    .assets
+                    .marketPriceError;
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        let quantity: number;
+        let totalAmount: number;
+
+        if (
+            this.editAssetInputMode ===
+            'BY_AMOUNT'
+        ) {
+            const requestedAmount =
+                Number(
+                    this.editNewAssetAmount,
+                );
+
+            if (
+                !Number.isFinite(
+                    requestedAmount,
+                ) ||
+                requestedAmount <= 0
+            ) {
+                this.editSearchError =
+                    this.text()
+                        .transactions
+                        .totalAmountInvalid;
+
+                this.changeDetectorRef
+                    .markForCheck();
+
+                return;
+            }
+
+            quantity =
+                this.floorToEight(
+                    requestedAmount /
+                    marketPrice,
+                );
+
+            if (quantity <= 0) {
+                this.editSearchError =
+                    this.text()
+                        .transactions
+                        .quantityInvalid;
+
+                this.changeDetectorRef
+                    .markForCheck();
+
+                return;
+            }
+
+            totalAmount =
+                this.roundToEight(
+                    quantity *
+                    marketPrice,
+                );
+        } else {
+            const requestedQuantity =
+                Number(
+                    this.editNewAssetQuantity,
+                );
+
+            if (
+                !Number.isFinite(
+                    requestedQuantity,
+                ) ||
+                requestedQuantity <= 0
+            ) {
+                this.editSearchError =
+                    this.text()
+                        .transactions
+                        .quantityInvalid;
+
+                this.changeDetectorRef
+                    .markForCheck();
+
+                return;
+            }
+
+            quantity =
+                this.roundToEight(
+                    requestedQuantity,
+                );
+
+            totalAmount =
+                this.roundToEight(
+                    quantity *
+                    marketPrice,
+                );
+        }
+
+        if (
+            totalAmount >
+            this.editAvailableCash +
+            0.00000001
+        ) {
+            this.editSearchError =
+                (
+                    'Portfolio cash balance must not be negative. ' +
+                    `Available: $${this.editAvailableCash.toFixed(2)}, ` +
+                    `required: $${totalAmount.toFixed(2)}`
+                );
+
+            this.changeDetectorRef
+                .markForCheck();
+
+            return;
+        }
+
+        const existingAsset =
+            this.findMatchingEditAsset(
+                marketAsset,
+            );
+
+        this.isAddingEditAsset =
+            true;
+
+        this.editSearchError = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+
+        if (existingAsset) {
+            this.createEditBuyTransaction(
+                portfolio.id,
+                existingAsset,
+                quantity,
+                marketPrice,
+            )
+                .pipe(
+                    takeUntilDestroyed(
+                        this.destroyRef,
+                    ),
+                )
+                .subscribe({
+                    next: () => {
+                        this.finishSuccessfulEditAssetAdd(
+                            portfolio.id,
+                        );
+                    },
+
+                    error: (
+                        error: unknown,
+                    ) => {
+                        this.isAddingEditAsset =
+                            false;
+
+                        this.editSearchError =
+                            this.resolveEditTransactionError(
+                                error,
+                            );
+
+                        this.changeDetectorRef
+                            .markForCheck();
+                    },
+                });
+
+            return;
+        }
+
+        const createRequest:
+            AssetCreateRequest =
+        {
+            symbol:
+                marketAsset.symbol,
+
+            displayName:
+                marketAsset.displayName,
+
+            assetType:
+                marketAsset.assetType,
+
+            currency:
+                marketAsset.currency,
+
+            isin:
+                null,
+
+            exchange:
+                marketAsset.exchange,
+
+            notes:
+                (
+                    'Added from portfolio edit using live market search.'
+                ),
+        };
+
+        this.assetService
+            .createAsset(
+                portfolio.id,
+                createRequest,
+            )
+            .pipe(
+                switchMap(
+                    (
+                        createdAsset,
+                    ) =>
+                        this.createEditBuyTransaction(
+                            portfolio.id,
+                            createdAsset,
+                            quantity,
+                            marketPrice,
+                        ),
+                ),
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: () => {
+                    this.finishSuccessfulEditAssetAdd(
+                        portfolio.id,
+                    );
+                },
+
+                error: (
+                    error: unknown,
+                ) => {
+                    this.isAddingEditAsset =
+                        false;
+
+                    this.editSearchError =
+                        this.resolveEditTransactionError(
+                            error,
+                        );
+
+                    this.changeDetectorRef
+                        .markForCheck();
                 },
             });
     }
@@ -1114,6 +1946,324 @@ export class PortfoliosPage
             assetTranslations
                 .marketSearchError
         );
+    }
+
+    private loadEditPortfolioData(
+        portfolioId: string,
+    ): void {
+        this.isLoadingEditPortfolio =
+            true;
+
+        this.actionErrorMessage = '';
+
+        this.changeDetectorRef
+            .markForCheck();
+
+        forkJoin({
+            allocation:
+                this.portfolioService
+                    .getPortfolioAllocation(
+                        portfolioId,
+                    ),
+
+            assets:
+                this.assetService
+                    .getAssets(
+                        portfolioId,
+                    ),
+        })
+            .pipe(
+                takeUntilDestroyed(
+                    this.destroyRef,
+                ),
+            )
+            .subscribe({
+                next: ({
+                    allocation,
+                    assets,
+                }) => {
+                    this.editAssets =
+                        assets;
+
+                    this.editAvailableCash =
+                        allocation
+                            .cashBalance ??
+                        0;
+
+                    this.editHoldings =
+                        allocation.assets
+                            .map(
+                                (asset) => ({
+                                    assetId:
+                                        asset.assetId,
+
+                                    symbol:
+                                        asset.symbol,
+
+                                    displayName:
+                                        asset.displayName,
+
+                                    assetType:
+                                        asset.assetType,
+
+                                    currency:
+                                        asset.currency,
+
+                                    quantity:
+                                        asset.quantity,
+
+                                    desiredQuantity:
+                                        asset.quantity,
+
+                                    currentPrice:
+                                        asset.currentPrice,
+
+                                    isSubmitting:
+                                        false,
+
+                                    errorMessage:
+                                        '',
+                                }),
+                            );
+
+                    this.isLoadingEditPortfolio =
+                        false;
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+
+                error: (
+                    error: unknown,
+                ) => {
+                    this.isLoadingEditPortfolio =
+                        false;
+
+                    this.actionErrorMessage =
+                        this.resolveAllocationError(
+                            error,
+                        );
+
+                    this.changeDetectorRef
+                        .markForCheck();
+                },
+            });
+    }
+
+    private findEditAsset(
+        assetId: string,
+    ): AssetResponse | null {
+        return (
+            this.editAssets.find(
+                (asset) =>
+                    asset.id ===
+                    assetId,
+            ) ??
+            null
+        );
+    }
+
+    private findMatchingEditAsset(
+        marketAsset:
+            MarketSymbolSearchResponse,
+    ): AssetResponse | null {
+        const symbol =
+            marketAsset.symbol
+                .trim()
+                .toUpperCase();
+
+        return (
+            this.editAssets.find(
+                (asset) =>
+                    asset.symbol
+                        .trim()
+                        .toUpperCase() ===
+                    symbol,
+            ) ??
+            null
+        );
+    }
+
+    private createEditBuyTransaction(
+        portfolioId: string,
+        asset: AssetResponse,
+        quantity: number,
+        unitPrice: number,
+    ) {
+        const normalizedQuantity =
+            this.roundToEight(
+                quantity,
+            );
+
+        const normalizedUnitPrice =
+            this.roundToEight(
+                unitPrice,
+            );
+
+        const request:
+            TransactionCreateRequest = {
+            assetId:
+                asset.id,
+
+            transactionType:
+                'BUY',
+
+            quantity:
+                normalizedQuantity,
+
+            unitPrice:
+                normalizedUnitPrice,
+
+            fee:
+                0,
+
+            totalAmount:
+                this.roundToEight(
+                    normalizedQuantity *
+                    normalizedUnitPrice,
+                ),
+
+            currency:
+                asset.currency,
+
+            executedAt:
+                new Date()
+                    .toISOString(),
+
+            notes:
+                (
+                    'Asset added from portfolio edit'
+                ),
+        };
+
+        return this.transactionService
+            .createTransaction(
+                portfolioId,
+                request,
+            );
+    }
+
+    private finishSuccessfulEditAssetAdd(
+        portfolioId: string,
+    ): void {
+        this.isAddingEditAsset =
+            false;
+
+        this.editSearchQuery = '';
+        this.editSearchResults = [];
+        this.editSelectedMarketAsset =
+            null;
+        this.editNewAssetQuantity =
+            null;
+        this.editNewAssetAmount =
+            null;
+        this.editSelectedAssetPrice =
+            null;
+
+        this.successMessage =
+            this.text()
+                .transactions
+                .createdSuccess;
+
+        this.loadEditPortfolioData(
+            portfolioId,
+        );
+
+        this.changeDetectorRef
+            .markForCheck();
+    }
+
+    private resolveEditTransactionError(
+        error: unknown,
+    ): string {
+        if (
+            !(error instanceof
+                HttpErrorResponse)
+        ) {
+            return this.text()
+                .transactions
+                .createError;
+        }
+
+        if (error.status === 0) {
+            return this.text()
+                .portfolios
+                .serverUnavailable;
+        }
+
+        if (error.status === 401) {
+            return this.text()
+                .portfolios
+                .sessionExpired;
+        }
+
+        if (error.status === 403) {
+            return this.text()
+                .portfolios
+                .forbiddenAction;
+        }
+
+        return (
+            this.extractBackendMessage(
+                error,
+            ) ??
+            this.text()
+                .transactions
+                .createError
+        );
+    }
+
+    private roundToEight(
+        value: number,
+    ): number {
+        return Math.round(
+            (
+                value +
+                Number.EPSILON
+            ) *
+            100_000_000,
+        ) /
+            100_000_000;
+    }
+
+    private floorToEight(
+        value: number,
+    ): number {
+        return Math.floor(
+            (
+                value +
+                Number.EPSILON
+            ) *
+            100_000_000,
+        ) /
+            100_000_000;
+    }
+
+    private resetEditState(): void {
+        this.editAssets = [];
+        this.editHoldings = [];
+        this.editAvailableCash = 0;
+        this.isLoadingEditPortfolio =
+            false;
+        this.editSearchQuery = '';
+        this.editSearchResults = [];
+        this.editSearchError = '';
+        this.isSearchingEditAssets =
+            false;
+        this.editSelectedMarketAsset =
+            null;
+        this.editNewAssetQuantity =
+            null;
+        this.editNewAssetAmount =
+            null;
+        this.editAssetInputMode =
+            'BY_QUANTITY';
+        this.editSelectedAssetPrice =
+            null;
+        this.isLoadingEditAssetPrice =
+            false;
+        this.isAddingEditAsset =
+            false;
     }
 
     private subscribeToPortfolioChanges():

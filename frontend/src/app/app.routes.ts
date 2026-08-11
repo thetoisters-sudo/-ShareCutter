@@ -32,6 +32,24 @@ export const routes: Routes = [
         },
     },
     {
+        path: 'portfolios/:portfolioId/history',
+        canActivate: [
+            authGuard,
+        ],
+        loadComponent: () =>
+            import(
+                './features/portfolio-history/pages/portfolio-history-page/portfolio-history-page'
+            ).then(
+                (module) =>
+                    module.PortfolioHistoryPage,
+            ),
+        data: {
+            title: 'Portfolio History',
+            description:
+                'Review and export the complete transaction history of a portfolio.',
+        },
+    },
+    {
         path: 'portfolios',
         canActivate: [
             authGuard,

@@ -465,13 +465,26 @@
                 </button>
 
                 <button type="button" (click)="
-                                openRenameDialog(
+                                openEditDialog(
                                     portfolio
                                 )
                             ">
                     {{
-                    text().portfolios
-                    .rename
+                    text().transactions
+                    .edit
+                    }}
+                </button>
+
+                <button type="button" (click)="
+                        openPortfolioHistory(
+                            portfolio.id
+                        )
+                    ">
+                    {{
+                    text().portfolios.cancel ===
+                    'ביטול'
+                    ? 'היסטוריית תיק'
+                    : 'Portfolio history'
                     }}
                 </button>
 
@@ -1151,11 +1164,9 @@
                         }}
                         }
 
-                        @case ('rename') {
+                        @case ('edit') {
                         {{
-                        text()
-                        .portfolios
-                        .renameDialogTitle
+                        editDialogTitleLabel
                         }}
                         }
 
@@ -1771,22 +1782,8 @@
             </form>
             }
 
-            @case ('rename') {
-            <form class="portfolio-form" (ngSubmit)="submitRename()">
-                <p>
-                    {{
-                    text().portfolios
-                    .renamePrompt
-                    }}
-
-                    <strong>
-                        {{
-                        selectedPortfolio
-                        ?.name
-                        }}
-                    </strong>
-                </p>
-
+            @case ('edit') {
+            <div class="portfolio-form">
                 <label>
                     <span>
                         {{
@@ -1795,42 +1792,548 @@
                         }}
                     </span>
 
-                    <input type="text" name="renameValue" maxlength="120" autocomplete="off" [(ngModel)]="
-                                        renameValue
-                                    " />
+                    <input type="text" name="editName" maxlength="120" autocomplete="off" [(ngModel)]="editName" />
                 </label>
 
-                <footer class="
-                                    dialog-actions
+                <div class="dialog-actions">
+                    <button type="button" class="primary-button" [disabled]="
+                            isSubmitting ||
+                            !editName.trim() ||
+                            editName.trim() ===
+                            selectedPortfolio?.name
+                        " (click)="saveEditName()">
+                        {{
+                        isSubmitting
+                        ? text().portfolios.saving
+                        : text().portfolios.saveName
+                        }}
+                    </button>
+                </div>
+
+                @if (isLoadingEditPortfolio) {
+                <div class="
+                        allocation-state
+                        allocation-state--loading
+                    ">
+                    <span class="page-state__spinner" aria-hidden="true"></span>
+
+                    <p>
+                        {{
+                        text().portfolios
+                        .loadingAllocation
+                        }}
+                    </p>
+                </div>
+                } @else {
+                <section class="selection-summary">
+                    <div>
+                        <span>
+                            {{
+                            text().portfolios
+                            .availableCash
+                            }}
+                        </span>
+
+                        <strong>
+                            {{
+                            editAvailableCash
+                            | currency:
+                            'USD':
+                            'symbol':
+                            '1.2-2'
+                            }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>
+                            {{
+                            text().portfolios
+                            .activeAssets
+                            }}
+                        </span>
+
+                        <strong>
+                            {{ editHoldings.length }}
+                        </strong>
+                    </div>
+                </section>
+
+                <section class="holding-draft-list">
+                    <header class="
+                            holding-draft-list__header
+                        ">
+                        <strong>
+                            {{
+                            text().portfolios
+                            .holdingsAndWeights
+                            }}
+                        </strong>
+
+                        <span>
+                            {{ editHoldings.length }}
+                        </span>
+                    </header>
+
+                    @if (editHoldings.length === 0) {
+                    <p>
+                        {{
+                        text().portfolios
+                        .noAllocatedAssets
+                        }}
+                    </p>
+                    }
+
+                    @for (
+                    holding of editHoldings;
+                    track holding.assetId
+                    ) {
+                    <article class="holding-draft">
+                        <div class="
+                                holding-draft__identity
+                            ">
+                            <strong>
+                                {{ holding.symbol }}
+                            </strong>
+
+                            <span>
+                                {{
+                                holding.displayName
+                                }}
+                            </span>
+
+                            <small>
+                                {{
+                                holding.assetType
+                                }}
+                                ·
+                                {{
+                                holding.currency
+                                }}
+                                ·
+                                {{
+                                holding.currentPrice
+                                | currency:
+                                holding.currency:
+                                'symbol':
+                                '1.2-8'
+                                }}
+                            </small>
+                        </div>
+
+                        <div class="
+                                holding-draft__quantity
+                            ">
+                            <span>
+                                {{
+                                text().portfolios
+                                .quantity
+                                }}
+                            </span>
+
+                            <input type="number" min="0" step="0.00000001" [name]="
+                                    'editQuantity-' +
+                                    holding.assetId
+                                " [(ngModel)]="
+                                    holding.desiredQuantity
+                                " [disabled]="
+                                    holding.isSubmitting
+                                " />
+                        </div>
+
+                        <div class="result-actions">
+                            <button type="button" class="primary-button" [disabled]="
+                                    holding.isSubmitting
+                                " (click)="
+                                    updateEditHolding(
+                                        holding
+                                    )
                                 ">
-                    <button type="button" [disabled]="
-                                        isSubmitting
+                                {{
+                                holding.isSubmitting
+                                ? text().transactions.saving
+                                : text().transactions.edit
+                                }}
+                            </button>
+
+                            <button type="button" class="danger-button" [disabled]="
+                                    holding.isSubmitting
+                                " (click)="
+                                    removeEditHolding(
+                                        holding
+                                    )
+                                ">
+                                {{
+                                removeHoldingLabel
+                                }}
+                            </button>
+                        </div>
+
+                        @if (holding.errorMessage) {
+                        <p class="holdings-inline-error" role="alert">
+                            {{
+                            holding.errorMessage
+                            }}
+                        </p>
+                        }
+                    </article>
+                    }
+                </section>
+
+                <section class="holdings-creation">
+                    <header class="
+                            holdings-creation__header
+                        ">
+                        <div>
+                            <span class="
+                                    holdings-creation__eyebrow
+                                ">
+                                {{
+                                text().assets
+                                .liveMarketSearch
+                                }}
+                            </span>
+
+                            <h3>
+                                {{
+                                text().assets
+                                .addAsset
+                                }}
+                            </h3>
+                        </div>
+                    </header>
+
+                    <div class="holding-search">
+                        <label>
+                            <span>
+                                {{
+                                text().assets
+                                .symbolOrCompanyName
+                                }}
+                            </span>
+
+                            <div class="
+                                    holding-search__controls
+                                ">
+                                <input type="search" name="editSearchQuery" autocomplete="off" [placeholder]="
+                                        text()
+                                        .assets
+                                        .marketSearchPlaceholder
+                                    " [(ngModel)]="
+                                        editSearchQuery
+                                    " (keydown.enter)="
+                                        $event.preventDefault();
+                                        searchEditAssets()
+                                    " />
+
+                                <button type="button" class="secondary-button" [disabled]="
+                                        isSearchingEditAssets ||
+                                        isAddingEditAsset
                                     " (click)="
-                                        closeDialog()
+                                        searchEditAssets()
                                     ">
+                                    {{
+                                    isSearchingEditAssets
+                                    ? text().assets
+                                    .searchingMarket
+                                    : text().assets
+                                    .searchAssets
+                                    }}
+                                </button>
+                            </div>
+                        </label>
+
+                        @if (editSearchError) {
+                        <p class="holdings-inline-error" role="alert">
+                            {{
+                            editSearchError
+                            }}
+                        </p>
+                        }
+
+                        @if (
+                        editSearchResults.length >
+                        0 &&
+                        !editSelectedMarketAsset
+                        ) {
+                        <div class="
+                                holding-search-results
+                            ">
+                            @for (
+                            result of
+                            editSearchResults;
+                            track
+                            result.symbol +
+                            '-' +
+                            (
+                            result.exchange ??
+                            ''
+                            )
+                            ) {
+                            <button type="button" class="
+                                    holding-search-result
+                                " (click)="
+                                    selectEditAsset(
+                                        result
+                                    )
+                                ">
+                                <span class="
+                                        holding-search-result__symbol
+                                    ">
+                                    {{
+                                    result.symbol
+                                    }}
+                                </span>
+
+                                <span class="
+                                        holding-search-result__details
+                                    ">
+                                    <strong>
+                                        {{
+                                        result.displayName
+                                        }}
+                                    </strong>
+
+                                    <small>
+                                        {{
+                                        result.exchange ??
+                                        text().assets
+                                        .unknownExchange
+                                        }}
+                                        ·
+                                        {{
+                                        result.assetType
+                                        }}
+                                        ·
+                                        {{
+                                        result.currency
+                                        }}
+                                    </small>
+                                </span>
+                            </button>
+                            }
+                        </div>
+                        }
+                    </div>
+
+                    @if (editSelectedMarketAsset) {
+                    <section class="selected-holding">
+                        <header class="
+                                selected-holding__header
+                            ">
+                            <div>
+                                <span>
+                                    {{
+                                    text().assets
+                                    .selectedInstrument
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    editSelectedMarketAsset
+                                    .symbol
+                                    }}
+                                </strong>
+
+                                <small>
+                                    {{
+                                    editSelectedMarketAsset
+                                    .displayName
+                                    }}
+                                </small>
+                            </div>
+
+                            <button type="button" class="
+                                    selected-holding__clear
+                                " (click)="
+                                    clearEditSelectedAsset()
+                                ">
+                                {{
+                                text().assets
+                                .clearSelection
+                                }}
+                            </button>
+                        </header>
+
+                        <div class="allocation-form__grid">
+                            <button type="button" class="secondary-button" [class.primary-button]="
+                                    editAssetInputMode ===
+                                    'BY_QUANTITY'
+                                " (click)="
+                                    setEditAssetInputMode(
+                                        'BY_QUANTITY'
+                                    )
+                                ">
+                                {{
+                                text().transactions
+                                .calculateByQuantity
+                                }}
+                            </button>
+
+                            <button type="button" class="secondary-button" [class.primary-button]="
+                                    editAssetInputMode ===
+                                    'BY_AMOUNT'
+                                " (click)="
+                                    setEditAssetInputMode(
+                                        'BY_AMOUNT'
+                                    )
+                                ">
+                                {{
+                                text().transactions
+                                .calculateByAmount
+                                }}
+                            </button>
+                        </div>
+
+                        @if (isLoadingEditAssetPrice) {
+                        <p>
+                            {{
+                            text().transactions
+                            .loadingLiveMarketPrice
+                            }}
+                        </p>
+                        } @else if (
+                        editSelectedAssetPrice !== null
+                        ) {
+                        <div class="selection-summary">
+                            <div>
+                                <span>
+                                    {{
+                                    text().portfolios
+                                    .currentPrice
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    editSelectedAssetPrice
+                                    | currency:
+                                    editSelectedMarketAsset
+                                    .currency:
+                                    'symbol':
+                                    '1.2-8'
+                                    }}
+                                </strong>
+                            </div>
+
+                            <div>
+                                <span>
+                                    {{
+                                    text().portfolios
+                                    .availableCash
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    editAvailableCash
+                                    | currency:
+                                    'USD':
+                                    'symbol':
+                                    '1.2-2'
+                                    }}
+                                </strong>
+                            </div>
+                        </div>
+                        }
+
+                        @if (
+                        editAssetInputMode ===
+                        'BY_QUANTITY'
+                        ) {
+                        <label>
+                            <span>
+                                {{
+                                text().portfolios
+                                .quantity
+                                }}
+                            </span>
+
+                            <input type="number" name="editNewAssetQuantity" min="0.00000001" step="0.00000001"
+                                [(ngModel)]="
+                                    editNewAssetQuantity
+                                " />
+                        </label>
+                        } @else {
+                        <label>
+                            <span>
+                                {{
+                                text().transactions
+                                .totalAmount
+                                }}
+                            </span>
+
+                            <input type="number" name="editNewAssetAmount" min="0.01" step="0.01" [(ngModel)]="
+                                    editNewAssetAmount
+                                " />
+                        </label>
+
+                        @if (
+                        calculatedEditAssetQuantity !==
+                        null
+                        ) {
+                        <div class="selection-summary">
+                            <div>
+                                <span>
+                                    {{
+                                    text().portfolios
+                                    .quantity
+                                    }}
+                                </span>
+
+                                <strong>
+                                    {{
+                                    calculatedEditAssetQuantity
+                                    | number:'1.0-8'
+                                    }}
+                                </strong>
+                            </div>
+                        </div>
+                        }
+                        }
+
+                        <button type="button" class="primary-button" [disabled]="
+                                isAddingEditAsset ||
+                                isLoadingEditAssetPrice ||
+                                editSelectedAssetPrice === null
+                            " (click)="addEditAsset()">
+                            {{
+                            isAddingEditAsset
+                            ? text().transactions.adding
+                            : text().assets.addAsset
+                            }}
+                        </button>
+                    </section>
+                    }
+                </section>
+                }
+
+                <footer class="dialog-actions">
+                    <button type="button" [disabled]="
+                            isSubmitting ||
+                            isAddingEditAsset
+                        " (click)="closeDialog()">
                         {{
                         text().portfolios
                         .cancel
                         }}
                     </button>
 
-                    <button type="submit" class="
-                                        primary-button
-                                    " [disabled]="
-                                        isSubmitting
-                                    ">
+                    <button type="button" class="primary-button" [disabled]="
+                            isSubmitting ||
+                            isAddingEditAsset ||
+                            editHoldings.some(
+                                holding =>
+                                    holding.isSubmitting
+                            )
+                        " (click)="finishEdit()">
                         {{
-                        isSubmitting
-                        ? text()
-                        .portfolios
-                        .saving
-                        : text()
-                        .portfolios
-                        .saveName
+                        finishEditLabel
                         }}
                     </button>
                 </footer>
-            </form>
+            </div>
             }
 
             @case ('delete') {

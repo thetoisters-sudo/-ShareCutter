@@ -1,0 +1,474 @@
+<section class="portfolio-history-page">
+    <header class="history-header">
+        <div class="history-header__copy">
+            <span class="history-header__eyebrow">
+                {{
+                isHebrew
+                ? 'דוח פעילות'
+                : 'Activity report'
+                }}
+            </span>
+
+            <h1>
+                {{ pageTitle }}
+            </h1>
+
+            <p>
+                {{ pageDescription }}
+            </p>
+
+            @if (portfolio) {
+            <strong class="history-header__portfolio">
+                {{ portfolio.name }}
+            </strong>
+            }
+        </div>
+
+        <div class="history-header__actions">
+            <button type="button" class="secondary-button" (click)="goBack()">
+                {{ backLabel }}
+            </button>
+
+            <button type="button" class="primary-button" [disabled]="
+                    filteredTransactions.length === 0
+                " (click)="exportCsv()">
+                {{ exportLabel }}
+            </button>
+        </div>
+    </header>
+
+    @if (isLoading) {
+    <section class="history-state">
+        <span class="history-spinner" aria-hidden="true"></span>
+
+        <h2>
+            {{
+            isHebrew
+            ? 'טוען את היסטוריית התיק'
+            : 'Loading portfolio history'
+            }}
+        </h2>
+    </section>
+    } @else if (errorMessage) {
+    <section class="history-state history-state--error" role="alert">
+        <span class="history-state__icon">
+            !
+        </span>
+
+        <h2>
+            {{
+            isHebrew
+            ? 'היסטוריית התיק אינה זמינה'
+            : 'Portfolio history unavailable'
+            }}
+        </h2>
+
+        <p>
+            {{ errorMessage }}
+        </p>
+
+        <button type="button" class="secondary-button" (click)="goBack()">
+            {{ backLabel }}
+        </button>
+    </section>
+    } @else {
+    <section class="history-summary" aria-label="Portfolio history summary">
+        <article>
+            <span>
+                {{ totalActionsLabel }}
+            </span>
+
+            <strong>
+                {{ transactions.length }}
+            </strong>
+        </article>
+
+        <article>
+            <span>
+                {{ buysLabel }}
+            </span>
+
+            <strong>
+                {{ buyCount }}
+            </strong>
+        </article>
+
+        <article>
+            <span>
+                {{ sellsLabel }}
+            </span>
+
+            <strong>
+                {{ sellCount }}
+            </strong>
+        </article>
+
+        <article>
+            <span>
+                {{ cashActionsLabel }}
+            </span>
+
+            <strong>
+                {{ cashActionCount }}
+            </strong>
+        </article>
+
+        @if (summary) {
+        <article>
+            <span>
+                {{
+                text().dashboard.currentValue
+                }}
+            </span>
+
+            <strong>
+                {{
+                summary.currentValue
+                | currency:
+                'USD':
+                'symbol':
+                '1.2-2'
+                }}
+            </strong>
+        </article>
+
+        <article>
+            <span>
+                {{
+                text().dashboard.totalReturn
+                }}
+            </span>
+
+            <strong>
+                {{
+                summary.totalReturnPercent
+                | number:'1.2-2'
+                }}%
+            </strong>
+        </article>
+        }
+    </section>
+
+    <section class="history-filters">
+        <label>
+            <span>
+                {{
+                text().transactions.type
+                }}
+            </span>
+
+            <select [(ngModel)]="selectedType" (ngModelChange)="applyFilters()">
+                <option value="ALL">
+                    {{ allTypesLabel }}
+                </option>
+
+                <option value="BUY">
+                    {{
+                    text().transactions.typeBuy
+                    }}
+                </option>
+
+                <option value="SELL">
+                    {{
+                    text().transactions.typeSell
+                    }}
+                </option>
+
+                <option value="DIVIDEND">
+                    {{
+                    text().transactions
+                    .typeDividend
+                    }}
+                </option>
+
+                <option value="DEPOSIT">
+                    {{
+                    text().transactions
+                    .typeDeposit
+                    }}
+                </option>
+
+                <option value="WITHDRAWAL">
+                    {{
+                    text().transactions
+                    .typeWithdrawal
+                    }}
+                </option>
+
+                <option value="FEE">
+                    {{
+                    text().transactions.typeFee
+                    }}
+                </option>
+
+                <option value="TRANSFER_IN">
+                    {{
+                    text().transactions
+                    .typeTransferIn
+                    }}
+                </option>
+
+                <option value="TRANSFER_OUT">
+                    {{
+                    text().transactions
+                    .typeTransferOut
+                    }}
+                </option>
+            </select>
+        </label>
+
+        <label>
+            <span>
+                {{
+                text().transactions.fromDate
+                }}
+            </span>
+
+            <input type="date" [(ngModel)]="startDate" (ngModelChange)="applyFilters()" />
+        </label>
+
+        <label>
+            <span>
+                {{
+                text().transactions.toDate
+                }}
+            </span>
+
+            <input type="date" [(ngModel)]="endDate" (ngModelChange)="applyFilters()" />
+        </label>
+
+        <button type="button" class="secondary-button" (click)="clearFilters()">
+            {{
+            text().transactions.clear
+            }}
+        </button>
+    </section>
+
+    @if (
+    filteredTransactions.length === 0
+    ) {
+    <section class="history-state">
+        <span class="history-state__icon">
+            0
+        </span>
+
+        <h2>
+            {{ noResultsLabel }}
+        </h2>
+    </section>
+    } @else {
+    <section class="history-list">
+        @for (
+        item of displayedTransactions;
+        track item.transaction.id
+        ) {
+        <article class="history-entry">
+            <header class="history-entry__header">
+                <div>
+                    <span class="history-entry__type" [class.history-entry__type--buy]="
+                            item.transaction
+                            .transactionType ===
+                            'BUY'
+                        " [class.history-entry__type--sell]="
+                            item.transaction
+                            .transactionType ===
+                            'SELL'
+                        ">
+                        {{
+                        transactionTypeLabel(
+                        item.transaction
+                        .transactionType
+                        )
+                        }}
+                    </span>
+
+                    <strong>
+                        {{
+                        item.assetSymbol
+                        }}
+                    </strong>
+
+                    @if (item.assetName) {
+                    <small>
+                        {{ item.assetName }}
+                    </small>
+                    }
+                </div>
+
+                <time>
+                    {{
+                    item.transaction.executedAt
+                    | date:'medium'
+                    }}
+                </time>
+            </header>
+
+            <dl class="history-entry__details">
+                <div>
+                    <dt>
+                        {{
+                        text().transactions
+                        .totalAmount
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        item.transaction
+                        .totalAmount
+                        | currency:
+                        item.transaction
+                        .currency:
+                        'symbol':
+                        '1.2-8'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().transactions
+                        .quantity
+                        }}
+                    </dt>
+
+                    <dd>
+                        @if (
+                        item.transaction.quantity !==
+                        null
+                        ) {
+                        {{
+                        item.transaction.quantity
+                        | number:'1.0-8'
+                        }}
+                        } @else {
+                        {{
+                        text().transactions
+                        .notApplicable
+                        }}
+                        }
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().transactions
+                        .unitPrice
+                        }}
+                    </dt>
+
+                    <dd>
+                        @if (
+                        item.transaction.unitPrice !==
+                        null
+                        ) {
+                        {{
+                        item.transaction.unitPrice
+                        | currency:
+                        item.transaction.currency:
+                        'symbol':
+                        '1.2-8'
+                        }}
+                        } @else {
+                        {{
+                        text().transactions
+                        .notApplicable
+                        }}
+                        }
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().transactions.fee
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        (
+                        item.transaction.fee ??
+                        0
+                        )
+                        | currency:
+                        item.transaction.currency:
+                        'symbol':
+                        '1.2-8'
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        text().transactions
+                        .currency
+                        }}
+                    </dt>
+
+                    <dd>
+                        {{
+                        item.transaction.currency
+                        }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>
+                        {{
+                        isHebrew
+                        ? 'מזהה פעולה'
+                        : 'Transaction ID'
+                        }}
+                    </dt>
+
+                    <dd class="history-entry__id">
+                        {{
+                        item.transaction.id
+                        }}
+                    </dd>
+                </div>
+            </dl>
+
+            @if (item.transaction.notes) {
+            <p class="history-entry__notes">
+                {{ item.transaction.notes }}
+            </p>
+            }
+        </article>
+        }
+    </section>
+
+    <footer class="history-pagination">
+        <button type="button" class="secondary-button" [disabled]="currentPage === 0" (click)="previousPage()">
+            {{
+            text().transactions.previous
+            }}
+        </button>
+
+        <span>
+            {{
+            text().transactions.page
+            }}
+            {{ currentPage + 1 }}
+            {{
+            text().transactions.of
+            }}
+            {{ totalPages }}
+        </span>
+
+        <button type="button" class="secondary-button" [disabled]="
+                currentPage + 1 >=
+                totalPages
+            " (click)="nextPage()">
+            {{
+            text().transactions.next
+            }}
+        </button>
+    </footer>
+    }
+    }
+</section>
