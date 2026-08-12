@@ -32,25 +32,25 @@ Instead of treating transactions, holdings and portfolio values as unrelated rec
 
 ```text
 User Action
-    │
-    ▼
+    ג”‚
+    ג–¼
 Angular Frontend
-    │
-    ▼
+    ג”‚
+    ג–¼
 REST API
-    │
-    ▼
+    ג”‚
+    ג–¼
 Spring Boot Backend
-    │
-    ├── Authentication
-    ├── Portfolio Management
-    ├── Asset Management
-    ├── Transactions
-    ├── Allocation Engine
-    ├── Market Data
-    └── Portfolio Analytics
-    │
-    ▼
+    ג”‚
+    ג”ג”€ג”€ Authentication
+    ג”ג”€ג”€ Portfolio Management
+    ג”ג”€ג”€ Asset Management
+    ג”ג”€ג”€ Transactions
+    ג”ג”€ג”€ Allocation Engine
+    ג”ג”€ג”€ Market Data
+    ג””ג”€ג”€ Portfolio Analytics
+    ג”‚
+    ג–¼
 PostgreSQL
 ```
 
@@ -128,7 +128,7 @@ Users can work in both directions.
 ### Quantity to amount
 
 ```text
-Total Amount = Quantity × Current Market Price
+Total Amount = Quantity ֳ— Current Market Price
 ```
 
 ### Amount to quantity
@@ -174,26 +174,26 @@ Example:
 
 ```text
 Current Portfolio
-        │
-        ▼
+        ג”‚
+        ג–¼
 Target Asset Weight
-        │
-        ▼
+        ג”‚
+        ג–¼
 Current Market Price
-        │
-        ▼
+        ג”‚
+        ג–¼
 Required Position Value
-        │
-        ▼
+        ג”‚
+        ג–¼
 BUY / SELL Difference
-        │
-        ▼
+        ג”‚
+        ג–¼
 Fractional Quantity
-        │
-        ▼
+        ג”‚
+        ג–¼
 Transaction
-        │
-        ▼
+        ג”‚
+        ג–¼
 Updated Portfolio
 ```
 
@@ -314,20 +314,20 @@ The production system consists of three primary Railway services:
 
 ```text
 Internet
-   │
-   ▼
+   ג”‚
+   ג–¼
 ShareCutter Frontend
 Angular + Caddy
-   │
-   │ /api/*
-   ▼
+   ג”‚
+   ג”‚ /api/*
+   ג–¼
 Railway Private Network
-   │
-   ▼
+   ג”‚
+   ג–¼
 ShareCutter Backend
 Spring Boot
-   │
-   ▼
+   ג”‚
+   ג–¼
 PostgreSQL
 ```
 
@@ -351,18 +351,18 @@ The main application entities include:
 
 ```text
 User
- │
- └── Portfolio
-      │
-      ├── Asset
-      │
-      ├── Transaction
-      │
-      ├── Portfolio Holding
-      │
-      ├── Portfolio Snapshot
-      │
-      └── Weekly Portfolio Target
+ ג”‚
+ ג””ג”€ג”€ Portfolio
+      ג”‚
+      ג”ג”€ג”€ Asset
+      ג”‚
+      ג”ג”€ג”€ Transaction
+      ג”‚
+      ג”ג”€ג”€ Portfolio Holding
+      ג”‚
+      ג”ג”€ג”€ Portfolio Snapshot
+      ג”‚
+      ג””ג”€ג”€ Weekly Portfolio Target
 ```
 
 The database is versioned using Flyway migrations.
@@ -377,17 +377,17 @@ The security flow is:
 
 ```text
 Register / Login
-      │
-      ▼
+      ג”‚
+      ג–¼
 Spring Security
-      │
-      ▼
+      ג”‚
+      ג–¼
 JWT issued
-      │
-      ▼
+      ג”‚
+      ג–¼
 Angular stores authentication state
-      │
-      ▼
+      ג”‚
+      ג–¼
 Protected API requests
 ```
 
@@ -443,7 +443,7 @@ Install:
 Clone the repository:
 
 ```bash
-git clone https://github.com/thetoisters-sudo/-ShareCutter.git
+https://github.com/thetoisters-sudo/-ShareCutter
 cd ShareCutter
 ```
 
@@ -571,17 +571,17 @@ The user may then:
 
 ```text
 SELL AAPL
-      ↓
+      ג†“
 BUY fractional AAPL
-      ↓
+      ג†“
 Change target allocation
-      ↓
+      ג†“
 Execute automatic allocation
-      ↓
+      ג†“
 Update cash
-      ↓
+      ג†“
 Update holdings
-      ↓
+      ג†“
 Persist transaction history
 ```
 
@@ -633,4 +633,4 @@ https://sharecutter-frontend-production.up.railway.app/
 
 ## ShareCutter
 
-**Angular · Spring Boot · PostgreSQL · Docker · Railway**
+**Angular | Spring Boot | PostgreSQL | Docker | Railway**
