@@ -6,7 +6,7 @@ RUN npm install --global npm@10.8.3
 
 COPY package.json package-lock.json ./
 
-RUN npm ci
+RUN npm install
 
 COPY . .
 
